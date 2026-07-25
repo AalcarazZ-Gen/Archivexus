@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Archivexus favicon</title>
+  <defs><linearGradient id="cyan" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00F2FE"/><stop offset="100%" stop-color="#4FACFE"/></linearGradient><linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFE066"/><stop offset="50%" stop-color="#F59E0B"/><stop offset="100%" stop-color="#D97706"/></linearGradient></defs>
+  <polygon points="32,5 55,18.5 55,45.5 32,59 9,45.5 9,18.5" fill="#0F172A" stroke="url(#cyan)" stroke-width="2"/>
+  <polygon points="32,12 43.5,32 32,29.5" fill="url(#gold)"/><polygon points="32,12 20.5,32 32,29.5" fill="url(#gold)" opacity=".75"/><polygon points="32,52 43.5,32 32,34.5" fill="url(#gold)" opacity=".85"/><polygon points="32,52 20.5,32 32,34.5" fill="url(#gold)" opacity=".65"/><polygon points="32,29.5 43.5,32 32,34.5 20.5,32" fill="#FFF2B2" opacity=".65"/>
+</svg>

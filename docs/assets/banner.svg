@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0%" stop-color="#4F46E5"/><stop offset="100%" stop-color="#06B6D4"/></linearGradient></defs>
+<rect width="1200" height="300" fill="#0F172A"/>
+<circle cx="150" cy="150" r="70" fill="none" stroke="url(#g)" stroke-width="10"/>
+<path d="M105 150h90M150 105v90" stroke="url(#g)" stroke-width="8" stroke-linecap="round"/>
+<text x="260" y="125" fill="#F8FAFC" font-size="64" font-family="Arial, Helvetica, sans-serif" font-weight="700">Archivexus</text>
+<text x="260" y="175" fill="#94A3B8" font-size="26" font-family="Arial, Helvetica, sans-serif">Every world has a memory. Archivexus preserves it.</text>
+<path d="M260 205H980" stroke="url(#g)" stroke-width="3"/>
+</svg>
