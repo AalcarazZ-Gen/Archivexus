@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+  <title id="title">Archivexus application icon</title>
+  <defs>
+    <linearGradient id="background" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1E293B"/><stop offset="100%" stop-color="#0F172A"/></linearGradient>
+    <linearGradient id="cyan" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00F2FE"/><stop offset="100%" stop-color="#4FACFE"/></linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFE066"/><stop offset="50%" stop-color="#F59E0B"/><stop offset="100%" stop-color="#D97706"/></linearGradient>
+    <linearGradient id="violet" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#C084FC"/><stop offset="100%" stop-color="#7E22CE"/></linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="22" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#background)"/>
+  <g transform="translate(112 112) scale(4)"><polygon points="100,12 176.2,56 176.2,144 100,188 23.8,144 23.8,56" fill="none" stroke="url(#cyan)" stroke-width="4" opacity=".85"/><ellipse cx="100" cy="100" rx="76" ry="26" fill="none" stroke="url(#violet)" stroke-width="3" transform="rotate(-28 100 100)" opacity=".9"/><ellipse cx="100" cy="100" rx="76" ry="26" fill="none" stroke="url(#cyan)" stroke-width="3" transform="rotate(32 100 100)"/><g filter="url(#glow)"><polygon points="100,36 138,100 100,92" fill="url(#gold)"/><polygon points="100,36 62,100 100,92" fill="url(#gold)" opacity=".75"/><polygon points="100,164 138,100 100,108" fill="url(#gold)" opacity=".85"/><polygon points="100,164 62,100 100,108" fill="url(#gold)" opacity=".65"/><circle cx="100" cy="100" r="6" fill="#FFF"/></g><circle cx="100" cy="100" r="3" fill="#F59E0B"/></g>
+</svg>
