@@ -140,4 +140,4 @@ Architectural consistency takes priority over feature count.
 
 ## License
 
-See [LICENSE.md](LICENSE.md).
+See [LICENSE](LICENSE).
