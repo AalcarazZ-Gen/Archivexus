@@ -51,8 +51,10 @@ Examples include:
 - Organization
 - Event
 - Quest
-- Journal
+- Lore
 - Puzzle
+
+> **Note on Foundry Journals:** a Foundry `JournalEntry` is not itself an Archivexus domain concept — it's a Foundry-native container of pages. The Foundry Adapter maps each `JournalEntryPage` with its own semantic content to a Node, typed by what it actually describes (a page about a kingdom becomes a Kingdom Node); pages that don't fit an existing type become a `Lore` Node. See `03_DOMAIN_MODEL.md`'s Node Decisions.
 
 ---
 
@@ -98,19 +100,14 @@ The exact role of Blocks within the domain model is defined separately in
 
 # View
 
-A View is a projection of knowledge.
+A View is a Knowledge Element: a first-class, persisted projection of existing knowledge for a specific format and audience. It presents existing knowledge without owning or duplicating it.
 
-Views present existing knowledge without owning or duplicating it.
+A View is not a Node and not a Relationship — it is a third kind of Knowledge Element (see `03_DOMAIN_MODEL.md`'s Domain Hierarchy and ADR-0005).
 
-Examples include:
+Format and audience are independent properties of a View:
 
-- GM View
-- Player View
-- Public View
-- Timeline
-- Graph
-- Tree
-- Table
+- Format — what shape it renders as: Timeline, Graph, Tree, Table, Map.
+- Audience — expressed through the View's own Visibility (`hidden`, `visible`, `owned`), the same Visibility every Knowledge Element has. A separate "GM View / Player View / Public View" vocabulary isn't needed.
 
 ---
 

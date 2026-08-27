@@ -15,8 +15,11 @@ Knowledge Element
 ├── Node
 │      Represents a standalone concept
 │
-└── Relationship
-       Represents a fact connecting concepts
+├── Relationship
+│      Represents a fact connecting concepts
+│
+└── View
+       Represents a saved projection of knowledge, for a specific format and audience
 
 Definitions exist independently from domain instances.
 
@@ -72,6 +75,18 @@ It maps to `hidden`.
 
 `LIMITED` only exposes a Journal Entry's title and its position on a map, not its actual content — so from Archivexus's content-level point of view, nothing meaningful is actually visible. If a GM wants players to read the content, they raise the Foundry ownership level (to `OBSERVER` or above), which maps to `visible`. See `02_LANGUAGE.md`'s Visibility entry and `decisions/ADR-0003-visibility-model.md`.
 
+### Are Blocks mandatory on every Knowledge Element?
+
+No.
+
+Per this section's Domain Invariants, every Knowledge Element may exist without additional content. Blocks are optional — a Knowledge Element is valid and complete with zero Blocks attached.
+
+### Do Knowledge Elements expose their capabilities directly, or through composable behaviors (mixins/traits)?
+
+Directly.
+
+The Common Characteristics above (identity, visibility, history, Blocks, tags, references, Views, query) apply uniformly to every Knowledge Element — there's no case where a concept needs only some of them. The variability between a simple Item and a complex City isn't a capability difference; it's a content difference, already handled by Blocks (attachable content) and Relationships (connections to other Nodes, e.g. a City's factions and events as their own related Nodes) without needing the base contract itself to be composable.
+
 ---
 
 ## Open Questions
@@ -96,6 +111,7 @@ Examples include:
 - Quest
 - Item
 - Event
+- Lore
 - Puzzle
 
 ---
@@ -132,6 +148,18 @@ No.
 A new concept should be represented by a new Node.
 
 Relationships and History should preserve the evolution between Nodes.
+
+### Is a Foundry Journal (the whole `JournalEntry`) a Node?
+
+No — not as a single unit.
+
+A Foundry `JournalEntry` is a Foundry-native container of `JournalEntryPage` documents; the container itself is a storage detail, not an Archivexus domain concept (see `01_ARCHITECTURE.md`'s "Knowledge over Documents" principle). The Foundry Adapter maps each page with distinct semantic content to its own Node, typed by what that page actually describes — using that page's own Foundry UUID per ADR-0001. Pages that don't fit an existing type become a generic `Lore` Node.
+
+---
+
+## Open Questions
+
+None.
 
 ---
 
@@ -254,43 +282,55 @@ How should Definition version migration be handled?
 
 # View
 
-A View is a projection of existing knowledge for a specific audience and/or format. Views never own or duplicate knowledge (see `01_ARCHITECTURE.md`).
+A View is a Knowledge Element: a first-class, persisted projection of existing knowledge for a specific format and audience. Views never own or duplicate knowledge (see `01_ARCHITECTURE.md`) — a View's own content is its format, its Visibility scope, and however it selects or arranges the Knowledge Elements it projects; the underlying knowledge itself still lives only in the Nodes and Relationships it references.
 
-Whether View is itself a Knowledge Element, a Definition-driven object, or a purely computed projection with no persistent identity is not yet decided — see Open Questions below.
-
----
-
-## Additional Characteristics (draft)
-
-- [ ] Has a format (e.g. Timeline, Graph, Tree, Table, Map, Journal page).
-- [ ] Has a Visibility scope: who it is rendered for (GM, specific players, all players, public).
-- [ ] Is generated from one or more Knowledge Elements; stores no knowledge of its own.
+View is a third kind of Knowledge Element, alongside Node and Relationship (see Domain Hierarchy above) — it fits neither: it doesn't represent a standalone campaign concept the way a Node does, and it doesn't connect exactly two Nodes the way a Relationship does. As with Relationships and their Relationship Definitions, a **View Definition** (see `Definitions` below) describes a reusable format (e.g. "Timeline"), while a **View** is the saved instance a GM or player actually creates and names — using an Archivexus-internal identifier per ADR-0001, since it's an Archivexus-native concept with no Foundry document of its own. See ADR-0005.
 
 ---
 
-## Domain Invariants (draft)
+## Additional Characteristics
+
+- [x] Has a format (e.g. Timeline, Graph, Tree, Table, Map).
+- [x] Has Visibility, like every Knowledge Element — this alone determines its audience (GM-only, specific players, everyone). A separate "GM View / Player View / Public View" vocabulary isn't needed.
+- [x] Is generated from one or more Knowledge Elements; stores no knowledge of its own.
+- [x] Can be saved and revisited (e.g. a GM's manually arranged Graph layout, or a curated Timeline of two kingdoms' history).
+
+---
+
+## Domain Invariants
 
 - A View never modifies the Knowledge Elements it projects.
-- A View's content is always derivable from current Knowledge Elements plus its Visibility scope.
+- A View's content is always derivable from current Knowledge Elements plus its own Visibility scope.
+- Format and audience are independent properties of a View: format is what it renders as, audience is its Visibility.
 
 ---
 
-## Open Questions
+## Decisions
 
-- Is View a Knowledge Element (with identity, history, etc.), a Definition-driven object, or a purely computed projection with no persistent identity of its own?
-- Are format (Timeline/Graph/Tree/...) and audience (GM/Player/Public) independent, orthogonal properties of a View, or fixed named combinations? `02_LANGUAGE.md` and `01_ARCHITECTURE.md` currently give two different example lists that mix both without distinguishing them.
-- Should a saved/customized View (e.g. a GM's personally arranged Graph layout) be persisted, and if so, where?
+### Is View a Knowledge Element, a Definition-driven object, or a stateless projection with no identity?
+
+A Knowledge Element.
+
+GMs need to save and revisit curated views (e.g. "the major political factions of the kingdom", or "historical events of two kingdoms, arranged chronologically") rather than recompute them from scratch every time. That requires identity, history and Visibility — exactly what Knowledge Element already provides. See ADR-0005.
+
+### Are format and audience independent properties, or fixed named combinations?
+
+Independent. Format (Timeline/Graph/Tree/Table/Map) and audience are orthogonal — audience isn't a separate concept at all, it's just the View's own Visibility.
+
+### Should a saved/customized View be persisted, and if so where?
+
+Yes — as a Knowledge Element instance, with an Archivexus-internal identifier (per ADR-0001, since a View has no corresponding Foundry document).
 
 ---
 
 # Outstanding Questions
 
-The following questions remain intentionally unresolved.
+None. All previously open questions have been resolved — see the per-concept Decisions sections above, and ADR-0005 for View.
 
-A question should only disappear after the domain has reached consensus or an ADR has been accepted.
+Resolved this round (2026-08-27):
 
-- Are Blocks attached to every Knowledge Element?
-- Which concepts should be represented as Nodes instead of other Knowledge Elements?
-- Should Knowledge Elements expose capabilities directly or through composable behaviors?
-- Is View a first-class domain object, or a pure projection with no identity of its own?
-- How should a Knowledge Element be handled once its linked Foundry document is deleted (e.g. a rebuilt character sheet)? See `decisions/ADR-0004-orphaned-elements-relink.md`.
+- Which concepts should be represented as Nodes instead of other Knowledge Elements? → See Node's Decisions (Foundry Journal mapping).
+- Are Blocks attached to every Knowledge Element? → See Knowledge Element's Decisions (optional).
+- Should Knowledge Elements expose capabilities directly or through composable behaviors? → See Knowledge Element's Decisions (directly).
+- Is View a first-class domain object, or a pure projection with no identity of its own? → See View's Decisions and ADR-0005 (first-class Knowledge Element).
+- How should a Knowledge Element be handled once its linked Foundry document is deleted? → Already resolved by `decisions/ADR-0004-orphaned-elements-relink.md`; this entry was stale and is now removed.
