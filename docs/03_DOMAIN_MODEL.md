@@ -157,6 +157,12 @@ A Foundry `JournalEntry` is a Foundry-native container of `JournalEntryPage` doc
 
 ---
 
+## Open Questions
+
+None.
+
+---
+
 # Relationship
 
 A Relationship represents a fact connecting exactly two Nodes.

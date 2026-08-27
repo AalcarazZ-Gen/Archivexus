@@ -54,7 +54,7 @@ Examples include:
 - Lore
 - Puzzle
 
-> **Note on Foundry Journals:** a Foundry `JournalEntry` is not itself an Archivexus domain concept — it's a Foundry-native container of pages. The Foundry Adapter maps each `JournalEntryPage` with its own semantic content to a Node, typed by what it actually describes (a page about a kingdom becomes a Kingdom Node); pages that don't fit an existing type become a `Lore` Node. See `03_DOMAIN_MODEL.md`'s Node Decisions and ADR-0005.
+> **Note on Foundry Journals:** a Foundry `JournalEntry` is not itself an Archivexus domain concept — it's a Foundry-native container of pages. The Foundry Adapter maps each `JournalEntryPage` with its own semantic content to a Node, typed by what it actually describes (a page about a kingdom becomes a Kingdom Node); pages that don't fit an existing type become a `Lore` Node. See `03_DOMAIN_MODEL.md`'s Node Decisions.
 
 ---
 

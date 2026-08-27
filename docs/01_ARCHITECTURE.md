@@ -64,6 +64,7 @@ Current domain concepts include:
 
 - Nodes
 - Relationships
+- Views
 
 Future domain concepts should derive from the same abstraction unless there is a compelling architectural reason not to. 
 
@@ -89,9 +90,9 @@ Organization
 
 ## Blocks
 
-Blocks are modular units of content attached to Knowledge Elements. Their exact role is still under evaluation; the current hypothesis is that Knowledge Elements may own zero or more Blocks, letting Nodes and Relationships share the same content system.
+Blocks are modular units of content attached to Knowledge Elements. Knowledge Elements may own zero or more Blocks — Blocks are optional, not mandatory — letting Nodes, Relationships and Views share the same content system.
 
-See the related open question in `03_DOMAIN_MODEL.md`'s Outstanding Questions.
+See `03_DOMAIN_MODEL.md`'s Knowledge Element Decisions.
 
 ---
 
@@ -115,16 +116,15 @@ Knowledge Elements represent instances of knowledge.
 
 ## Views
 
-Views are projections of the same data.
+A View is a Knowledge Element — a saved projection of existing knowledge for a specific format and audience (see `03_DOMAIN_MODEL.md` and ADR-0005).
 
-Examples:
+Format examples:
 
-- Journal page
 - Timeline
 - Graph
 - Tree
-- Map
 - Table
+- Map
 
 Views never duplicate knowledge.
 
