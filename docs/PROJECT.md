@@ -46,3 +46,4 @@ None formally documented yet. Worth capturing here once real constraints appear 
 - Ubiquitous language: `02_LANGUAGE.md`
 - Domain model: `03_DOMAIN_MODEL.md`
 - Decisions: `decisions/`
+- Session log: `SESSION_LOG.md`

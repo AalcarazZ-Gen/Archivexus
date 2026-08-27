@@ -97,6 +97,7 @@ Architecture documentation lives inside the `docs` directory.
 | `02_LANGUAGE.md` | Official terminology |
 | `03_DOMAIN_MODEL.md` | Core domain model |
 | `PROJECT.md` | Current stage, stack, priorities |
+| `SESSION_LOG.md` | Running log of work sessions |
 | `decisions/` | Architecture Decision Records |
 
 More documents (storage, block system, relationship engine, worked examples) will be added here as those areas get designed — this table should only ever list files that actually exist.

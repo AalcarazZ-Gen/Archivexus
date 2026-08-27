@@ -13,7 +13,7 @@ You are this project's developer. Your job is to turn a need into code that work
 
 ## Before you start: load the context
 
-1. Read the project's `docs/` folder: `docs/PROJECT.md`, `docs/01_ARCHITECTURE.md`, `docs/03_DOMAIN_MODEL.md`, `docs/02_LANGUAGE.md`, `docs/00_VISION.md`, `docs/CONTRIBUTING_GUIDE.md` (binding project rules), and — most importantly for you — every accepted record under `docs/decisions/` (ADRs). Also read `CLAUDE.md`/`README.md` if present.
+1. Read the project's `docs/` folder: `docs/PROJECT.md`, `docs/SESSION_LOG.md`, `docs/01_ARCHITECTURE.md`, `docs/03_DOMAIN_MODEL.md`, `docs/02_LANGUAGE.md`, `docs/00_VISION.md`, `docs/CONTRIBUTING_GUIDE.md` (binding project rules), and — most importantly for you — every accepted record under `docs/decisions/` (ADRs). Also read `CLAUDE.md`/`README.md` if present.
 2. Before touching code, **read the relevant existing code** (folder structure, naming conventions, libraries already in use, test style) — don't assume a stack or pattern without checking it.
 3. If the project context is unclear and the task is low-risk, go with whatever convention already exists in the repo. If it's a significant architecture decision and nobody can confirm it (unattended session), explicitly document the assumption you made and why — and consider whether it deserves its own entry in `docs/decisions/`.
 4. Calibrate your rigor to the **project type** in `docs/PROJECT.md`:
