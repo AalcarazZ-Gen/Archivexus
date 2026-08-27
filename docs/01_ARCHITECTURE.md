@@ -21,25 +21,30 @@ the same conceptual model.
 
 # Architecture Overview
 
-```
-                 +----------------+
-                 |   User Tools   |
-                 +----------------+
-                  /      |       \
-                 /       |        \
-        Foundry VTT   Obsidian    Future Clients
-               \          |          /
+                +--------------------+
+                |    Applications    |
+                +--------------------+
+                 /        |        \
+                /         |         \
+        Foundry VTT   Obsidian   Future Clients
                 \         |         /
+                 \        |        /
                  +----------------+
-                 | Archivexus API |
+                 |    Adapters    |
                  +----------------+
                          |
-              +----------------------+
-              | Knowledge Graph Core |
-              +----------------------+
-                 |              |
-         Knowledge Elements   Relationships
-```
+          +-------------------------------+
+          |       Archivexus Core         |
+          |-------------------------------|
+          | Domain Model                  |
+          | Graph Engine                  |
+          | Business Rules                |
+          | Query API                     |
+          +-------------------------------+
+                         |
+                 +----------------+
+                 |    Storage     |
+                 +----------------+
 
 The Core is platform-agnostic.
 
@@ -51,45 +56,26 @@ No external application should define the domain model.
 
 ## Knowledge Elements
 
-Knowledge Elements are the fundamental unit of information.
+Knowledge Elements are the base abstraction of Archivexus.
 
-Examples include:
+Every managed piece of knowledge derives from a Knowledge Element.
 
-- Character
-- NPC
-- Location
-- Item
-- Event
-- Session
-- Organization
-- Quest
+Current domain concepts include:
 
-Every element has:
+- Nodes
+- Relationships
 
-- an identifier
-- a type
-- metadata
-- content
-- relationships
-
-The Core does not impose a fixed list of element types.
+Future domain concepts should derive from the same abstraction unless there is a compelling architectural reason not to. 
 
 ---
 
 ## Relationships
 
-Relationships connect Knowledge Elements.
+Relationships are first-class Knowledge Elements, directional by default. Directionality is a domain concern, not a visualization concern — bidirectional behavior should be expressed through Relationship Definitions.
 
-Relationships are first-class objects.
+For full characteristics, invariants and decisions, see `03_DOMAIN_MODEL.md`.
 
-They may contain:
-
-- metadata
-- timestamps
-- references
-- provenance
-
-Examples:
+Example:
 
 ```
 Character
@@ -99,34 +85,31 @@ Character
 Organization
 ```
 
-```
-Character
-    │
-    ├── killed
-    ▼
-Monster
-```
-
 ---
 
 ## Blocks
 
-Knowledge is composed of blocks.
+Blocks are modular units of content attached to Knowledge Elements. Their exact role is still under evaluation; the current hypothesis is that Knowledge Elements may own zero or more Blocks, letting Nodes and Relationships share the same content system.
 
-Blocks are reusable units of structured content.
+See the related open question in `03_DOMAIN_MODEL.md`'s Outstanding Questions.
 
-Examples:
+---
 
-- Rich text
-- Images
-- Tables
-- Maps
-- Stat blocks
-- References
+# Definitions
 
-The Core understands blocks conceptually.
+Definitions describe configurable domain concepts.
 
-Individual platforms decide how blocks are rendered.
+Rather than hardcoding relationship types, block types or view types, Archivexus allows them to be defined independently from their instances.
+
+Examples include:
+
+- Relationship Definitions
+- Block Definitions
+- View Definitions
+
+Definitions describe behavior.
+
+Knowledge Elements represent instances of knowledge.
 
 ---
 
@@ -144,6 +127,8 @@ Examples:
 - Table
 
 Views never duplicate knowledge.
+
+Views never modify the underlying knowledge.
 
 They only present it differently.
 
@@ -195,6 +180,7 @@ The Core contains:
 - validation
 - graph operations
 - business rules
+- query engine
 
 Everything else depends on the Core.
 
@@ -208,10 +194,13 @@ Storage is replaceable.
 
 Possible implementations include:
 
+- Foundry Flags
 - JSON
 - IndexedDB
 - SQLite
 - PostgreSQL
+
+This is the canonical list of storage candidates — other documents (`02_LANGUAGE.md`, `README.md`) should point here instead of repeating it.
 
 Changing storage must not affect the Core.
 
@@ -222,6 +211,37 @@ Changing storage must not affect the Core.
 ## Platform Independent
 
 The Core should never depend on Foundry or any other platform.
+
+## Knowledge over Documents
+
+Documents are delivery mechanisms.
+
+Knowledge is the domain.
+
+Archivexus models knowledge independently from how that knowledge is stored,
+rendered or consumed.
+
+Actors, Journals, Scenes, Maps and future integrations are simply different
+ways of exposing the same underlying knowledge.
+
+Knowledge should never be duplicated to satisfy a specific presentation.
+
+Instead, different representations should be generated from the same source of
+truth whenever possible.
+
+---
+
+# Domain Ownership
+
+Archivexus defines its own domain language.
+
+External platforms should adapt to Archivexus.
+
+Archivexus should never adapt its domain model to fit a specific platform.
+
+The Core owns the domain.
+
+Adapters own integrations.
 
 ---
 
@@ -270,4 +290,5 @@ Those topics belong in ADRs or implementation documentation.
 
 - 00_VISION.md
 - 02_LANGUAGE.md
+- 03_DOMAIN_MODEL.md
 - docs/decisions/

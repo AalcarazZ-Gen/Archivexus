@@ -55,13 +55,12 @@ The project is focused on defining its core architecture and domain model before
                                |
                      +---------v----------+
                      |   Archivexus Core  |
+                     |--------------------|
+                     |  Domain Model      |
+                     |  Graph Engine      |
+                     |  Business Rules    |
+                     |  Query API         |
                      +---------+----------+
-                               |
-          +--------------------+--------------------+
-          |                    |                    |
-      Knowledge            Relationships       Definitions
-          |                    |                    |
-          +--------------------+--------------------+
                                |
                            Storage Provider
                                |
@@ -69,6 +68,8 @@ The project is focused on defining its core architecture and domain model before
          |           |           |           |
       Flags       SQLite    PostgreSQL     Future
 ```
+
+(Matches the Core decomposition in `docs/01_ARCHITECTURE.md`, the canonical architecture document.)
 
 ---
 
@@ -94,12 +95,11 @@ Architecture documentation lives inside the `docs` directory.
 | `00_VISION.md` | Project vision and philosophy |
 | `01_ARCHITECTURE.md` | High-level system architecture |
 | `02_LANGUAGE.md` | Official terminology |
-| `03_DATA_MODEL.md` | Core data model |
-| `04_STORAGE.md` | Persistence layer |
-| `05_BLOCK_SYSTEM.md` | Block architecture |
-| `06_RELATIONSHIP_SYSTEM.md` | Relationship engine |
-| `07_EXAMPLES.md` | Domain examples |
+| `03_DOMAIN_MODEL.md` | Core domain model |
+| `PROJECT.md` | Current stage, stack, priorities |
 | `decisions/` | Architecture Decision Records |
+
+More documents (storage, block system, relationship engine, worked examples) will be added here as those areas get designed — this table should only ever list files that actually exist.
 
 ---
 
@@ -120,11 +120,7 @@ Future technologies may evolve as the project grows.
 
 ## Guiding Principles
 
-- Memory over Documentation
-- Relationships are First-Class Citizens
-- Single Source of Truth
-- Extensible by Design
-- Automation over Maintenance
+See the Core Principles in [`docs/00_VISION.md`](docs/00_VISION.md) — kept there as the single source of truth instead of duplicated here.
 
 ---
 

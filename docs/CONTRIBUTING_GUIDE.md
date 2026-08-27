@@ -14,6 +14,8 @@ Architecture before implementation.
 
 Every significant architectural decision must have an ADR.
 
+A smaller domain decision may instead live as a short Decision entry inside `03_DOMAIN_MODEL.md` — reserve a full ADR for decisions that need their own context and consequences to be understood (see `docs/decisions/README.md`).
+
 ---
 
 ## Rule 3
