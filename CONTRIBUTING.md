@@ -21,6 +21,7 @@ Recommended reading order:
 1. 00_VISION.md
 2. 02_LANGUAGE.md
 3. 01_ARCHITECTURE.md
+4. 03_DOMAIN_MODEL.md
 
 ---
 

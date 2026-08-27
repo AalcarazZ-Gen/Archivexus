@@ -1,8 +1,9 @@
-# Archivexus Language
+# 02_LANGUAGE
 
 This document defines the official terminology used throughout Archivexus.
 
-These definitions are architectural concepts and should remain independent from Foundry VTT or any future integrations.
+These definitions describe the project's ubiquitous language and should remain
+independent from any implementation, platform or storage technology.
 
 ---
 
@@ -10,37 +11,48 @@ These definitions are architectural concepts and should remain independent from 
 
 The base abstraction of Archivexus.
 
-Every piece of managed knowledge derives from a Knowledge Element.
+Every managed piece of knowledge derives from a Knowledge Element.
 
-Examples include:
+Knowledge Elements share a common set of capabilities defined by the domain model.
 
-- Nodes
-- Relationships
-- Relationship Definitions
-- Views
-- (Future concepts)
+See `03_DOMAIN_MODEL.md` for details.
 
-Knowledge Elements share common capabilities such as identity, visibility, history and metadata.
+---
+
+# Visibility
+
+Visibility determines which audience can perceive a Knowledge Element or a specific View of it. It is one of the Common Characteristics every Knowledge Element has (see `03_DOMAIN_MODEL.md`).
+
+Archivexus defines Visibility as its own concept, independent of any single platform's permission model. Per the Domain Ownership principle in `01_ARCHITECTURE.md`, a platform's native permission system is translated into Visibility by that platform's Adapter, not the other way around.
+
+Levels (see `decisions/ADR-0003-visibility-model.md`):
+
+- `hidden` — visible only to the GM.
+- `visible` — visible to players, but not editable by them.
+- `owned` — visible and editable by whoever holds ownership (GM or a delegated player).
+
+The Foundry Adapter maps Foundry's per-user ownership levels onto these: `NONE` → `hidden`, `LIMITED` → `hidden` (Foundry's `LIMITED` only exposes a Journal Entry's title and its position on a map, not its actual content, so from Archivexus's content-level point of view it is still effectively hidden), `OBSERVER` → `visible`, `OWNER` → `owned`.
 
 ---
 
 # Node
 
-A Node represents any entity with its own identity inside the campaign's knowledge model.
+A Node represents an entity with its own identity inside the campaign's
+knowledge model.
 
-Examples:
+Nodes exist independently.
+
+Examples include:
 
 - Character
 - Creature
 - City
 - Kingdom
-- Event
 - Organization
+- Event
 - Quest
 - Journal
 - Puzzle
-
-Nodes exist independently.
 
 ---
 
@@ -48,25 +60,23 @@ Nodes exist independently.
 
 A Relationship represents knowledge connecting two Nodes.
 
-Relationships are first-class elements.
+Relationships are first-class Knowledge Elements.
 
-They may contain their own metadata, visibility rules, history and custom properties.
+Relationships may contain their own metadata, visibility, history and custom
+properties.
 
-Examples:
-
-- Parent Of
-- Friend Of
-- Member Of
-- Works For
-- Located In
+Relationships are directional by default.
 
 ---
 
 # Relationship Definition
 
-Defines the behavior of a relationship type.
+A Relationship Definition describes the behavior of a relationship type.
 
-Examples:
+Rather than hardcoding relationship semantics, Archivexus models them as
+configurable definitions.
+
+Examples include:
 
 - inverse relationship
 - cardinality
@@ -75,42 +85,71 @@ Examples:
 
 ---
 
+# Block
+
+A Block is a modular unit of content.
+
+Blocks may be attached to Knowledge Elements.
+
+The exact role of Blocks within the domain model is defined separately in
+`03_DOMAIN_MODEL.md`.
+
+---
+
 # View
 
-A View represents a projection of knowledge.
+A View is a projection of knowledge.
 
-Examples:
+Views present existing knowledge without owning or duplicating it.
+
+Examples include:
 
 - GM View
 - Player View
 - Public View
 - Timeline
 - Graph
-
-Views never own data.
-
-They only represent it.
+- Tree
+- Table
 
 ---
 
 # Adapter
 
-Responsible for translating external systems into Archivexus concepts.
+An Adapter translates an external platform into Archivexus concepts.
 
-The first adapter will target Foundry VTT.
+Adapters are responsible for integration only.
 
-Future adapters may support other platforms.
+They should not contain domain logic.
+
+The first Adapter targets Foundry VTT.
+
+Future Adapters may support additional platforms.
 
 ---
 
 # Storage Provider
 
-Responsible for persisting Archivexus data.
+A Storage Provider is responsible for persisting Archivexus data.
 
-Examples:
+The Core remains independent from any storage implementation.
 
-- Foundry Flags
-- SQLite
-- PostgreSQL
+See the Storage section of `01_ARCHITECTURE.md` for the current list of possible implementations — kept there as the single source of truth instead of duplicated here.
 
-The Core should remain storage agnostic.
+---
+
+# Definition
+
+A Definition describes the behavior of configurable domain concepts.
+
+Definitions describe rules.
+
+Knowledge Elements represent instances.
+
+Examples include:
+
+- Relationship Definition
+- Block Definition
+- View Definition
+
+Future Definition types may be introduced without changing the Core domain.

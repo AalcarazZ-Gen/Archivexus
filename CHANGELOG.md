@@ -19,7 +19,7 @@ https://semver.org/
 - Initial project vision.
 - Initial architecture documentation.
 - Language specification.
-- Architecture Decision Records.
+- Architecture Decision Records (ADR-0001, ADR-0002).
 
 ### Changed
 
