@@ -48,3 +48,4 @@ _Previous priorities #1 and #2 (closing the docs consistency review findings, re
 - Ubiquitous language: `02_LANGUAGE.md`
 - Domain model: `03_DOMAIN_MODEL.md`
 - Decisions: `decisions/`
+- Session log: `SESSION_LOG.md`
