@@ -30,8 +30,9 @@ None formally documented yet. Worth capturing here once real constraints appear 
 
 ## Current priorities (next 2-4 weeks)
 
-1. Finish and reconcile the core documentation set (`00_VISION.md`, `01_ARCHITECTURE.md`, `02_LANGUAGE.md`, `03_DOMAIN_MODEL.md`) before starting implementation, per `CONTRIBUTING.md`'s "architecture before implementation" rule.
-2. (Fill in with whatever's actually next after the current docs review.)
+1. Close the remaining findings from the docs consistency review (PR #6): the ADR-0004 status vs. its own listed open questions, the Journal Node-vs-open-question contradiction between `02_LANGUAGE.md` and `03_DOMAIN_MODEL.md`, and the stale `CHANGELOG.md`.
+2. Resolve enough of `03_DOMAIN_MODEL.md`'s Outstanding Questions to unblock a first implementation slice — at minimum, which concepts count as Nodes (the Journal question) and whether Blocks are mandatory or optional on every Knowledge Element.
+3. Start implementation of the Core domain model (Knowledge Element base abstraction + Node) per `01_ARCHITECTURE.md`, scoped to the smallest vertical slice the Foundry Adapter needs first.
 
 ## Sensitive areas — don't touch or decide without asking first
 
