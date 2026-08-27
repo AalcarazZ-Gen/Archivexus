@@ -30,9 +30,11 @@ None formally documented yet. Worth capturing here once real constraints appear 
 
 ## Current priorities (next 2-4 weeks)
 
-1. Close the remaining findings from the docs consistency review (PR #6): the ADR-0004 status vs. its own listed open questions, the Journal Node-vs-open-question contradiction between `02_LANGUAGE.md` and `03_DOMAIN_MODEL.md`, and the stale `CHANGELOG.md`.
-2. Resolve enough of `03_DOMAIN_MODEL.md`'s Outstanding Questions to unblock a first implementation slice — at minimum, which concepts count as Nodes (the Journal question) and whether Blocks are mandatory or optional on every Knowledge Element.
-3. Start implementation of the Core domain model (Knowledge Element base abstraction + Node) per `01_ARCHITECTURE.md`, scoped to the smallest vertical slice the Foundry Adapter needs first.
+_Previous priorities #1 and #2 (closing the docs consistency review findings, resolving `03_DOMAIN_MODEL.md`'s Outstanding Questions) are done as of 2026-08-27 — see the per-concept Decisions sections in `03_DOMAIN_MODEL.md` and ADR-0005._
+
+1. Start implementation of the Core domain model (Knowledge Element base abstraction + Node) per `01_ARCHITECTURE.md`, scoped to the smallest vertical slice the Foundry Adapter needs first. (Board: CORE-001, CORE-002.)
+2. Implement the Foundry Adapter's `JournalEntryPage` → Node mapping, including the generic `Lore` Node type for pages that don't fit an existing type (per `03_DOMAIN_MODEL.md`'s Node Decisions and ADR-0005). (Board: ADAPT-001.)
+3. Once the Core slice is stable, extend to Relationship, then to View as a Knowledge Element (per ADR-0005) — View is lower priority since it depends on having enough Nodes/Relationships worth projecting.
 
 ## Sensitive areas — don't touch or decide without asking first
 
