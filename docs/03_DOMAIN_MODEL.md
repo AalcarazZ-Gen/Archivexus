@@ -135,18 +135,6 @@ Relationships and History should preserve the evolution between Nodes.
 
 ---
 
-## Open Questions
-
-Should every concept inside Archivexus be represented as a Node?
-
-Examples currently under evaluation:
-
-- Journal
-- Session
-- Note
-
----
-
 # Relationship
 
 A Relationship represents a fact connecting exactly two Nodes.

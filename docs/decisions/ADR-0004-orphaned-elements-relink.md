@@ -55,10 +55,3 @@ Since there is no reliable native signal, any matching Archivexus does will nece
 
 - **Fully automatic reconciliation with no confirmation** — rejected: no reliable native signal exists (Foundry's own `sourceId` mechanism is explicitly unreliable for this, per foundryvtt/foundryvtt#9097), so an automatic merge risks wrongly combining two unrelated characters' data.
 - **No reconciliation at all**, treat every new document as a brand-new Knowledge Element — rejected: this is the current status quo and a real problem GMs already run into; it silently orphans accumulated Relationships/History for no good reason.
-
----
-
-## Open questions before this can move to Accepted
-
-- What's the actual matching heuristic (name-similarity threshold, time window, which document types it applies to)? Needs a technical spike and some real playtesting, not just domain design.
-- Should orphaned Knowledge Elements appear in every View by default, or live behind a dedicated "needs attention" view so they don't clutter normal browsing?
