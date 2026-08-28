@@ -23,6 +23,7 @@ https://semver.org/
 - Operational project snapshot (`docs/PROJECT.md`).
 - ADR workflow documentation (`docs/decisions/README.md`, `docs/decisions/ADR-0000-template.md`).
 - Claude Code subagents for product ownership, UX/UI design, development, QA, and documentation review (`.claude/agents/`).
+- Claude Code subagents for cross-cutting system architecture (`architect.md`) and database administration (`dba.md`), and `reviewer.md` updated to route findings to them.
 
 ### Changed
 
