@@ -81,7 +81,7 @@ The project is focused on defining its core architecture and domain model before
 ├── src/
 ├── tests/
 ├── README.md
-└── LICENSE.md
+└── LICENSE
 ```
 
 ---
