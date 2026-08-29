@@ -16,6 +16,16 @@
 
 ---
 
+## 2026-08-29 (reviewer round)
+
+**Discussed:** User asked reviewer to audit the CORE-001 diff before merging. Reviewer read all of `docs/` and `.claude/agents/` and raised 5 findings plus a process note on the branch mixing two topics (CORE-001 + the software-developer git-workflow change). User: software-developer fixes findings 1-3, product-owner decides on 4 (dba + CONTRIBUTING_GUIDE), finding 5 gets reviewed/fixed, and this one time the mixed-topic branch is allowed — future PRs should stay single-topic (already stated in root `CONTRIBUTING.md`, now actually enforced going forward).
+
+**Formalized:** `package.json`'s `license` corrected `MIT` → `MPL-2.0` (matches actual `LICENSE`). `README.md`'s Current Status now says implementation has started instead of pre-implementation; its Repository Structure no longer shows a separate `tests/` folder (tests are colocated as `*.test.ts`), also now stated in `CONTRIBUTING.md`'s Coding Standards. Stale `0000-template.md` citations fixed to `ADR-0000-template.md` in `architect.md`, `software-developer.md`, this file, and the `agents-core` canonical `architect.md`/`software-developer.md` — same recurring citation-bug pattern as 2026-08-27, this time caught by a repo-wide grep instead of one instance at a time. Product Owner call: yes, `dba.md` needed the same `## Git workflow` section as `software-developer.md` (same Bash/Write/Edit footprint, same need) — added to both the Archivexus copy and the `agents-core` canonical one, with an extra DBA-specific line about not squashing across already-applied migrations. The git workflow itself is now also `docs/CONTRIBUTING_GUIDE.md` Rule 11 — a binding project rule, not just something the two agent files happen to say, per Rule 4 (avoid duplicate sources of truth): Rule 11 is the short binding statement, the agent files carry the operational detail.
+
+**Still informal / not yet formalized:** Same as the previous entry — storage engine(s)/sync model, CORE-002/ADAPT-001 not started, board's CORE-001 card not moved. Whether the same git-workflow pattern should also extend to `architect.md` (it has a `Write` tool for ADRs, but ADRs arguably don't go through the same PR ceremony) wasn't raised or decided this round — worth a look if that assumption ever stops holding.
+
+---
+
 ## 2026-08-28 (reviewer round 2)
 
 **Discussed:** Second reviewer pass on the architect/dba rollout, applying its findings as software-developer.
@@ -42,7 +52,7 @@
 
 **Formalized:** `agents-core/agents/architect.md`, `agents-core/agents/dba.md` created; `agents-core/README.md` and `agents/reviewer.md` updated to reference both new roles (role list, file tree, review-output grouping). `.claude/agents/` in this repo updated with `architect.md`, `dba.md`, and the refreshed `reviewer.md`.
 
-**Still informal / not yet formalized:** Which storage engine(s) Archivexus will actually use, and the local/remote sync model — that's exactly what the new architect/DBA roles exist to work through once implementation reaches the storage stage (see `PROJECT.md`'s current priorities). No ADR yet for storage/sync — write one once a direction is chosen, following `decisions/0000-template.md`.
+**Still informal / not yet formalized:** Which storage engine(s) Archivexus will actually use, and the local/remote sync model — that's exactly what the new architect/DBA roles exist to work through once implementation reaches the storage stage (see `PROJECT.md`'s current priorities). No ADR yet for storage/sync — write one once a direction is chosen, following `decisions/ADR-0000-template.md`.
 
 ---
 
