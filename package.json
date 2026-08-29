@@ -4,7 +4,7 @@
   "description": "A knowledge engine that represents a campaign's world as a connected graph of knowledge — platform-agnostic Core with adapters for Foundry VTT and future platforms.",
   "type": "module",
   "private": true,
-  "license": "MIT",
+  "license": "MPL-2.0",
   "scripts": {
     "build": "vite build",
     "test": "vitest run",
