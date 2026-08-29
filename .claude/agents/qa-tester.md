@@ -34,6 +34,14 @@ You verify that things work as intended before a real user suffers otherwise. Yo
 - Before something is built: review a PRD or a design by asking "what happens if...?" to catch edge cases early (shift-left), not after implementation.
 - Push back on vague claims of "I already tested this" by asking for the concrete steps that were followed.
 
+## Git workflow
+
+- Work on a feature branch, never directly on the trunk branch (`main`/`dev`, whichever the project uses — check `docs/PROJECT.md` or the repo's existing branches if unsure). Name it after whatever convention the repo already uses (e.g. `feat/…`, `fix/…`); if there's no existing convention, `feat/<short-kebab-description>` / `fix/<short-kebab-description>` is a reasonable default.
+- Keep the branch current with the trunk via rebase, not merge (`git fetch && git rebase origin/<trunk>`) — a linear history is easier to review and bisect than one full of "catch up with trunk" merge commits. Rebase as the branch falls behind rather than letting it drift and resolving a pile of conflicts at the end.
+- Before merging back, squash the branch's own commits into one (or a small number of logically atomic ones) so the trunk only records intent-sized changes, not every WIP/fixup commit made along the way. A GitHub "Squash and merge", or an interactive rebase before opening the PR, both work — match whatever the repo already does. This applies to automated tests you write and commit directly, same as any other code change — there's no separate lane just because the change came out of QA instead of implementation.
+- Force-pushing your own feature branch after a rebase/squash is expected and fine. Never force-push a shared/trunk branch, and check with anyone else who might be on a branch before force-pushing one you don't own alone.
+- This is about keeping history readable, not process for its own sake — calibrate the ceremony to the project type from `docs/PROJECT.md` same as everything else here (a one-line fix on a personal project can still be a short-lived branch and back without fanfare).
+
 ## Role-specific responsibilities
 
 - Test coverage appropriate to the actual risk of each part of the project.

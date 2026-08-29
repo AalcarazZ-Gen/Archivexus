@@ -22,7 +22,17 @@
 
 **Formalized:** `package.json`'s `license` corrected `MIT` → `MPL-2.0` (matches actual `LICENSE`). `README.md`'s Current Status now says implementation has started instead of pre-implementation; its Repository Structure no longer shows a separate `tests/` folder (tests are colocated as `*.test.ts`), also now stated in `CONTRIBUTING.md`'s Coding Standards. Stale `0000-template.md` citations fixed to `ADR-0000-template.md` in `architect.md`, `software-developer.md`, this file, and the `agents-core` canonical `architect.md`/`software-developer.md` — same recurring citation-bug pattern as 2026-08-27, this time caught by a repo-wide grep instead of one instance at a time. Product Owner call: yes, `dba.md` needed the same `## Git workflow` section as `software-developer.md` (same Bash/Write/Edit footprint, same need) — added to both the Archivexus copy and the `agents-core` canonical one, with an extra DBA-specific line about not squashing across already-applied migrations. The git workflow itself is now also `docs/CONTRIBUTING_GUIDE.md` Rule 11 — a binding project rule, not just something the two agent files happen to say, per Rule 4 (avoid duplicate sources of truth): Rule 11 is the short binding statement, the agent files carry the operational detail.
 
-**Still informal / not yet formalized:** Same as the previous entry — storage engine(s)/sync model, CORE-002/ADAPT-001 not started, board's CORE-001 card not moved. Whether the same git-workflow pattern should also extend to `architect.md` (it has a `Write` tool for ADRs, but ADRs arguably don't go through the same PR ceremony) wasn't raised or decided this round — worth a look if that assumption ever stops holding.
+**Still informal / not yet formalized:** Same as the previous entry — storage engine(s)/sync model, CORE-002/ADAPT-001 not started, board's CORE-001 card not moved.
+
+---
+
+## 2026-08-29 (git workflow follow-up)
+
+**Discussed:** User asked why `architect.md` would need the `## Git workflow` section given it doesn't touch code. Checked the actual tool grants instead of pattern-matching on `Write`: `architect.md` has `Write` but no `Bash`, so it has no way to execute `git` commands itself — the earlier note was wrong, retracted. Checking tools properly surfaced a real gap instead: `qa-tester.md` has both `Bash` and `Write`, and its own Deliverable mode already says it writes automated tests when asked — same category as `dba.md`, just missed the first time.
+
+**Formalized:** Added `## Git workflow` to `qa-tester.md` (Archivexus and the `agents-core` canonical copy), identical to `software-developer.md`'s with one QA-specific line: automated tests it commits follow the same branch/rebase/squash flow as any other code change.
+
+**Still informal / not yet formalized:** Same as prior entries. The tool-grant check (does this role have `Bash`?) is now the actual test for whether a role needs this section — worth applying it again if a new role gets added later instead of re-deriving it from scratch.
 
 ---
 
