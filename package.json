@@ -1,0 +1,27 @@
+{
+  "name": "archivexus",
+  "version": "0.1.0",
+  "description": "A knowledge engine that represents a campaign's world as a connected graph of knowledge — platform-agnostic Core with adapters for Foundry VTT and future platforms.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.19.0",
+    "@typescript-eslint/eslint-plugin": "^8.22.0",
+    "@typescript-eslint/parser": "^8.22.0",
+    "eslint": "^9.19.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11",
+    "vitest": "^3.0.4"
+  }
+}
