@@ -28,6 +28,7 @@ https://semver.org/
 - Core domain: `KnowledgeElement` base abstraction (`src/core/domain/`) — the shared shape every Node, Relationship and View will compose with, plus its supporting value types (`Visibility`, `Tag`, `HistoryEntry`, `Block`, `KnowledgeElementReference`), a validating `createKnowledgeElement` factory enforcing the Domain Invariants from `03_DOMAIN_MODEL.md`, and unit tests (CORE-001).
 - `docs/CONTRIBUTING_GUIDE.md` Rule 11: the feature-branch + rebase + squash git workflow is now a binding project rule, not just something one agent happens to mention.
 - `.claude/agents/dba.md` (and its `agents-core` canonical copy): added the same `## Git workflow` section as `software-developer.md`, plus a DBA-specific note on not squashing across already-applied migrations — product-owner call, since DBA has the same Bash/Write/Edit footprint as software-developer and was missing it.
+- `.claude/agents/qa-tester.md` (and its `agents-core` canonical copy): added the same `## Git workflow` section — qa-tester has `Bash` + `Write` (writes automated tests per its own Deliverable mode) and was missing it too. `architect.md` was considered and correctly excluded: it has `Write` but no `Bash`, so it has no way to execute the workflow itself.
 
 ### Changed
 
