@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-29
+
+**Discussed:** PO check-in — confirmed the 2026-08-27 domain-model diff was already committed/pushed to `dev` (nothing left to review there), then started implementation with CORE-001. User confirmed `npm install && npm test` ran clean on their own machine (the sandbox and the device-bridge Linux VM couldn't reach the npm registry, and separately the bridge VM's arch mismatches the user's real Mac for native deps like `rollup`, so verification there stays moot). Also fed back that the `software-developer` agent should call out a branch + rebase/squash git workflow explicitly.
+
+**Formalized:** Project scaffolding added (`package.json`, `tsconfig.json`, `vitest.config.ts`, `eslint.config.js`, `.prettierrc.json`). CORE-001 implemented: `src/core/domain/knowledge-element.ts` (the `KnowledgeElement` base abstraction, a validating `createKnowledgeElement` factory, `isKnowledgeElement` type guard) plus its supporting value types in `visibility.ts`, `tag.ts`, `history.ts`, `block.ts`, `reference.ts`, and unit tests in `knowledge-element.test.ts` covering the Domain Invariants from `03_DOMAIN_MODEL.md`. Default `Visibility` when none is given was set to `hidden` (fail-closed) — not specified by the domain model, flagged as an assumption rather than turned into a Decision entry unilaterally. Node dependencies could not be installed in this session (npm registry blocked by this environment's egress allowlist on both the local device shell and the cloud sandbox) — verified instead with the sandbox's global `tsc --noEmit` (clean) and a throwaway `node:assert` script exercising the same cases as the Vitest suite (13/13 passed); confirmed for real afterwards when the user ran `npm install && npm test` themselves — passed. `.claude/agents/software-developer.md` (and its `agents-core` canonical copy) got a new `## Git workflow` section: feature branches off trunk, rebase to stay current, squash before merging back.
+
+**Still informal / not yet formalized:** Storage engine(s) and local/remote sync model, same as prior entries. CORE-002 (Node) and ADAPT-001 (Foundry `JournalEntryPage` → Node mapping) are next per `PROJECT.md`'s priorities; neither started. User enabled Claude in Chrome and the built-in browser for GitHub access this session — the board's CORE-001 card still isn't moved off "Ready for Implementation" to reflect that the code is written; do that before or while starting CORE-002.
+
+---
+
 ## 2026-08-28 (reviewer round 2)
 
 **Discussed:** Second reviewer pass on the architect/dba rollout, applying its findings as software-developer.
