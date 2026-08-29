@@ -24,11 +24,11 @@ Archivexus should focus on remembering everything else.
 
 ## Current Status
 
-> 🚧 **Early Architecture Phase**
+> 🔨 **Implementation Started**
 
-Archivexus is currently under active design.
+Archivexus's core architecture and domain model are settled — see [`docs/03_DOMAIN_MODEL.md`](docs/03_DOMAIN_MODEL.md) and the accepted records under [`docs/decisions/`](docs/decisions/).
 
-The project is focused on defining its core architecture and domain model before implementation begins.
+The Core is now being implemented incrementally, starting with the `KnowledgeElement` base abstraction. See [`docs/PROJECT.md`](docs/PROJECT.md) for the current stage and priorities.
 
 ---
 
@@ -78,8 +78,7 @@ The project is focused on defining its core architecture and domain model before
 ```text
 .
 ├── docs/
-├── src/
-├── tests/
+├── src/        (tests colocated as *.test.ts next to what they test)
 ├── README.md
 └── LICENSE
 ```

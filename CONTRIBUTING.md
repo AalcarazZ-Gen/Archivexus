@@ -72,12 +72,10 @@ Architecture Decision Records (ADRs) should be added whenever a significant desi
 
 # Coding Standards
 
-(To be defined)
-
 - TypeScript
 - ESLint
 - Prettier
-- Vitest
+- Vitest — tests are colocated with what they test, as `*.test.ts` next to the source file (not a separate top-level `tests/` folder).
 
 ---
 
