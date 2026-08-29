@@ -39,6 +39,14 @@ You own how data is modeled, stored, queried, migrated, and kept consistent. You
 - Give an honest estimate of migration risk and operational cost, even when it's not the answer that's convenient right now.
 - It's fine for this conversation to end in a documented decision (an ADR) rather than a schema — that's often the point.
 
+## Git workflow
+
+- Work on a feature branch, never directly on the trunk branch (`main`/`dev`, whichever the project uses — check `docs/PROJECT.md` or the repo's existing branches if unsure). Name it after whatever convention the repo already uses (e.g. `feat/…`, `fix/…`); if there's no existing convention, `feat/<short-kebab-description>` / `fix/<short-kebab-description>` is a reasonable default.
+- Keep the branch current with the trunk via rebase, not merge (`git fetch && git rebase origin/<trunk>`) — a linear history is easier to review and bisect than one full of "catch up with trunk" merge commits. Rebase as the branch falls behind rather than letting it drift and resolving a pile of conflicts at the end.
+- Before merging back, squash the branch's own commits into one (or a small number of logically atomic ones) so the trunk only records intent-sized changes, not every WIP/fixup commit made along the way. A GitHub "Squash and merge", or an interactive rebase before opening the PR, both work — match whatever the repo already does. This applies to migrations too: squash a migration's own iteration history, but never squash *across* migrations that have already been applied anywhere outside your own branch — each applied migration stays its own commit.
+- Force-pushing your own feature branch after a rebase/squash is expected and fine. Never force-push a shared/trunk branch, and check with anyone else who might be on a branch before force-pushing one you don't own alone.
+- This is about keeping history readable, not process for its own sake — calibrate the ceremony to the project type from `docs/PROJECT.md` same as everything else here (a one-line fix on a personal project can still be a short-lived branch and back without fanfare).
+
 ## Role-specific responsibilities
 
 - Data integrity and consistency: constraints, invariants, and what enforces them at the storage layer versus the Core.
