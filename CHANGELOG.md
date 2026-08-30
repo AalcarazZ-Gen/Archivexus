@@ -49,6 +49,7 @@ https://semver.org/
 
 ### Fixed
 
+- `docs/PROJECT.md`'s Stage section still said ADAPT-002 was "not yet built or released," contradicting Current priorities item 4 a few lines below, which correctly states it's built, released and confirmed live at `localhost:30000` — caught by reviewer, Stage reworded to match.
 - `package.json` declared `"license": "MIT"`; the repo's actual `LICENSE` is Mozilla Public License 2.0 — corrected to `"MPL-2.0"`.
 - Stale `0000-template.md` references corrected to `ADR-0000-template.md` (the file's actual name) in `architect.md`, `software-developer.md` and `SESSION_LOG.md` — same in `agents-core`'s canonical `architect.md`/`software-developer.md`. Same recurring wrong-citation pattern flagged in the 2026-08-27 session; reviewer caught these via a repo-wide grep.
 - `docs/02_LANGUAGE.md`'s Node examples list was missing `Item` (present in `03_DOMAIN_MODEL.md`'s Node section and `KNOWN_NODE_TYPES` in `src/core/domain/node.ts`, both of which cite `03_DOMAIN_MODEL.md`) — added, and reordered to match the other two lists exactly.
