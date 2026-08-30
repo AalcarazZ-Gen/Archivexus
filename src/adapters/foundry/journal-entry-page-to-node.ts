@@ -43,8 +43,8 @@ const FOUNDRY_OWNERSHIP_OWNER = 3;
  *   type (Character, Kingdom, ...) this page represents. This adapter does
  *   *not* try to infer a type from the page's title or content — guessing a
  *   semantic type from free text is business logic, and Adapters must
- *   contain none (CONTRIBUTING_GUIDE.md Rule 3; 01_ARCHITECTURE.md's
- *   Adapters section). Without this flag, the page becomes a generic `Lore`
+ *   contain none (01_ARCHITECTURE.md's Adapters section: "Adapters should
+ *   contain no business logic."). Without this flag, the page becomes a generic `Lore`
  *   Node — exactly the fallback 03_DOMAIN_MODEL.md's Node Decisions call for
  *   ("pages that don't fit an existing type become a generic Lore Node").
  *

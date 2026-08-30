@@ -6,11 +6,21 @@
 
 ---
 
+## 2026-08-30 (reviewer round 4: ADAPT-001)
+
+**Discussed:** Reviewer audited ADAPT-001 and found two issues: `02_LANGUAGE.md`/`03_DOMAIN_MODEL.md`'s Node sections described the Foundry Adapter as typing a page "by what it actually describes" — reads as automatic content inference, contradicting the actual GM-flag-only implementation (correctly avoiding business logic in the Adapter, but the domain docs never caught up); and a wrong citation ("CONTRIBUTING_GUIDE.md Rule 3" instead of `01_ARCHITECTURE.md`'s Adapters section) carried into the code comments, `CHANGELOG.md` and this file — same recurring citation-bug pattern as before, apparently inherited from the GitHub issue's own Acceptance Criteria text. User: software-developer fixes both.
+
+**Formalized:** `02_LANGUAGE.md` and `03_DOMAIN_MODEL.md`'s Node sections reworded to describe the real mechanism (explicit GM-set flag, not content inference). The wrong `CONTRIBUTING_GUIDE.md` Rule 3 citation corrected to `01_ARCHITECTURE.md`'s Adapters section in `journal-entry-page-to-node.ts`, `CHANGELOG.md` and this file. Re-verified with `tsc --noEmit` (clean, comment-only code change).
+
+**Still informal / not yet formalized:** Same as prior entries. Note for later: the GitHub issue #10's own Acceptance Criteria text still carries the wrong Rule 3 citation — outside what this session can edit via the filesystem, worth a manual fix on the issue itself.
+
+---
+
 ## 2026-08-30 (ADAPT-001)
 
 **Discussed:** Product Owner confirmed board/repo state was clean (CORE-002 merged and pushed, board and `docs/PROJECT.md` in sync) before handing off to software-developer for ADAPT-001. No Foundry types dependency exists yet (`package.json` has none, and npm registry is still blocked in this session besides), so the adapter was scoped as a pure mapping function against a minimal structural type rather than a real Foundry API dependency.
 
-**Formalized:** ADAPT-001 implemented: `src/adapters/foundry/journal-entry-page-to-node.ts` — `mapJournalEntryPageToNode` maps a Foundry `JournalEntryPage` to a Node. id from `uuid` (ADR-0001), title from `name`, type from an explicit `flags.archivexus.nodeType` GM flag (falling back to `Lore`) rather than any content-based inference (Adapters carry no business logic, CONTRIBUTING_GUIDE.md Rule 3), visibility from `ownership.default` per 02_LANGUAGE.md/ADR-0003's mapping. Two explicit scope decisions, documented in code comments: Foundry's `-1` ownership-inheritance sentinel isn't resolved here (needs a live Foundry instance, out of scope for a pure function) and falls through to Node's own `hidden` default; page content/text isn't mapped to Blocks yet, since `Block`'s shape is still an explicit placeholder. Same verification approach as CORE-001/CORE-002: `tsc --noEmit` clean on the production sources, throwaway `node:assert` script mirroring the Vitest suite (14/14 passed).
+**Formalized:** ADAPT-001 implemented: `src/adapters/foundry/journal-entry-page-to-node.ts` — `mapJournalEntryPageToNode` maps a Foundry `JournalEntryPage` to a Node. id from `uuid` (ADR-0001), title from `name`, type from an explicit `flags.archivexus.nodeType` GM flag (falling back to `Lore`) rather than any content-based inference (Adapters carry no business logic, per `01_ARCHITECTURE.md`'s Adapters section), visibility from `ownership.default` per 02_LANGUAGE.md/ADR-0003's mapping. Two explicit scope decisions, documented in code comments: Foundry's `-1` ownership-inheritance sentinel isn't resolved here (needs a live Foundry instance, out of scope for a pure function) and falls through to Node's own `hidden` default; page content/text isn't mapped to Blocks yet, since `Block`'s shape is still an explicit placeholder. Same verification approach as CORE-001/CORE-002: `tsc --noEmit` clean on the production sources, throwaway `node:assert` script mirroring the Vitest suite (14/14 passed).
 
 **Still informal / not yet formalized:** Storage engine(s)/sync model. Board still shows ADAPT-001 as "Ready for Implementation" — move it once reviewed/merged. Block's shape and a live-Foundry integration (reading real documents, resolving ownership inheritance) are still open, not yet their own tickets.
 
