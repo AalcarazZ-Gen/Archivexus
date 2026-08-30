@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-30 (real campaign restored: ADAPT-004 implemented, #25 fixed)
+
+**Discussed:** User restored their real campaign into the test world ("Academia El Último Norte", dnd5e, Foundry v14.367 — 41 Actors, 22 Scenes, 61 journal pages) and asked product-owner, qa-tester and ux-ui-designer to test what they needed to continue. QA pulled the real data live via Claude in Chrome: confirmed Foundry's own `actor.type` splits Actors four ways (character/npc/encounter/group) with 0/41 flagged yet, and — running real page data through `mapJournalEntryPageToNode` — found and reproduced a real bug (issue #25): 5 distinct real NPCs' "Retrato" pages collapsed to one shared Node title. Product-owner scoped ADAPT-004 against the real actor-type mix (comment on #22) and sequenced #25. ux-ui-designer proposed a GM-tagging flow for `flags.archivexus.nodeType`, informed by the same real numbers (comment on #20). User then asked to resolve ADAPT-004 and #25 before finishing for the day.
+
+**Formalized:** ADAPT-004 implemented (`src/adapters/foundry/actor-to-node.ts`, `mapActorToNode`) — same pattern as ADAPT-001, flat "Character" fallback with no branching on Foundry's own `actor.type`, per the product-owner decision on #22. Tested against 14 synthetic cases plus 4 real Actors (one per real `actor.type`). Issue #25 fixed: `FoundryJournalEntryPageLike` gained an optional `parent.name`, and `mapJournalEntryPageToNode` now qualifies the title as `"{parent.name} — {name}"` only when that disambiguates anything, falling back to the bare page name otherwise (fully backward compatible). Re-ran the actual 5 real "Retrato" uuids from #25 through the fixed function — now 5 distinct titles, confirmed. Both verified the same way as every prior task: `tsc --noEmit` and `eslint` clean, plus a throwaway `node:assert` script per change (19/19 and 6/6 assertions respectively) since `vitest` still can't run in this session. Three separate feature branches (`feat/adapt-004-actor-to-node`, `fix/adapt-001-title-collision`, plus this docs-sync commit) — kept independent since they touch disjoint files, single-topic per branch.
+
+**Still informal / not yet formalized:** Actor items/embedded documents, Scenes, and the GM-tagging UI itself are all still open (ADAPT-005, ADAPT-003).
+
+---
+
 ## 2026-08-30 (PO: fix stale Stage claim, reviewer round 6)
 
 **Discussed:** Reviewer audited `chore/scope-adapt-004-005` (git status clean, eslint clean repo-wide, ADAPT-004/005 issue text and the live-fixtures test cross-checked against docs — all consistent) and found one real contradiction: `docs/PROJECT.md`'s Stage section still said ADAPT-002 was "not yet built or released," directly contradicted a few lines below by Current priorities item 4, which correctly says it's built, released, installed, and confirmed live at `localhost:30000`. User: product-owner fixes it.
