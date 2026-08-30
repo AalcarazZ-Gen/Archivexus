@@ -45,6 +45,7 @@ https://semver.org/
 - Reconciled View's format/audience vocabulary between `02_LANGUAGE.md` and `03_DOMAIN_MODEL.md` — audience is now expressed via Visibility instead of a separate "GM/Player/Public View" vocabulary.
 - `README.md`'s Current Status now reflects that implementation has started, instead of still saying pre-implementation. Its Repository Structure no longer shows a separate top-level `tests/` folder — tests are colocated as `*.test.ts` next to what they test, now also stated in `CONTRIBUTING.md`'s Coding Standards.
 - `docs/PROJECT.md`: Stage and Current priorities updated now that CORE-002 (`Node`) is merged to `dev` (board card moved to Done, issue #9 auto-closed); ADAPT-001 (Foundry Adapter) moved to "Ready for Implementation" on the board as the next task.
+- `docs/PROJECT.md`: Current priorities updated to reflect ADAPT-002 merged and verified live, and two new backlog items scoped: ADAPT-004 (map Foundry `Actor` to Node, issue #22) and ADAPT-005 (decide how Foundry `Scene`s map into Archivexus — an open domain question, not yet an implementation ticket, issue #23), both ahead of ADAPT-003 in sequence per the user's priority to import their real campaign next.
 
 ### Fixed
 
