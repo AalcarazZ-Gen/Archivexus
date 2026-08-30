@@ -20,3 +20,6 @@ foundrydata/
 
 temp/
 .claude/settings.local.json
+
+# Local agent personas — kept on disk, not tracked (per-contributor tooling choice, not a source-of-truth dependency)
+.claude/agents/
