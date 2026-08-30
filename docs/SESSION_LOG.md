@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-30 (software-developer: repo cleanup — inline docs + untrack .claude/agents)
+
+**Discussed:** User asked for two cleanup items before starting today's tickets, both scoped to software-developer: (1) several `src/` files had gone over 50% (up to 85%) comment lines — JSDoc essays restating domain rationale that already lives in `03_DOMAIN_MODEL.md`/ADRs — and well-structured code shouldn't need that much explanation; (2) `.claude/agents/*.md` should stop being tracked in git, since an external contributor has no obligation to use this project's specific agent personas.
+
+**Formalized:** Untracked the 7 `.claude/agents/*.md` files (`git rm --cached` + added `.claude/agents/` to `.gitignore`) — files stay on disk for local use, only future commits stop including them; past history (including the original "feat: Added new agents" commit) still has them, since rewriting a shared trunk branch's history wasn't worth the risk for this. Synthesized the 12 worst-offending files across `src/core/domain/` and `src/adapters/foundry/` to a sample-first, then full pass (user approved the `knowledge-element.ts` sample before the rest): kept the single non-obvious "why" plus a pointer to the doc/ADR with the full rationale, cut restatement and inline test-data specifics. Verified no logic changed by diffing each file's comment/blank-stripped content against `HEAD` (byte-identical) and a clean `tsc --noEmit`.
+
+**Still informal / not yet formalized:** Could not run the real Vitest suite or `eslint` — this session's sandbox has no npm registry access (proxy returns 403), the same limitation the 2026-08-29 session hit. An `npm install` attempted mid-session to chase an unrelated `@rollup/rollup-linux-arm64-gnu` error left `node_modules` incomplete (missing `vitest`/`eslint`/`prettier` binaries) — needs a plain `npm install` from a shell with real network access before `npm test`/`npm run lint` will work again locally.
+
+---
+
 ## 2026-08-30 (product-owner: reorganize milestones)
 
 **Discussed:** User noticed the board's milestones were stale — "Foundry Adapter" and other milestones already worked on show nothing assigned, and questioned whether the "Sprint 0" milestone makes sense at all for this project (personal/fun, favors speed over process per `docs/PROJECT.md`'s Type). Checked GitHub: all 3 existing milestones (`Sprint 0` / description "Domain Design", `Core Foundation`, `Foundry Adapter`) had zero issues assigned despite 13 of 14 issues being closed — created early, never actually used to track work as it happened.

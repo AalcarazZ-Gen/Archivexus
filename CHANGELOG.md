@@ -39,6 +39,8 @@ https://semver.org/
 
 ### Changed
 
+- Synthesized inline documentation across `src/core/domain/` and `src/adapters/foundry/` — several files were up to 85% comment lines, restating rationale already captured in `03_DOMAIN_MODEL.md`, the ADRs, and this file. Condensed to the non-obvious 'why' plus a pointer to where the full rationale lives; no logic changes (verified by diffing comment-stripped output against `HEAD`, plus a clean `tsc --noEmit`).
+
 - `.claude/agents/software-developer.md` (and its canonical copy in `agents-core`): added a `## Git workflow` section — feature branches off trunk, rebase (not merge) to stay current, squash before merging back — per user feedback after CORE-001.
 - Reconciled `01_ARCHITECTURE.md`, `02_LANGUAGE.md` and `03_DOMAIN_MODEL.md` for consistency (single source of truth for Storage, Visibility vocabulary, Relationship-endpoint rules).
 - Clarified when a decision needs a full ADR vs. a lightweight entry in `03_DOMAIN_MODEL.md` (`docs/CONTRIBUTING_GUIDE.md`, `CONTRIBUTING.md`).
@@ -65,3 +67,5 @@ https://semver.org/
 - `module-entry.ts` failed `npm run lint`: `no-undef` flagged `Hooks` and `console` because ESLint's `no-undef` rule doesn't read the ambient declarations in `foundry-globals.d.ts`, only its own `globals` config (reviewer caught this by actually running `eslint`, not just `tsc`). Fixed by adding `eslint.config.js`'s `FOUNDRY_ADAPTER_GLOBALS` list (currently just `Hooks`) plus `console`, scoped to `src/adapters/foundry/**/*.ts` and explicitly documented to be kept in sync with `foundry-globals.d.ts`.
 
 ### Removed
+
+- `.claude/agents/*.md` (7 subagent personas) untracked from git — kept on disk for local use, but a repo shouldn't require an external contributor to adopt this project's specific agent tooling. `.claude/agents/` added to `.gitignore`; past commits still contain them (no history rewrite on a shared trunk branch).
