@@ -219,6 +219,14 @@ Relationships describe facts between Nodes; their origin and target must always 
 
 This isn't just a structural rule for its own sake — it holds up because the needs that would seem to require it are already covered without it. A Relationship can record its own reasoning and history via its own History and Blocks (e.g. an alliance's History can note "broken after the betrayal of X" without a separate Relationship pointing at it), and cross-referencing another fact elsewhere in the graph is covered by the lightweight reference capability every Knowledge Element has (see the note in the Knowledge Element section above), not by a structural connection. A Relationship may still be lightly mentioned/referenced like any other Knowledge Element — it just can't be an endpoint of another Relationship.
 
+### Does a Relationship Definition carry anything about query/traversal, beyond inverse, cardinality, symmetry and validation?
+
+Yes — a `traversalCategory`, from a small, closed taxonomy (`location`, `affiliation`, `kinship`, `conflict`, `governance`, `participation`, `ownership`, `narrative`). It's a property of the Relationship Definition, not of each Relationship instance, so a taxonomy change stays bounded to a small number of Definitions. This is what lets a View select which connected Relationships to include without referencing concrete relationship types one by one. See `decisions/ADR-0007-relationship-view-traversal.md`.
+
+### Can a Relationship survive the deletion of its origin or target Node?
+
+Yes. Cascading the delete would silently destroy a historical fact just because one endpoint was removed, contradicting "History is Part of the World"; blocking the delete instead adds resolution friction the project doesn't need. A Relationship whose origin or target no longer resolves to an existing Node is simply excluded wherever current Nodes are expected (e.g. View traversal) — no special-case logic needed. This doesn't resolve the broader question of Node deletion policy (hard delete vs. archival), which stays open for whoever designs delete workflows. See ADR-0007.
+
 ---
 
 ## Open Questions
@@ -322,11 +330,21 @@ Independent. Format (Timeline/Graph/Tree/Table/Map) and audience are orthogonal 
 
 Yes — as a Knowledge Element instance, with an Archivexus-internal identifier (per ADR-0001, since a View has no corresponding Foundry document).
 
+### How does a View select which connected Relationships/Nodes to include when generated or expanded (e.g. clicking a Node in a Graph View)?
+
+A declarative spec on the View, expressed in Relationship Definition's `traversalCategory` vocabulary plus a depth, resolved by a Core Query API — never a per-View-format traversal implementation, never a general query language. For the MVP, the GM only ever picks among 3 fixed presets ("Direct only" — 1 hop, every category; "Everything connected" — composed traversal to depth 2; "Curated by me" — manual per-Node curation starting from "Direct only"), not open per-category config. Because the spec is declarative and re-evaluated against current Knowledge Elements, this satisfies the "always derivable" Domain Invariant above with no extra effort; a saved expand/collapse arrangement is presentation metadata over that derivable content, not additional knowledge, so it doesn't strain the invariant either. See `decisions/ADR-0007-relationship-view-traversal.md`.
+
+---
+
+## Open Questions
+
+Which attribute (if any) orders results within a large same-category cluster (e.g. which of 40 residents shows first, before a "+36 more")? Not resolved by ADR-0007 — deferred to whoever implements the View/UI layer.
+
 ---
 
 # Outstanding Questions
 
-None. All previously open questions have been resolved — see the per-concept Decisions sections above, and ADR-0005 for View.
+One open item — see View's own Open Questions section: which attribute orders results within a large same-category cluster. Not blocking (traversal itself is fully resolved by ADR-0007); deferred to whoever implements the View/UI layer.
 
 Resolved this round (2026-08-27):
 
@@ -335,3 +353,7 @@ Resolved this round (2026-08-27):
 - Should Knowledge Elements expose capabilities directly or through composable behaviors? → See Knowledge Element's Decisions (directly).
 - Is View a first-class domain object, or a pure projection with no identity of its own? → See View's Decisions and ADR-0005 (first-class Knowledge Element).
 - How should a Knowledge Element be handled once its linked Foundry document is deleted? → Already resolved by `decisions/ADR-0004-orphaned-elements-relink.md`; this entry was stale and is now removed.
+
+Resolved this round (2026-08-30):
+
+- What mechanism governs which connected Relationships/Nodes a View selects when generated or expanded? → See Relationship's and View's Decisions sections, and `decisions/ADR-0007-relationship-view-traversal.md`.

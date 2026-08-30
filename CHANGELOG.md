@@ -16,6 +16,7 @@ https://semver.org/
 
 ### Added
 
+- `decisions/ADR-0007-relationship-view-traversal.md`: how a View selects which connected Relationships/Nodes to include when generated or expanded (e.g. clicking a City in a Graph View). Relationship Definition gains a `traversalCategory` (small closed taxonomy: location, affiliation, kinship, conflict, governance, participation, ownership, narrative); a View stores a declarative spec (categories + depth) resolved by a new Core Query API, engine-agnostic and shared by every View format. MVP scope is 3 fixed presets (Direct only / Everything connected, depth 2 / Curated by me), not open per-category config. Also resolves that a Relationship may survive its origin/target Node being deleted (no cascade, no delete-blocking — traversal excludes it naturally). Reached by consulting architect, product-owner, dba and ux-ui-designer independently, who converged on the same shape unprompted; `03_DOMAIN_MODEL.md`'s Relationship and View Decisions sections updated to match, plus `02_LANGUAGE.md`'s Relationship Definition examples.
 - Initial project vision.
 - Initial architecture documentation.
 - Language specification.

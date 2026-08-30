@@ -86,6 +86,7 @@ Examples include:
 - cardinality
 - symmetry
 - validation rules
+- traversal category (which View traversal groups this relationship type belongs to — see `03_DOMAIN_MODEL.md`'s Relationship Decisions and `decisions/ADR-0007-relationship-view-traversal.md`)
 
 ---
 

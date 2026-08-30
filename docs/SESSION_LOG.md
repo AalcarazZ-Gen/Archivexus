@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-30 (product-owner brainstorm: Relationship/View traversal, ADR-0007)
+
+**Discussed:** Alberto raised what he called the load-bearing open question of the whole project: when a Graph View shows a Node and the GM clicks it (e.g. a City), what determines which connected Relationships/Nodes get pulled in — residents? political factions? criminal or religious organizations? He suspected this needed GM configuration at View-creation time, but worried a non-technical GM couldn't handle a query/traversal system, and asked for input from all the roles.
+
+**Formalized:** Consulted architect, product-owner, dba and ux-ui-designer independently (each given the same domain context and question, no visibility into each other's answers) — they converged unprompted on the same shape: a small closed `traversalCategory` on Relationship Definition (not per-Relationship-instance), a declarative spec on the View resolved by a new Core Query API (engine-agnostic, one execution path for every View format), and 3 fixed MVP presets (Direct only / Everything connected / Curated by me) instead of open per-category config, with an explicit signal for when real config earns its place. A second round resolved cross-role follow-ups: dangling references (a Relationship survives its Node being deleted — no cascade, no delete-blocking, consistent with "History is Part of the World"), a DBA caution for STORE-001 (don't declare a relational FK with RESTRICT/CASCADE on Relationship.origin/target, it would silently reintroduce the rejected cascade/blocking behavior), and three UX refinements ("Direct only" ships pre-selected, the flood safety-valve applies to "Everything connected" by default, "Curated by me" starts from "Direct only" and the GM prunes rather than building from a blank canvas). Alberto then worked through a concrete worked example (a City with 6 direct neighbors vs. what depth 2 additionally pulls in) to understand what "depth" actually means, clarified that "Everything connected" should extend in-depth along each neighbor's own chains rather than laterally at the root, and confirmed depth = 2 on that basis. Landed as `decisions/ADR-0007-relationship-view-traversal.md` (Accepted), with `03_DOMAIN_MODEL.md`'s Relationship and View Decisions sections, its Outstanding Questions, and `02_LANGUAGE.md`'s Relationship Definition examples updated to match.
+
+**Still informal / not yet formalized:** Content-prominence ordering within a large same-category cluster (e.g. which of 40 residents shows first) — filed as View's own Open Question, explicitly deferred to whoever implements the View/UI layer, not blocking ADR-0007. Relationship and View implementation itself hasn't started; this session was groundwork for it, not the implementation.
+
+---
+
 ## 2026-08-30 (software-developer: repo cleanup — inline docs + untrack .claude/agents)
 
 **Discussed:** User asked for two cleanup items before starting today's tickets, both scoped to software-developer: (1) several `src/` files had gone over 50% (up to 85%) comment lines — JSDoc essays restating domain rationale that already lives in `03_DOMAIN_MODEL.md`/ADRs — and well-structured code shouldn't need that much explanation; (2) `.claude/agents/*.md` should stop being tracked in git, since an external contributor has no obligation to use this project's specific agent personas.
