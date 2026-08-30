@@ -49,8 +49,9 @@ Examples include:
 - City
 - Kingdom
 - Organization
-- Event
 - Quest
+- Item
+- Event
 - Lore
 - Puzzle
 

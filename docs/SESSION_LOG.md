@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-30 (reviewer round 3)
+
+**Discussed:** Reviewer audited the branch after CORE-002's backtick fix and found two new issues: `02_LANGUAGE.md`'s Node examples list missing `Item` (present in `03_DOMAIN_MODEL.md` and `KNOWN_NODE_TYPES`), and `README.md`/`CONTRIBUTING.md` still claiming the project is pre-implementation — the same recurring stale-cross-reference pattern as the `0000-template.md` citations. User: software-developer fixes both.
+
+**Formalized:** `02_LANGUAGE.md`'s Node examples list now matches `03_DOMAIN_MODEL.md`/`node.ts` exactly (added `Item`, reordered to line up). `README.md`'s Contributing section and `CONTRIBUTING.md`'s opening now say implementation is underway instead of "early architecture phase"/pre-implementation, consistent with `README.md`'s own Current Status and `docs/PROJECT.md`'s Stage.
+
+**Still informal / not yet formalized:** Same as prior entries — storage engine(s)/sync model, board's CORE-002 card not moved yet, ADAPT-001 next.
+
+---
+
 ## 2026-08-29
 
 **Discussed:** PO check-in — confirmed the 2026-08-27 domain-model diff was already committed/pushed to `dev` (nothing left to review there), then started implementation with CORE-001. User confirmed `npm install && npm test` ran clean on their own machine (the sandbox and the device-bridge Linux VM couldn't reach the npm registry, and separately the bridge VM's arch mismatches the user's real Mac for native deps like `rollup`, so verification there stays moot). Also fed back that the `software-developer` agent should call out a branch + rebase/squash git workflow explicitly.

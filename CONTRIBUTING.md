@@ -2,9 +2,7 @@
 
 First of all, thank you for your interest in contributing to Archivexus.
 
-The project is currently in its early architecture phase.
-
-At this stage, consistency is more important than speed.
+The domain model and architecture are settled; implementation is now underway (see `docs/PROJECT.md` for the current stage). Consistency with the settled architecture still matters more than speed.
 
 ---
 

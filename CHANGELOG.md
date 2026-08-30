@@ -45,5 +45,7 @@ https://semver.org/
 
 - `package.json` declared `"license": "MIT"`; the repo's actual `LICENSE` is Mozilla Public License 2.0 — corrected to `"MPL-2.0"`.
 - Stale `0000-template.md` references corrected to `ADR-0000-template.md` (the file's actual name) in `architect.md`, `software-developer.md` and `SESSION_LOG.md` — same in `agents-core`'s canonical `architect.md`/`software-developer.md`. Same recurring wrong-citation pattern flagged in the 2026-08-27 session; reviewer caught these via a repo-wide grep.
+- `docs/02_LANGUAGE.md`'s Node examples list was missing `Item` (present in `03_DOMAIN_MODEL.md`'s Node section and `KNOWN_NODE_TYPES` in `src/core/domain/node.ts`, both of which cite `03_DOMAIN_MODEL.md`) — added, and reordered to match the other two lists exactly.
+- `README.md`'s Contributing section and `CONTRIBUTING.md`'s opening still claimed the project was in an "early architecture phase"/pre-implementation, contradicting `README.md`'s own already-fixed Current Status section and `docs/PROJECT.md`'s Stage — same recurring stale-claim pattern as the `0000-template.md` citations; caught by reviewer, both updated to reflect that implementation is underway.
 
 ### Removed
