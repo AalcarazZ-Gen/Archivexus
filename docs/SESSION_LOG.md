@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-30 (PO: fix stale Stage claim, reviewer round 6)
+
+**Discussed:** Reviewer audited `chore/scope-adapt-004-005` (git status clean, eslint clean repo-wide, ADAPT-004/005 issue text and the live-fixtures test cross-checked against docs — all consistent) and found one real contradiction: `docs/PROJECT.md`'s Stage section still said ADAPT-002 was "not yet built or released," directly contradicted a few lines below by Current priorities item 4, which correctly says it's built, released, installed, and confirmed live at `localhost:30000`. User: product-owner fixes it.
+
+**Formalized:** `docs/PROJECT.md`'s Stage paragraph updated to match Current priorities item 4 — states ADAPT-002 is built, released and manually installed, confirmed loading in a live Foundry v14 GM session, while keeping the ADR-0006 context for why building itself stays a manual, locally-run step.
+
+**Still informal / not yet formalized:** Same as the ADAPT-004/005 entry below — no code yet for either ticket, ADAPT-003 not started, QA fixtures still live in the "Dev test" world.
+
+---
+
 ## 2026-08-30 (PO: scope ADAPT-004/005 for real-campaign import)
 
 **Discussed:** With QA's live Foundry fixtures validating ADAPT-001 against real data, user asked product-owner to scope the next step toward importing their actual campaign (which has actors and scenes, not just journal entries) while they went to review QA's work themselves.
