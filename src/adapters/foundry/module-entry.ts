@@ -13,8 +13,11 @@
  * step, not the integration itself.
  */
 
+import { createLogger } from './logger.js';
+
 const MODULE_ID = 'archivexus';
+const log = createLogger(MODULE_ID);
 
 Hooks.once('init', () => {
-  console.log(`${MODULE_ID} | Initializing`);
+  log.info('Initializing');
 });
