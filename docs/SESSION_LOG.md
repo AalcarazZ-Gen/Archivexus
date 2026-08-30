@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-30 (PO check-in: CORE-002 done, next task)
+
+**Discussed:** User asked to move on to the next task. Found CORE-002 already rebased onto `dev` and pushed to `origin/dev` (the user handled it independently, same as CORE-001) — confirmed via the repo's own reflog and `origin/dev`'s cached state matching local `dev` exactly.
+
+**Formalized:** Board updated: CORE-002 (#9) moved to Done (auto-closed the issue); ADAPT-001 (#10) moved from Inbox to "Ready for Implementation" as the next task — its issue is already fully specified (decision made, related docs linked, acceptance criteria listed). `docs/PROJECT.md`'s Stage and Current priorities updated to match.
+
+**Still informal / not yet formalized:** Storage engine(s)/sync model, same as prior entries. ADAPT-001 not started yet.
+
+---
+
 ## 2026-08-30 (reviewer round 3)
 
 **Discussed:** Reviewer audited the branch after CORE-002's backtick fix and found two new issues: `02_LANGUAGE.md`'s Node examples list missing `Item` (present in `03_DOMAIN_MODEL.md` and `KNOWN_NODE_TYPES`), and `README.md`/`CONTRIBUTING.md` still claiming the project is pre-implementation — the same recurring stale-cross-reference pattern as the `0000-template.md` citations. User: software-developer fixes both.
