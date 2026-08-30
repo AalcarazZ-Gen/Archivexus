@@ -49,6 +49,7 @@ https://semver.org/
 - `docs/PROJECT.md`: Stage and Current priorities updated now that CORE-002 (`Node`) is merged to `dev` (board card moved to Done, issue #9 auto-closed); ADAPT-001 (Foundry Adapter) moved to "Ready for Implementation" on the board as the next task.
 - `docs/PROJECT.md`: Current priorities updated to reflect ADAPT-002 merged and verified live, and two new backlog items scoped: ADAPT-004 (map Foundry `Actor` to Node, issue #22) and ADAPT-005 (decide how Foundry `Scene`s map into Archivexus — an open domain question, not yet an implementation ticket, issue #23), both ahead of ADAPT-003 in sequence per the user's priority to import their real campaign next.
 - `docs/PROJECT.md`: Current priorities updated now that ADAPT-004 is implemented and #25 is fixed (both struck through as done); ADAPT-005 now notes 22 real Scenes are available to look at, and ADAPT-003 notes ux-ui-designer's GM-tagging-flow proposal is waiting as design input.
+- `docs/PROJECT.md`: Stage and Current priorities updated after verifying the full real dataset (all 41 real Actors + all 61 real Journal Pages) through the actual `mapActorToNode`/`mapJournalEntryPageToNode` functions — 102 Nodes, 0 title collisions today, versus 21 records across 6 real collision groups that #25 fixed. New backlog item added: STORE-001 (issue #32), deciding Archivexus's Storage Provider — scoped and ready to start next session, deliberately excluding implementation.
 
 ### Fixed
 

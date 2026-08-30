@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-30 (verify against real data, scope STORE-001 to close the day)
+
+**Discussed:** User: now that everything's merged and Foundry data is transforming into Archivexus, how can we visualize that it's actually working correctly? Clarified scope: build a quick real-data snapshot now to close out today, and leave everything scoped and ready to start the persistence + View work next session.
+
+**Formalized:** Ran the actual compiled `mapActorToNode`/`mapJournalEntryPageToNode` (not synthetic fixtures) against the full real dataset pulled live from Foundry — all 41 real Actors and all 61 real Journal Pages from "Academia El Último Norte". Result: 102 computed Nodes, 0 title collisions today, versus 21 of the 61 real pages (6 distinct raw-name collision groups: "Retrato" ×5, "Lore" ×6, "Descripción" ×4, "Biografía" ×2, "Notas personales" ×2, "Kael Verik" ×2) that would have collided pre-#25 — real-world confirmation the fix works at full scale, not just on the 5-record case that originally surfaced it. Delivered as a one-off HTML snapshot report (not a persisted artifact — framed by the user as "para finalizar por hoy"; a real View supersedes it). Opened STORE-001 (issue #32) to scope the Storage Provider decision next session — mirrors ADAPT-005's decision-first pattern, references `01_ARCHITECTURE.md`'s Storage candidates and the standalone-frontend constraint, explicitly excludes implementation from its acceptance criteria. `docs/PROJECT.md`'s Stage and Current priorities updated to reflect both.
+
+**Still informal / not yet formalized:** STORE-001 itself — no ADR yet, no Storage Provider code, no View. That's explicitly next session's work, not today's.
+
+---
+
 ## 2026-08-30 (product-owner: add Vehicle node type, reviewer sync fixes)
 
 **Discussed:** User asked how much it's worth keeping `NodeType` open given Foundry's own Actor types also include `vehicle`. Answer: keeping it open is the right call, and `vehicle` reinforces it — same shape as `group`/`Organization` earlier today, another real Foundry type that didn't fit any of the 10 existing Node types. Added `Vehicle` to `KNOWN_NODE_TYPES` (documentation/suggestion only, no validation logic). Reviewer then audited `dev` given how much landed via direct rebase/merge today, and found two real gaps: issue #22 (ADAPT-004) never auto-closed despite PR #27 being merged (its commit never used a closing keyword, unlike #25's "Fixes #25") — still sitting in Inbox on the board while the docs say it's done; and the Vehicle addition itself had zero record in `CHANGELOG.md`/`SESSION_LOG.md`, breaking Rule 8.
