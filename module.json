@@ -1,0 +1,21 @@
+{
+  "id": "archivexus",
+  "title": "Archivexus",
+  "description": "A knowledge layer for tabletop campaigns — connects Foundry journals, actors and scenes into a queryable knowledge graph. See https://github.com/AalcarazZ-Gen/Archivexus for details.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "14"
+  },
+  "esmodules": [
+    "dist/foundry/archivexus.js"
+  ],
+  "authors": [
+    {
+      "name": "AalcarazZ-Gen"
+    }
+  ],
+  "url": "https://github.com/AalcarazZ-Gen/Archivexus",
+  "manifest": "https://raw.githubusercontent.com/AalcarazZ-Gen/Archivexus/dev/module.json",
+  "download": "https://github.com/AalcarazZ-Gen/Archivexus/releases/latest/download/archivexus.zip"
+}

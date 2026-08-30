@@ -6,13 +6,23 @@
 
 ---
 
+## 2026-08-30 (ADAPT-002: Foundry module scaffold)
+
+**Discussed:** User confirmed ADAPT-001 merged to `dev` both locally and remotely, and, asked what's next, laid out four priorities: (1) get a real, installable Foundry module scaffolded ASAP — explicitly "a realistic installation and not a local one"; (2) validate against real Foundry data, with the user offering agents read access to their actual running Foundry world at `localhost:30000` (the live game, not the setup/configuration panel) once something is installed — but stating installation itself is always done by them manually; (3) fold Foundry UI extension/customization into the Adapter's scope, to be validated against `https://foundryvtt.com/api/`; (4) hold Relationship until real example data exists. Architect scoped priority 1 as ADR-0006: a Foundry-only build target (`vite.foundry.config.ts`), manifest-based distribution (`module.json`, matching Foundry's real "install by manifest URL" flow rather than a folder copy), and a hard rule — already true of this session's tools, now made explicit and permanent — that installing into a live Foundry world is a manual, human-only action.
+
+**Formalized:** `docs/decisions/ADR-0006-foundry-module-distribution.md` accepted. ADAPT-002 implemented: `module.json` at repo root (compatibility checked against Foundry's current stable release, v14), `src/adapters/foundry/module-entry.ts` (registers on Foundry's `init` hook, no document reads/writes yet), `src/adapters/foundry/foundry-globals.d.ts` (minimal ambient `Hooks`/`console` declarations — same no-real-Foundry-types tradeoff as ADAPT-001), `vite.foundry.config.ts`, and a `build:foundry-module` npm script. Verified with `tsc --noEmit` only — confirmed neither this session's cloud container (no network to publish a release) nor the bridged local shell can run `vite build` here (the bridge's Linux VM hit `Cannot find module '@rollup/rollup-linux-arm64-gnu'` against the Mac's `node_modules` — a native-binary platform mismatch, not a missing package), so the actual bundle/zip/release still needs the user to run `npm run build:foundry-module` and publish it locally, same as merges/pushes already are. ADAPT-003 (Foundry UI extension research against `foundryvtt.com/api`) opened and deliberately left in the backlog, sequenced after ADAPT-002. Relationship confirmed deferred per the user's own priority order.
+
+**Still informal / not yet formalized:** No GitHub Release exists yet, so `module.json`'s `download` URL is unverified until the user cuts one. `localhost:30000` access not yet exercised from this session. UI-extension research (ADAPT-003) not started. A minimal GM-facing UI for setting `flags.archivexus.nodeType` (currently console/manual-flag-only) is still an acknowledged gap, not yet its own ticket.
+
+---
+
 ## 2026-08-30 (PO check-in: ADAPT-001 merged, planning next)
 
 **Discussed:** User confirmed ADAPT-001 merged and pushed to `origin/dev` (verified: local `dev` matches `origin/dev` exactly). Board updated: ADAPT-001 (#10) moved to Done, issue auto-closed.
 
 **Formalized:** `docs/PROJECT.md`'s Stage and Current priorities updated to reflect ADAPT-001 merged.
 
-**Still informal / not yet formalized:** Storage engine(s)/sync model. Next steps (Relationship, a real Foundry module scaffold, and a validation strategy for the Adapter against real Foundry data) discussed with the user but not yet turned into tickets.
+**Still informal / not yet formalized:** Storage engine(s)/sync model. Next steps (Relationship, a real Foundry module scaffold, and a validation strategy for the Adapter against real Foundry data) discussed with the user but not yet turned into tickets. Superseded by the ADAPT-002 entry above — ADR-0006 accepted and the scaffold implemented same session.
 
 ---
 
