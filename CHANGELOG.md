@@ -40,6 +40,7 @@ https://semver.org/
 - Resolved all of `03_DOMAIN_MODEL.md`'s Outstanding Questions: Foundry Journal → Node mapping (with a generic `Lore` type), Blocks made explicitly optional, Knowledge Element capabilities exposed directly rather than through composable behaviors, and View promoted to a first-class Knowledge Element (see ADR-0005).
 - Reconciled View's format/audience vocabulary between `02_LANGUAGE.md` and `03_DOMAIN_MODEL.md` — audience is now expressed via Visibility instead of a separate "GM/Player/Public View" vocabulary.
 - `README.md`'s Current Status now reflects that implementation has started, instead of still saying pre-implementation. Its Repository Structure no longer shows a separate top-level `tests/` folder — tests are colocated as `*.test.ts` next to what they test, now also stated in `CONTRIBUTING.md`'s Coding Standards.
+- `docs/PROJECT.md`: Stage and Current priorities updated now that CORE-002 (`Node`) is merged to `dev` (board card moved to Done, issue #9 auto-closed); ADAPT-001 (Foundry Adapter) moved to "Ready for Implementation" on the board as the next task.
 
 ### Fixed
 
