@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-30 (ADAPT-001)
+
+**Discussed:** Product Owner confirmed board/repo state was clean (CORE-002 merged and pushed, board and `docs/PROJECT.md` in sync) before handing off to software-developer for ADAPT-001. No Foundry types dependency exists yet (`package.json` has none, and npm registry is still blocked in this session besides), so the adapter was scoped as a pure mapping function against a minimal structural type rather than a real Foundry API dependency.
+
+**Formalized:** ADAPT-001 implemented: `src/adapters/foundry/journal-entry-page-to-node.ts` — `mapJournalEntryPageToNode` maps a Foundry `JournalEntryPage` to a Node. id from `uuid` (ADR-0001), title from `name`, type from an explicit `flags.archivexus.nodeType` GM flag (falling back to `Lore`) rather than any content-based inference (Adapters carry no business logic, CONTRIBUTING_GUIDE.md Rule 3), visibility from `ownership.default` per 02_LANGUAGE.md/ADR-0003's mapping. Two explicit scope decisions, documented in code comments: Foundry's `-1` ownership-inheritance sentinel isn't resolved here (needs a live Foundry instance, out of scope for a pure function) and falls through to Node's own `hidden` default; page content/text isn't mapped to Blocks yet, since `Block`'s shape is still an explicit placeholder. Same verification approach as CORE-001/CORE-002: `tsc --noEmit` clean on the production sources, throwaway `node:assert` script mirroring the Vitest suite (14/14 passed).
+
+**Still informal / not yet formalized:** Storage engine(s)/sync model. Board still shows ADAPT-001 as "Ready for Implementation" — move it once reviewed/merged. Block's shape and a live-Foundry integration (reading real documents, resolving ownership inheritance) are still open, not yet their own tickets.
+
+---
+
 ## 2026-08-30 (PO check-in: CORE-002 done, next task)
 
 **Discussed:** User asked to move on to the next task. Found CORE-002 already rebased onto `dev` and pushed to `origin/dev` (the user handled it independently, same as CORE-001) — confirmed via the repo's own reflog and `origin/dev`'s cached state matching local `dev` exactly.
