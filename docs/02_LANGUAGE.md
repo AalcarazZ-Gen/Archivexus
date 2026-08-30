@@ -51,6 +51,7 @@ Examples include:
 - Organization
 - Quest
 - Item
+- Vehicle
 - Event
 - Lore
 - Puzzle
