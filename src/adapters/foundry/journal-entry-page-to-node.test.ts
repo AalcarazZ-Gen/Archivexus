@@ -22,6 +22,33 @@ describe('mapJournalEntryPageToNode', () => {
     expect(node.title).toBe('The Sunken Crown');
   });
 
+  // #25: real campaign data showed unrelated pages sharing a generic name
+  // (e.g. "Retrato"/"Portrait") across many per-NPC journals, collapsing to
+  // the same Node title. Qualify with the parent JournalEntry's name when
+  // it actually disambiguates something.
+  it('qualifies the title with the parent journal name when they differ (#25)', () => {
+    const node = mapJournalEntryPageToNode({ ...basePage, name: 'Retrato', parent: { name: 'Violet Meyer' } });
+    expect(node.title).toBe('Violet Meyer — Retrato');
+  });
+
+  it('does not qualify the title when no parent name is supplied (backward compatible)', () => {
+    const node = mapJournalEntryPageToNode(basePage);
+    expect(node.title).toBe('The Sunken Crown');
+  });
+
+  it('does not produce a redundant "X — X" title when the parent name equals the page name', () => {
+    const node = mapJournalEntryPageToNode({ ...basePage, parent: { name: 'The Sunken Crown' } });
+    expect(node.title).toBe('The Sunken Crown');
+  });
+
+  it('confirms 5 real, distinct-NPC "Retrato" pages now resolve to 5 distinct titles (regression for #25)', () => {
+    const journals = ['Violet Meyer', 'Garrick Stone', 'Drenna Colmillo Negro', 'Kragor Puño de Sangre', 'Varkesh Rompeescudos'];
+    const titles = journals.map((journalName) =>
+      mapJournalEntryPageToNode({ ...basePage, name: 'Retrato', parent: { name: journalName } }).title,
+    );
+    expect(new Set(titles).size).toBe(5);
+  });
+
   it('falls back to the Lore type when no archivexus.nodeType flag is set', () => {
     const node = mapJournalEntryPageToNode(basePage);
     expect(node.type).toBe('Lore');

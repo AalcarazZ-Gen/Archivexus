@@ -26,7 +26,22 @@ const FOUNDRY_OWNERSHIP_OWNER = 3;
  * - `uuid`: Foundry's own stable document identifier, used directly as the
  *   Node's id (ADR-0001 — Foundry UUIDs are the primary identifier for
  *   Foundry-originated elements; the Core treats `id` as opaque).
- * - `name`: the page's title, used directly as the Node's title.
+ * - `name`: the page's own title. By itself this is *not* always the Node's
+ *   title (see `parent` below and issue #25) — real Foundry content
+ *   commonly reuses generic page names ("Retrato"/"Portrait", "Mapa"/"Map")
+ *   across many different journals (a per-NPC journal, one page each for
+ *   portrait/bio/notes), which collapses unrelated Nodes to the same title
+ *   if `name` alone were used.
+ * - `parent.name`: the containing `JournalEntry`'s title, if the caller
+ *   supplies it (real Foundry's `JournalEntryPage.parent` gives you this
+ *   directly). When present and different from `name`, the Node's title
+ *   becomes `"{parent.name} — {name}"` — confirmed against 5 real,
+ *   distinct-NPC "Retrato" pages from the restored "Academia El Último
+ *   Norte" campaign (previously: 5 different Node ids, 1 shared title).
+ *   Optional and defaulted away (bare `name`) when a caller doesn't have it,
+ *   or when it equals `name` already (avoids a redundant "X — X" title for
+ *   the common single-page-journal case, where Foundry gives the first page
+ *   the same name as its entry by default).
  * - `ownership.default`: the page's default per-user ownership level, mapped
  *   to Visibility per 02_LANGUAGE.md / ADR-0003. This is deliberately the
  *   *document's* default level, not a specific user's resolved level —
@@ -56,6 +71,9 @@ const FOUNDRY_OWNERSHIP_OWNER = 3;
 export interface FoundryJournalEntryPageLike {
   readonly uuid: string;
   readonly name: string;
+  readonly parent?: {
+    readonly name?: string;
+  };
   readonly ownership?: {
     readonly default?: number;
   };
@@ -87,6 +105,22 @@ function mapOwnershipToVisibility(defaultOwnership: number | undefined): Visibil
 }
 
 /**
+ * Resolves a Node's title from a page's own name and, when available, its
+ * parent JournalEntry's name — see #25 and FoundryJournalEntryPageLike's
+ * `parent` doc above. Qualifies only when it actually disambiguates
+ * anything: a missing parent name, or one identical to the page's own name,
+ * falls back to the bare page name rather than producing a redundant or
+ * unhelpfully qualified title.
+ */
+function resolveTitle(page: FoundryJournalEntryPageLike): string {
+  const parentName = page.parent?.name;
+  if (parentName && parentName !== page.name) {
+    return `${parentName} — ${page.name}`;
+  }
+  return page.name;
+}
+
+/**
  * Maps a Foundry `JournalEntryPage` to a Node — the vertical slice
  * 03_DOMAIN_MODEL.md's Node Decisions describe ("Is a Foundry Journal a
  * Node? No — not as a single unit... The Foundry Adapter maps each page with
@@ -100,7 +134,7 @@ export function mapJournalEntryPageToNode(page: FoundryJournalEntryPageLike): No
   const input: CreateNodeInput = {
     id: page.uuid,
     type,
-    title: page.name,
+    title: resolveTitle(page),
     ...(visibility !== undefined ? { visibility } : {}),
   };
 
