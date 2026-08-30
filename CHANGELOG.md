@@ -55,6 +55,8 @@ https://semver.org/
 
 ### Fixed
 
+- `docs/CONTRIBUTING_GUIDE.md` Rule 11 pointed contributors at `.claude/agents/`'s `## Git workflow` sections for branch-naming and force-push detail — stale as soon as `.claude/agents/` stopped being tracked (reviewer catch). Inlined that detail into Rule 11 itself, which is now self-contained; the agent files mirror it for Claude Code sessions instead of being the source of it.
+
 - `docs/PROJECT.md`'s Stage section still said ADAPT-002 was "not yet built or released," contradicting Current priorities item 4 a few lines below, which correctly states it's built, released and confirmed live at `localhost:30000` — caught by reviewer, Stage reworded to match.
 - `mapJournalEntryPageToNode` used only `page.name` for a Node's title; real campaign data showed 5 distinct NPCs' generically-named "Retrato" (Portrait) pages collapsing to the exact same Node title (#25). `FoundryJournalEntryPageLike` gained an optional `parent.name`; the title is now qualified as `"{parent.name} — {name}"` when that disambiguates anything, falling back to the bare page name otherwise (backward compatible). Re-verified against the real 5-record case: 5 distinct titles now, confirmed.
 - `package.json` declared `"license": "MIT"`; the repo's actual `LICENSE` is Mozilla Public License 2.0 — corrected to `"MPL-2.0"`.
