@@ -126,7 +126,7 @@ See the Core Principles in [`docs/00_VISION.md`](docs/00_VISION.md) — kept the
 
 ## Contributing
 
-The architecture is intentionally being designed before implementation.
+The domain model and architecture are settled (see `docs/03_DOMAIN_MODEL.md` and `docs/decisions/`); implementation is now underway (see `docs/PROJECT.md` for the current stage).
 
 Contributions should begin by reviewing the documentation inside `/docs`.
 
