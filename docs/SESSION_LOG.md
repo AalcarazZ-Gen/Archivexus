@@ -36,6 +36,16 @@
 
 ---
 
+## 2026-08-29 (reviewer round 2)
+
+**Discussed:** Reviewer caught that `docs/CONTRIBUTING_GUIDE.md` Rule 11 still only named `software-developer` and `dba` after `qa-tester.md` got the same `## Git workflow` section — the same stale-cross-reference class as the `0000-template.md` citations, this time self-inflicted from the previous round.
+
+**Formalized:** Rule 11 now lists all three (`software-developer`, `dba`, `qa-tester`) and states the actual criterion — any role whose tools include `Bash` — plus why `architect.md` deliberately doesn't have the section (`Write` without `Bash`). Framing it as a criterion instead of a hardcoded list should keep this from going stale again the next time a role's tools change.
+
+**Still informal / not yet formalized:** Same as prior entries.
+
+---
+
 ## 2026-08-28 (reviewer round 2)
 
 **Discussed:** Second reviewer pass on the architect/dba rollout, applying its findings as software-developer.
