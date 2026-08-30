@@ -29,6 +29,7 @@ https://semver.org/
 - `docs/CONTRIBUTING_GUIDE.md` Rule 11: the feature-branch + rebase + squash git workflow is now a binding project rule, not just something one agent happens to mention. Updated to also list `qa-tester` once it got the same section, and to state the actual criterion (any role with `Bash`) instead of a hardcoded role list that needs manual upkeep each time.
 - `.claude/agents/dba.md` (and its `agents-core` canonical copy): added the same `## Git workflow` section as `software-developer.md`, plus a DBA-specific note on not squashing across already-applied migrations — product-owner call, since DBA has the same Bash/Write/Edit footprint as software-developer and was missing it.
 - `.claude/agents/qa-tester.md` (and its `agents-core` canonical copy): added the same `## Git workflow` section — qa-tester has `Bash` + `Write` (writes automated tests per its own Deliverable mode) and was missing it too. `architect.md` was considered and correctly excluded: it has `Write` but no `Bash`, so it has no way to execute the workflow itself.
+- Core domain: `Node` (`src/core/domain/node.ts`) — the first concrete Knowledge Element type, composed on top of `createKnowledgeElement` with one added field (`type`). `NodeType` is a plain string, not a closed enum, per 01_ARCHITECTURE.md's Extensible principle; `KNOWN_NODE_TYPES` lists 03_DOMAIN_MODEL.md's examples as a reference only. Enforces Node's Domain Invariants (no nesting, no type change, id independent of type) and unit tests covering them (CORE-002).
 
 ### Changed
 

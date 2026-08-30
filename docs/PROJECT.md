@@ -14,7 +14,7 @@ Confirmed 2026-08-26: built for personal use in tabletop campaigns, no commercia
 
 ## Stage
 
-Implementation started (2026-08-29). Domain model and architecture are settled (see `03_DOMAIN_MODEL.md`'s Decisions and ADRs); the Core is now being built out incrementally. `src/core/domain/` exists with the `KnowledgeElement` base abstraction (CORE-001, done) and its unit tests; `package.json`/`tsconfig.json`/`vitest.config.ts`/`eslint.config.js` scaffold the TypeScript/Vite/Vitest/ESLint/Prettier stack from `README.md`. Node (CORE-002) and the Foundry Adapter (ADAPT-001) are not started yet.
+Implementation started (2026-08-29). Domain model and architecture are settled (see `03_DOMAIN_MODEL.md`'s Decisions and ADRs); the Core is now being built out incrementally. `src/core/domain/` has the `KnowledgeElement` base abstraction (CORE-001, merged to `dev`) and `Node` (CORE-002, done — pending review/merge), both with unit tests; `package.json`/`tsconfig.json`/`vitest.config.ts`/`eslint.config.js` scaffold the TypeScript/Vite/Vitest/ESLint/Prettier stack from `README.md`. The Foundry Adapter (ADAPT-001) is next and not started yet.
 
 ## Target users
 
@@ -32,9 +32,9 @@ None formally documented yet. Worth capturing here once real constraints appear 
 
 _Previous priorities #1 and #2 (closing the docs consistency review findings, resolving `03_DOMAIN_MODEL.md`'s Outstanding Questions) are done as of 2026-08-27 — see the per-concept Decisions sections in `03_DOMAIN_MODEL.md` and ADR-0005._
 
-1. ~~Implement the Knowledge Element base abstraction~~ — done 2026-08-29 (`src/core/domain/`, CORE-001). `npm install && npm test` confirmed clean. Board still shows CORE-001 as "Ready for Implementation" — move it once reviewed.
-2. Implement Node (Board: CORE-002), the smallest vertical slice the Foundry Adapter needs, per `01_ARCHITECTURE.md` and `03_DOMAIN_MODEL.md`'s Node section.
-3. Implement the Foundry Adapter's `JournalEntryPage` → Node mapping, including the generic `Lore` Node type for pages that don't fit an existing type (per `03_DOMAIN_MODEL.md`'s Node Decisions). (Board: ADAPT-001.)
+1. ~~Implement the Knowledge Element base abstraction~~ — done, merged to `dev` (CORE-001, board card moved to Done, issue #8 auto-closed).
+2. ~~Implement Node~~ — done 2026-08-29 (`src/core/domain/node.ts`, CORE-002). Type-checked and functionally verified (`npm install`/`npm test` still pending real registry access this session). Board still shows CORE-002 as "Ready for Implementation" — move it once reviewed/merged.
+3. Implement the Foundry Adapter's `JournalEntryPage` → Node mapping, including the generic `Lore` Node type for pages that don't fit an existing type (per `03_DOMAIN_MODEL.md`'s Node Decisions). (Board: ADAPT-001.) Now unblocked.
 4. Once the Core slice is stable, extend to Relationship, then to View as a Knowledge Element (per ADR-0005) — View is lower priority since it depends on having enough Nodes/Relationships worth projecting.
 
 ## Sensitive areas — don't touch or decide without asking first
