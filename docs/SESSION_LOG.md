@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-30 (PO: scope ADAPT-004/005 for real-campaign import)
+
+**Discussed:** With QA's live Foundry fixtures validating ADAPT-001 against real data, user asked product-owner to scope the next step toward importing their actual campaign (which has actors and scenes, not just journal entries) while they went to review QA's work themselves.
+
+**Formalized:** Two new backlog items, both opened as GitHub issues (auto-added to the board's Inbox): ADAPT-004 (#22) — map Foundry `Actor` to Node, a direct extension of ADAPT-001's already-proven pattern (no ownership-inheritance sentinel to worry about, unlike pages, since Actors aren't nested under a parent document); ADAPT-005 (#23) — explicitly *not* an implementation ticket yet, since whether a Foundry `Scene` should be a Node, something else, or out of scope entirely is an open domain question. Scoped to require a `03_DOMAIN_MODEL.md` Decision entry first, same shape as the existing "Is a Foundry Journal a Node?" Decision, once there's real Scene data to look at. `docs/PROJECT.md`'s Current priorities reordered: ADAPT-004 and ADAPT-005 now come before ADAPT-003 (UI extension research), matching the user's stated priority to get real campaign data flowing before anything else.
+
+**Still informal / not yet formalized:** Neither ADAPT-004 nor ADAPT-005 has any code yet. ADAPT-003 still not started. Whether `flags.archivexus.nodeType`'s fallback for an untyped Actor should be `Character` (proposed in ADAPT-004's issue, not yet confirmed) is worth checking once real actor data is available.
+
+---
+
 ## 2026-08-30 (reviewer round 5: ADAPT-002)
 
 **Discussed:** Reviewer audited ADAPT-002 for the first time by actually running `eslint`, not just `tsc --noEmit` (the verification method used for every prior task). Found `module-entry.ts` fails `npm run lint`: `no-undef` on both `Hooks` and `console`, since ESLint's `no-undef` rule doesn't read `foundry-globals.d.ts`'s ambient `declare const` — it needs the same names in its own `globals` config. Also flagged, lower priority: no test exercises `module-entry.ts`'s logging, unlike every other file this session added. User: software-developer fixes the lint issue by adding an explicit allow-list of Foundry's reserved globals to ESLint, and replace the raw `console.log` with a structured logger — which happens to also address the test-coverage gap, since a logger's formatting is unit-testable in a way a bare `console.log` call isn't.
