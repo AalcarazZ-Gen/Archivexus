@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-30 (product-owner: reorganize milestones)
+
+**Discussed:** User noticed the board's milestones were stale — "Foundry Adapter" and other milestones already worked on show nothing assigned, and questioned whether the "Sprint 0" milestone makes sense at all for this project (personal/fun, favors speed over process per `docs/PROJECT.md`'s Type). Checked GitHub: all 3 existing milestones (`Sprint 0` / description "Domain Design", `Core Foundation`, `Foundry Adapter`) had zero issues assigned despite 13 of 14 issues being closed — created early, never actually used to track work as it happened.
+
+**Formalized:** Renamed `Sprint 0` → `Domain Design` (dropped the sprint framing entirely — this project doesn't run sprints; kept the substance, which was already accurate) and gave all three existing milestones real descriptions. Assigned all 14 issues to their matching milestone: Domain Design gets ARCH-001/DOM-001/DOM-002/DOC-001/DOC-002 (5/5 closed, 100%); Core Foundation gets CORE-001/CORE-002 (2/2 closed, 100%); Foundry Adapter gets ADAPT-001 through ADAPT-005 plus the #25 bug fix (4/6 closed, 66% — ADAPT-003 and ADAPT-005 still open). Closed the two now-100%-complete milestones (Domain Design, Core Foundation) so the open-milestones view only shows active work. Created a new milestone, `Persistence & Views`, for STORE-001 (#32) and the Relationship/View work it unblocks — didn't fit any existing milestone. Board itself (`Archivexus Roadmap` project) was already accurate (Status column matches open/closed state for all 14 items) — no changes needed there.
+
+**Still informal / not yet formalized:** Nothing code-related; this was pure GitHub housekeeping. `docs/PROJECT.md` doesn't reference milestones by name, so no doc changes needed either.
+
+---
+
 ## 2026-08-30 (verify against real data, scope STORE-001 to close the day)
 
 **Discussed:** User: now that everything's merged and Foundry data is transforming into Archivexus, how can we visualize that it's actually working correctly? Clarified scope: build a quick real-data snapshot now to close out today, and leave everything scoped and ready to start the persistence + View work next session.
