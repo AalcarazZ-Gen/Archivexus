@@ -41,6 +41,7 @@ export const KNOWN_NODE_TYPES = [
   'Organization',
   'Quest',
   'Item',
+  'Vehicle',
   'Event',
   'Lore',
   'Puzzle',
