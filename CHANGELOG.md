@@ -51,5 +51,6 @@ https://semver.org/
 - `README.md`'s Contributing section and `CONTRIBUTING.md`'s opening still claimed the project was in an "early architecture phase"/pre-implementation, contradicting `README.md`'s own already-fixed Current Status section and `docs/PROJECT.md`'s Stage — same recurring stale-claim pattern as the `0000-template.md` citations; caught by reviewer, both updated to reflect that implementation is underway.
 - `02_LANGUAGE.md`'s and `03_DOMAIN_MODEL.md`'s Node sections described the Foundry Adapter as typing a page "by what it actually describes" — read as automatic content-based inference, contradicting ADAPT-001's actual implementation (an explicit GM-set flag, never inferred, per `01_ARCHITECTURE.md`'s "Adapters should contain no business logic"). Both reworded to describe the real GM-flag mechanism.
 - Wrong citation, same recurring pattern: `journal-entry-page-to-node.ts`'s comments, `CHANGELOG.md`, and `docs/SESSION_LOG.md` attributed "Adapters must contain no business logic" to `CONTRIBUTING_GUIDE.md` Rule 3 (which is actually about Core platform-agnosticism, not Adapters). The line is in `01_ARCHITECTURE.md`'s Adapters section — corrected in all three places.
+- `docs/PROJECT.md`: Stage and Current priorities updated now that ADAPT-001 is merged to `dev` (board card moved to Done, issue #10 auto-closed).
 
 ### Removed
