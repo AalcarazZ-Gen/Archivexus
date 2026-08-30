@@ -11,6 +11,13 @@ export type {
   KnowledgeElement,
   KnowledgeElementKind,
 } from './knowledge-element.js';
+export {
+  createNode,
+  InvalidNodeError,
+  isNode,
+  KNOWN_NODE_TYPES,
+} from './node.js';
+export type { CreateNodeInput, Node, NodeType } from './node.js';
 export type { KnowledgeElementReference } from './reference.js';
 export type { Tag } from './tag.js';
 export { isVisibility, VISIBILITY_LEVELS } from './visibility.js';
