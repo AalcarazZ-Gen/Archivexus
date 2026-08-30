@@ -80,4 +80,4 @@ The Core should never depend directly on Foundry-specific concepts unless absolu
 
 Work happens on a feature branch, never directly on the trunk branch. Rebase against trunk to stay current instead of merging it in. Squash before merging back, so the trunk only records intent-sized changes.
 
-Full detail (branch naming, when force-pushing is fine, how this scales with project type) lives in the `## Git workflow` section of the `software-developer` and `dba` agent definitions in `.claude/agents/` — this rule is what makes it binding, not just a per-agent habit.
+Full detail (branch naming, when force-pushing is fine, how this scales with project type) lives in the `## Git workflow` section of the `software-developer`, `dba` and `qa-tester` agent definitions in `.claude/agents/` — this rule is what makes it binding, not just a per-agent habit. Applies to any role whose tools include `Bash`; `architect.md` deliberately doesn't have this section since it has `Write` but no `Bash`, so it has no way to execute the workflow itself.
