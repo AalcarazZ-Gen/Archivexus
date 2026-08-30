@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-30 (product-owner: add Vehicle node type, reviewer sync fixes)
+
+**Discussed:** User asked how much it's worth keeping `NodeType` open given Foundry's own Actor types also include `vehicle`. Answer: keeping it open is the right call, and `vehicle` reinforces it — same shape as `group`/`Organization` earlier today, another real Foundry type that didn't fit any of the 10 existing Node types. Added `Vehicle` to `KNOWN_NODE_TYPES` (documentation/suggestion only, no validation logic). Reviewer then audited `dev` given how much landed via direct rebase/merge today, and found two real gaps: issue #22 (ADAPT-004) never auto-closed despite PR #27 being merged (its commit never used a closing keyword, unlike #25's "Fixes #25") — still sitting in Inbox on the board while the docs say it's done; and the Vehicle addition itself had zero record in `CHANGELOG.md`/`SESSION_LOG.md`, breaking Rule 8.
+
+**Formalized:** `CHANGELOG.md` gained the missing `Added` entry for Vehicle. This entry backfills the missing `SESSION_LOG.md` record for the same change. Issue #22 needs to be closed manually and its board card moved to Done to match `docs/PROJECT.md`'s already-accurate "done" claim — a GitHub-side fix, not a code/docs one.
+
+**Still informal / not yet formalized:** Same open items as the ADAPT-004/#25 entry below (Scenes, ADAPT-003, the GM-tagging UI). Worth remembering going forward: a merge/commit that should close an issue needs the actual closing keyword ("Fixes #N"/"Closes #N") in its message, not just a reference — #25's fix got this right, ADAPT-004's didn't.
+
+---
+
 ## 2026-08-30 (real campaign restored: ADAPT-004 implemented, #25 fixed)
 
 **Discussed:** User restored their real campaign into the test world ("Academia El Último Norte", dnd5e, Foundry v14.367 — 41 Actors, 22 Scenes, 61 journal pages) and asked product-owner, qa-tester and ux-ui-designer to test what they needed to continue. QA pulled the real data live via Claude in Chrome: confirmed Foundry's own `actor.type` splits Actors four ways (character/npc/encounter/group) with 0/41 flagged yet, and — running real page data through `mapJournalEntryPageToNode` — found and reproduced a real bug (issue #25): 5 distinct real NPCs' "Retrato" pages collapsed to one shared Node title. Product-owner scoped ADAPT-004 against the real actor-type mix (comment on #22) and sequenced #25. ux-ui-designer proposed a GM-tagging flow for `flags.archivexus.nodeType`, informed by the same real numbers (comment on #20). User then asked to resolve ADAPT-004 and #25 before finishing for the day.
