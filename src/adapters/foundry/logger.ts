@@ -1,13 +1,7 @@
 /**
- * A tiny structured logger for the Foundry Adapter, prefixed with the
- * module id — the convention most Foundry modules follow, so log lines are
- * identifiable in Foundry's own (shared, noisy) browser console.
- *
- * This also centralizes the package's only use of the `console` global to
- * one file: module-entry.ts (and any future adapter code) calls `log.info`/
- * `log.warn`/`log.error` instead of `console.*` directly, which is
- * mockable/testable in a way a scattered raw `console.log` call isn't —
- * see logger.test.ts.
+ * Tiny module-id-prefixed logger for the Foundry Adapter (identifiable in
+ * Foundry's shared console) — also centralizes the package's only use of
+ * the `console` global so it stays mockable (see logger.test.ts).
  */
 
 export interface Logger {

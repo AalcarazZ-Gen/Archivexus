@@ -2,16 +2,10 @@ import { createNode, type CreateNodeInput, type Node } from '../../core/domain/n
 import type { Visibility } from '../../core/domain/visibility.js';
 
 /**
- * Foundry's own per-document ownership levels (CONST.DOCUMENT_OWNERSHIP_LEVELS
- * in the Foundry VTT API). Duplicated here rather than shared with
- * journal-entry-page-to-node.ts's identical constants/mapping — a deliberate
- * choice, not an oversight: this project is a personal/fun project
- * (docs/PROJECT.md's Type) that explicitly favors speed and simplicity over
- * process, ADAPT-001 already established the self-contained-per-mapping
- * pattern, and this is only the second instance of the duplication. Worth
- * extracting into a shared helper once a third Foundry document mapping
- * (e.g. ADAPT-005's Scene, if it needs the same ownership mapping) makes it
- * a real "rule of three," not before.
+ * Foundry's CONST.DOCUMENT_OWNERSHIP_LEVELS. Duplicated from
+ * journal-entry-page-to-node.ts rather than shared — this is only the
+ * second occurrence; worth extracting once a third mapping needs it
+ * (rule of three).
  */
 const FOUNDRY_OWNERSHIP_NONE = 0;
 const FOUNDRY_OWNERSHIP_LIMITED = 1;
@@ -19,39 +13,16 @@ const FOUNDRY_OWNERSHIP_OBSERVER = 2;
 const FOUNDRY_OWNERSHIP_OWNER = 3;
 
 /**
- * The minimal shape this mapping needs from a Foundry `Actor` document — a
- * structural subset, not the real Foundry type (same tradeoff as
- * `FoundryJournalEntryPageLike`: no `@league-of-foundry-developers/foundry-vtt-types`
- * dependency, per 01_ARCHITECTURE.md's Platform Independent principle).
- *
- * - `uuid`: Foundry's own stable document identifier, used directly as the
- *   Node's id (ADR-0001).
- * - `name`: the Actor's name, used directly as the Node's title. Unlike
- *   `JournalEntryPage` (see #25), an Actor's `name` isn't a page name nested
- *   under a parent container that could repeat it across many Actors —
- *   confirmed against the real "Academia El Último Norte" campaign, all 41
- *   real Actor names are distinct — so no title-qualification is needed
- *   here the way it is for pages.
- * - `ownership.default`: the Actor's default per-user ownership level,
- *   mapped to Visibility per 02_LANGUAGE.md/ADR-0003 — identical mapping to
- *   ADAPT-001's. Unlike `JournalEntryPage`, an Actor's ownership isn't
- *   nested under a parent document, so there's no `-1` "inherit from
- *   parent" sentinel to worry about here.
- * - `flags.archivexus.nodeType`: an explicit, GM-set flag naming which Node
- *   type this Actor represents — same no-content-inference rule as
- *   ADAPT-001 (01_ARCHITECTURE.md's Adapters section: "Adapters should
- *   contain no business logic"). Without this flag, the Actor becomes a
- *   generic `Character` Node (`ACTOR_FALLBACK_NODE_TYPE`) regardless of
- *   Foundry's own `actor.type` (character/npc/encounter/group in the dnd5e
- *   system that produced the real campaign data this was validated
- *   against) — a deliberate product-owner call (see issue #22's comments):
- *   branching on Foundry's own type field would be exactly the kind of
- *   inference the Adapter is supposed to stay out of, even though the
- *   signal comes from a structured field rather than free text. `npc`
- *   actors in the real data mix named individual NPCs with generic monster
- *   stat blocks — Foundry's own type can't disambiguate that either.
- *   `Organization` is already in `KNOWN_NODE_TYPES` (node.ts) for the GM to
- *   apply to `group`-type Actors once tagged.
+ * Minimal structural subset of Foundry's `Actor` this mapping needs (same
+ * no-Foundry-dependency tradeoff as `FoundryJournalEntryPageLike`):
+ * - `uuid` → Node id; `name` → title directly (unlike pages, Actor names
+ *   don't repeat under a shared parent, so no qualification is needed).
+ * - `ownership.default` → Visibility, same mapping as ADAPT-001; Actors
+ *   have no parent document, so no `-1` "inherit" sentinel to worry about.
+ * - `flags.archivexus.nodeType` → explicit Node type; no inference from
+ *   Foundry's own `actor.type` (character/npc/encounter/group) — still
+ *   content-based guessing the Adapter must avoid (#22). Missing flag →
+ *   generic `Character` fallback.
  */
 export interface FoundryActorLike {
   readonly uuid: string;
@@ -79,17 +50,11 @@ function mapOwnershipToVisibility(defaultOwnership: number | undefined): Visibil
     case FOUNDRY_OWNERSHIP_OWNER:
       return 'owned';
     default:
-      // Unset, or a value this mapping doesn't recognize — let Node fall
-      // through to its own default rather than guessing.
       return undefined;
   }
 }
 
-/**
- * Maps a Foundry `Actor` to a Node — ADAPT-004, the second Foundry document
- * type extending ADAPT-001's already-proven pattern. Pure and synchronous:
- * no Foundry API calls, so it's unit-testable with plain objects.
- */
+/** Maps a Foundry `Actor` to a Node (ADAPT-004). Pure and synchronous — no Foundry API calls. */
 export function mapActorToNode(actor: FoundryActorLike): Node {
   const type = actor.flags?.archivexus?.nodeType ?? ACTOR_FALLBACK_NODE_TYPE;
   const visibility = mapOwnershipToVisibility(actor.ownership?.default);

@@ -10,28 +10,21 @@ import type { Tag } from './tag.js';
 import type { Visibility } from './visibility.js';
 
 /**
- * Node — a standalone concept within the knowledge model (see
- * docs/03_DOMAIN_MODEL.md's "Node" section). A Node *is* a KnowledgeElement
- * plus one field (`type`) — composed via createKnowledgeElement below, not
- * subclassed (see the composition-over-inheritance note in
- * knowledge-element.ts; CONTRIBUTING_GUIDE.md Rule 5). `interface Node
- * extends KnowledgeElement` below is structural typing only — there is no
- * class, no prototype chain, no behavior to override.
+ * Node — a standalone concept within the knowledge model
+ * (docs/03_DOMAIN_MODEL.md's "Node"). Composed from KnowledgeElement plus
+ * `type`, not subclassed (see knowledge-element.ts); `interface Node
+ * extends KnowledgeElement` below is structural typing only.
  *
- * NOTE: this shadows the DOM lib's global `Node` type. Harmless today —
- * this package's tsconfig only includes the ES2022 lib, not DOM — but a
- * future Adapter that touches the DOM should import it as
- * `import type { Node as KnowledgeNode } from '.../node.js'` rather than
- * adding "DOM" to this package's own tsconfig lib.
+ * Note: shadows the DOM lib's global `Node`. Harmless today (this
+ * package's tsconfig omits the DOM lib) — a future DOM-touching Adapter
+ * should alias this import (`Node as KnowledgeNode`) rather than add "DOM"
+ * to the package's own tsconfig lib.
  */
 
 /**
- * The examples listed in docs/03_DOMAIN_MODEL.md's Node section. This is a
- * reference list, not a closed enum — see NodeType below for why. `Lore`
- * is the documented fallback for a Foundry page that doesn't fit any of
- * the others (the Node section's "Is a Foundry Journal a Node?" Decision)
- * — applying that fallback is the Foundry Adapter's job (ADAPT-001), not
- * this module's.
+ * Reference examples from docs/03_DOMAIN_MODEL.md's Node section — not a
+ * closed enum (see NodeType below). `Lore` is the documented fallback for
+ * an untyped page; applying it is the Foundry Adapter's job (ADAPT-001).
  */
 export const KNOWN_NODE_TYPES = [
   'Character',
@@ -48,25 +41,18 @@ export const KNOWN_NODE_TYPES = [
 ] as const;
 
 /**
- * A Node's concept type (Character, City, Lore, ...). Deliberately a plain
- * string, not a union of KNOWN_NODE_TYPES: 01_ARCHITECTURE.md's
- * "Extensible" design principle says a new element type shouldn't need an
- * architectural change, and the domain model introduces its type examples
- * with "Examples include", not as an exhaustive list.
+ * A Node's concept type (Character, City, Lore, ...). Plain string, not a
+ * union of KNOWN_NODE_TYPES — 01_ARCHITECTURE.md's "Extensible" principle:
+ * a new type shouldn't need a code change.
  */
 export type NodeType = string;
 
 export interface Node extends KnowledgeElement {
   readonly kind: 'node';
   /**
-   * What concept this Node represents. Domain Invariant: "A Node never
-   * derives its identity from another Node" — type is independent of id.
-   * Decision: "Can a Node change its type? No" (03_DOMAIN_MODEL.md) — this
-   * field is readonly, the returned Node is frozen, and there is no
-   * update function; representing a new concept means creating a new Node.
-   *
-   * Nesting is deliberately not representable here either ("Can Nodes be
-   * nested? No" — hierarchy is a Relationship's job, not a Node field).
+   * What concept this Node represents. Immutable — "Can a Node change its
+   * type? No" (03_DOMAIN_MODEL.md). Nesting is a Relationship's job, not a
+   * Node field ("Can Nodes be nested? No").
    */
   readonly type: NodeType;
 }
@@ -90,12 +76,7 @@ export class InvalidNodeError extends Error {
   }
 }
 
-/**
- * Constructs a Node. Reuses createKnowledgeElement for every Common
- * Characteristic (id, title, metadata, visibility, history, blocks, tags,
- * references) and its Domain Invariants — composition, not duplicated
- * validation — then adds and validates Node's own `type`.
- */
+/** Composes createKnowledgeElement (reusing its invariants) and adds/validates `type`. */
 export function createNode(input: CreateNodeInput): Node {
   const type = input.type.trim();
   if (type.length === 0) {
@@ -114,8 +95,8 @@ export function createNode(input: CreateNodeInput): Node {
     ...(input.references !== undefined ? { references: input.references } : {}),
   });
 
-  // base.kind is widened back to KnowledgeElementKind by createKnowledgeElement's
-  // return type; re-assert the literal we know it to be ('node', passed above).
+  // createKnowledgeElement's return type widens kind back to
+  // KnowledgeElementKind; re-assert the literal we know it to be.
   return Object.freeze({ ...base, kind: 'node' as const, type });
 }
 

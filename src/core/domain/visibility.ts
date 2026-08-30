@@ -1,10 +1,7 @@
 /**
- * Visibility — see docs/02_LANGUAGE.md and decisions/ADR-0003-visibility-model.md.
- *
- * A platform-agnostic concept: which audience can perceive a Knowledge
- * Element (or a View of it). Adapters translate their platform's native
- * permission system into these three levels; the Core never speaks a
- * platform's own vocabulary (e.g. Foundry's NONE/LIMITED/OBSERVER/OWNER).
+ * Platform-agnostic audience level for a Knowledge Element or View
+ * (docs/02_LANGUAGE.md, ADR-0003). Adapters translate their platform's own
+ * permission system into these three; Core never speaks the platform's vocabulary.
  */
 export type Visibility = 'hidden' | 'visible' | 'owned';
 
