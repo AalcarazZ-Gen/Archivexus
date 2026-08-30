@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-08-30 (PO check-in: ADAPT-001 merged, planning next)
+
+**Discussed:** User confirmed ADAPT-001 merged and pushed to `origin/dev` (verified: local `dev` matches `origin/dev` exactly). Board updated: ADAPT-001 (#10) moved to Done, issue auto-closed.
+
+**Formalized:** `docs/PROJECT.md`'s Stage and Current priorities updated to reflect ADAPT-001 merged.
+
+**Still informal / not yet formalized:** Storage engine(s)/sync model. Next steps (Relationship, a real Foundry module scaffold, and a validation strategy for the Adapter against real Foundry data) discussed with the user but not yet turned into tickets.
+
+---
+
 ## 2026-08-30 (reviewer round 4: ADAPT-001)
 
 **Discussed:** Reviewer audited ADAPT-001 and found two issues: `02_LANGUAGE.md`/`03_DOMAIN_MODEL.md`'s Node sections described the Foundry Adapter as typing a page "by what it actually describes" — reads as automatic content inference, contradicting the actual GM-flag-only implementation (correctly avoiding business logic in the Adapter, but the domain docs never caught up); and a wrong citation ("CONTRIBUTING_GUIDE.md Rule 3" instead of `01_ARCHITECTURE.md`'s Adapters section) carried into the code comments, `CHANGELOG.md` and this file — same recurring citation-bug pattern as before, apparently inherited from the GitHub issue's own Acceptance Criteria text. User: software-developer fixes both.
