@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-08-31 (ADAPT-003: reviewer pass, self-review fix, merged)
+
+**Discussed:** Alberto asked reviewer to sign off on the redesign. Documentation-consistency audit (reviewer persona, read-only) found the redesign's source/tests/exports fully self-consistent, but flagged two real gaps: ADR-0009's `## Decision` section (points 2 and 4) still read as if the superseded permanent-bar mechanism were current, with no pointer to the Amendment that replaced it; and `README.md`'s architecture diagram still showed Storage Provider as an undecided `Flags | SQLite | PostgreSQL | Future` fan-out, missed when STORE-001 closed out (pre-existing, unrelated to ADAPT-003). Alberto asked architect to fix both.
+
+**Formalized:** ADR-0009 points 2 and 4 gained inline pointer notes ("Superseded — see the Amendment below" / "now implemented, not merely confirmed"). `README.md`'s diagram now shows the decided engine and points at `01_ARCHITECTURE.md`'s Storage section instead of repeating a stale candidate list.
+
+**Reviewer pass 2 (self-review):** Asked reviewer to accept the architect's fix. Caught a real defect in its own prior edit: point 2's pointer note had truncated the original decision text with `...` inside a strikethrough while its own sentence claimed it was "left unedited below as the historical record" — a self-contradiction that silently dropped real, still-accurate content (the console-only-workflow replacement reasoning, and the Actor-first/JournalEntry-Scene-later scoping `PROJECT.md` item 8 still references). Fixed directly as a mechanical accuracy correction (full original text restored, pointer note follows instead of replacing part of it) rather than left as a flagged-but-unfixed finding. By that point Alberto had already pushed the prior commit, so this landed as a new commit, not an amend.
+
+Alberto then merged the branch himself and reported it. `docs/PROJECT.md` item 8 and the Stage paragraph updated to record the merge; Stage paragraph also lists the open backlog candidates (Storage Provider implementation, Scene→Block mapping, Relationship Definition, View MVP, JournalEntry/Scene tagging UI) now that ADAPT-003 is closed, without picking one — that's Alberto's call for next session.
+
+**Still informal / not yet formalized:** Next priority not yet chosen. `README.md`'s Storage-diagram fix (commit on `dev` directly, docs-only) may still need a push depending on Alberto's local state.
+
+---
+
 ## 2026-08-31 (ADAPT-003 redesigned: permanent bar -> opt-in header-control button)
 
 **Discussed:** After the previous entry's full live-verified confirmation (bug fixed, save round-trip re-confirmed, no console errors), Alberto did not simply accept the finished feature. He raised two separate challenges in one message: a UX critique ("this isn't in the optimal position") and a more fundamental product question directed at product-owner and ux-ui-designer both — "is this really necessary? What does I as a user/GM get from knowing that Kharra is an archivexus entity type: character?"
