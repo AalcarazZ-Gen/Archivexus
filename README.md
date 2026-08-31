@@ -62,12 +62,11 @@ The Core is now being implemented incrementally, starting with the `KnowledgeEle
                      |  Query API         |
                      +---------+----------+
                                |
-                           Storage Provider
-                               |
-         +-----------+-----------+-----------+
-         |           |           |           |
-      Flags       SQLite    PostgreSQL     Future
+                          Storage Provider
+                       (embedded SQLite, WASM)
 ```
+
+Storage is decided, not an open list of candidates — embedded SQLite (WASM), per `decisions/ADR-0008-storage-provider.md`. See `docs/01_ARCHITECTURE.md`'s Storage section for the canonical description (why SQLite, what else was considered, and the export mechanism for external consumers) instead of repeating it here.
 
 (Matches the Core decomposition in `docs/01_ARCHITECTURE.md`, the canonical architecture document.)
 
@@ -89,15 +88,15 @@ The Core is now being implemented incrementally, starting with the `KnowledgeEle
 
 Architecture documentation lives inside the `docs` directory.
 
-| Document | Description |
-|----------|-------------|
-| `00_VISION.md` | Project vision and philosophy |
-| `01_ARCHITECTURE.md` | High-level system architecture |
-| `02_LANGUAGE.md` | Official terminology |
-| `03_DOMAIN_MODEL.md` | Core domain model |
-| `PROJECT.md` | Current stage, stack, priorities |
-| `SESSION_LOG.md` | Running log of work sessions |
-| `decisions/` | Architecture Decision Records |
+| Document             | Description                      |
+| -------------------- | -------------------------------- |
+| `00_VISION.md`       | Project vision and philosophy    |
+| `01_ARCHITECTURE.md` | High-level system architecture   |
+| `02_LANGUAGE.md`     | Official terminology             |
+| `03_DOMAIN_MODEL.md` | Core domain model                |
+| `PROJECT.md`         | Current stage, stack, priorities |
+| `SESSION_LOG.md`     | Running log of work sessions     |
+| `decisions/`         | Architecture Decision Records    |
 
 More documents (storage, block system, relationship engine, worked examples) will be added here as those areas get designed — this table should only ever list files that actually exist.
 
@@ -105,14 +104,14 @@ More documents (storage, block system, relationship engine, worked examples) wil
 
 ## Technology Stack (Planned)
 
-| Technology | Purpose |
-|------------|---------|
-| TypeScript | Core language |
+| Technology      | Purpose                      |
+| --------------- | ---------------------------- |
+| TypeScript      | Core language                |
 | Foundry VTT API | Primary platform integration |
-| Vite | Development tooling |
-| Vitest | Unit testing |
-| ESLint | Static analysis |
-| Prettier | Formatting |
+| Vite            | Development tooling          |
+| Vitest          | Unit testing                 |
+| ESLint          | Static analysis              |
+| Prettier        | Formatting                   |
 
 Future technologies may evolve as the project grows.
 
