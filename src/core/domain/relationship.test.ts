@@ -58,6 +58,14 @@ describe('createRelationship', () => {
     );
   });
 
+  // Domain Decision (03_DOMAIN_MODEL.md, "Can a Relationship connect a Node
+  // to itself?"): No — self-relationships are rejected.
+  it('rejects an origin equal to its target (no self-relationships)', () => {
+    expect(() =>
+      createRelationship({ ...baseInput, origin: 'node-waterdeep', target: 'node-waterdeep' }),
+    ).toThrow(InvalidRelationshipError);
+  });
+
   // Domain Invariants: "Every Relationship has exactly one origin Node" /
   // "...exactly one target Node" / "...exactly one Relationship Definition" -
   // there is exactly one field for each, and CreateRelationshipInput's shape

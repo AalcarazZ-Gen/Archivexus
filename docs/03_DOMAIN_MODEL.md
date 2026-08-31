@@ -208,6 +208,7 @@ Relationships represent facts, not concepts.
 - Every Relationship has exactly one Relationship Definition.
 - Every Relationship is directional.
 - A Relationship cannot exist without both Nodes.
+- A Relationship's origin and target must be two distinct Nodes (no self-relationships).
 
 ---
 
@@ -242,6 +243,12 @@ Yes — a `traversalCategory`, from a small, closed taxonomy (`location`, `affil
 ### Can a Relationship survive the deletion of its origin or target Node?
 
 Yes. Cascading the delete would silently destroy a historical fact just because one endpoint was removed, contradicting "History is Part of the World"; blocking the delete instead adds resolution friction the project doesn't need. A Relationship whose origin or target no longer resolves to an existing Node is simply excluded wherever current Nodes are expected (e.g. View traversal) — no special-case logic needed. This doesn't resolve the broader question of Node deletion policy (hard delete vs. archival), which stays open for whoever designs delete workflows. See ADR-0007.
+
+### Can a Relationship connect a Node to itself (origin equals target)?
+
+No.
+
+No real campaign use case surfaced for a Node relating to itself, and allowing it would only put self-loops into Graph Views (ADR-0007) that add visual noise without carrying any meaning a Relationship is supposed to express. Anything genuinely self-referential about a single Node — an internal contradiction, a private history note — already has a home on that Node directly (its own History and Blocks), not a Relationship pointing back at itself. A straightforward instance-level constraint, not an ADR-level call; reversible later if a real use case ever needs it. Raised during CORE-003 review (2026-08-31).
 
 ---
 

@@ -10,7 +10,7 @@ import type { Tag } from './tag.js';
 import type { Visibility } from './visibility.js';
 
 /**
- * Relationship — a fact connecting exactly two Nodes
+ * Relationship — a fact connecting exactly two distinct Nodes
  * (docs/03_DOMAIN_MODEL.md's "Relationship"). Composed from KnowledgeElement
  * plus `origin`/`target`/`definitionId`, not subclassed (see
  * knowledge-element.ts); `interface Relationship extends KnowledgeElement`
@@ -24,7 +24,9 @@ import type { Visibility } from './visibility.js';
  * cardinality, symmetry, validation, traversalCategory per ADR-0007 —
  * scoped as separate, future work). Direction isn't a separate field:
  * `origin` → `target` ordering already expresses it ("Relationships are
- * directional by default", 02_LANGUAGE.md).
+ * directional by default", 02_LANGUAGE.md). `origin` and `target` must
+ * differ — self-relationships are rejected (03_DOMAIN_MODEL.md's
+ * Relationship Decisions, "Can a Relationship connect a Node to itself?").
  */
 export interface Relationship extends KnowledgeElement {
   readonly kind: 'relationship';
@@ -77,6 +79,12 @@ export function createRelationship(input: CreateRelationshipInput): Relationship
   const definitionId = input.definitionId.trim();
   if (definitionId.length === 0) {
     throw new InvalidRelationshipError('Relationship.definitionId must be a non-empty string.');
+  }
+
+  if (origin === target) {
+    throw new InvalidRelationshipError(
+      'Relationship.origin and Relationship.target must be two distinct Nodes (no self-relationships).',
+    );
   }
 
   const base = createKnowledgeElement({
