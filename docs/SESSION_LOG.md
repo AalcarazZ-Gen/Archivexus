@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-08-31 (ADAPT-003: decide Foundry UI extension mechanism, ADR-0009)
+
+**Discussed:** With CORE-003 merged to `dev`, Alberto confirmed `dev` was synced locally and picked ADAPT-003 next (his originally-stated preference, held back earlier only because Relationships needed to exist first). Housekeeping first: `feat/core-003-relationship` deleted locally (merged via PR, different SHAs from a squash — confirmed via `dev`'s log rather than assuming), `docs/PROJECT.md` item 9 and the Stage paragraph updated to reflect CORE-003 done.
+
+Researched Foundry v14's actual UI-extension API (issue #20's explicit ask, validated against `https://foundryvtt.com/api/` and the community wiki) since the concrete pain point — `flags.archivexus.nodeType` only settable via the console today — needed a real mechanism decision, not just intent. Couldn't retrieve issue #20's ux-ui-designer GM-tagging-flow comment directly (GitHub's comments load via JS; the REST API call 403'd from this session) — Alberto chose to proceed on the researched API facts plus `SESSION_LOG.md`'s existing one-line paraphrase rather than pausing to paste it in.
+
+**Formalized:** `decisions/ADR-0009-foundry-ui-extension-hooks.md` (Accepted): native `render*`/`getHeaderControls*` Hooks only, no `libWrapper`, no sheet subclassing/replacement — both hook families are documented core API and already cover every UI-extension need identified. First concrete surface decided: a `flags.archivexus.nodeType` tagging control injected into the Actor sheet via `renderActorSheetV2`, using Foundry's native form-submission (`name="flags.archivexus.nodeType"`) to persist it rather than a manual `setFlag` call. Scoped to Actor only, matching every prior Adapter ticket's incremental-per-document-type shape. `docs/PROJECT.md` item 8 and `CHANGELOG.md` updated.
+
+**Still informal / not yet formalized:** No UI code written yet — this was the research/mechanism-decision pass issue #20 explicitly scoped for, matching ADAPT-005's own decide-only precedent. `getHeaderControls*`'s actual wiring (icon/label/action registration) wasn't verified against a real render. JournalEntry/Scene tagging UI, and any header-control actions, are separate, not-yet-scoped follow-up work. The actual injected `<select>`/form section still needs to be built against `ActorSheetV2`'s real template structure — will need a feature branch before any of that code gets written, per the established git-workflow rule.
+
+---
+
 ## 2026-08-31 (CORE-003: implement Relationship instance shape)
 
 **Discussed:** With ADAPT-005 decided, Alberto picked Relationship next over ADAPT-003 — reasoning that UI/View work needs real Relationships to exist first. Confirmed scope before writing code (`feat/core-003-relationship`, branched off `dev` before any code per today's git-workflow rule): implement just the Relationship instance shape this pass, matching CORE-001/CORE-002's incremental precedent — Relationship Definition (inverse/cardinality/symmetry/validation/traversalCategory as real, versioned Core state per ADR-0007) is a separate, bigger piece of work, left for its own future ticket.
