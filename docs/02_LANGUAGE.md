@@ -92,12 +92,12 @@ Examples include:
 
 # Block
 
-A Block is a modular unit of content.
+A Block is a typed reference to a Foundry element (`type`, `uuid`, optional `title`) — never free-form, Archivexus-native content.
 
 Blocks may be attached to Knowledge Elements.
 
-The exact role of Blocks within the domain model is defined separately in
-`03_DOMAIN_MODEL.md`.
+The exact role and shape of Blocks within the domain model is defined separately in
+`03_DOMAIN_MODEL.md`'s Knowledge Element Decisions.
 
 ---
 

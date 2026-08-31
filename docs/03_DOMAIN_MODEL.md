@@ -81,6 +81,12 @@ No.
 
 Per this section's Domain Invariants, every Knowledge Element may exist without additional content. Blocks are optional — a Knowledge Element is valid and complete with zero Blocks attached.
 
+### What does a Block actually contain?
+
+A Block is a typed reference to a Foundry element, not free-form data: `{ type, uuid, title? }` — `type` names what kind of Foundry document it points to (e.g. `scene`, `JournalEntry`), `uuid` is that document's real Foundry UUID (per `decisions/ADR-0001-use-foundry-UUID.md`), and an optional `title` lets a consumer display it without re-fetching. This replaces `Block.data: unknown`'s placeholder shape (`src/core/domain/block.ts`) with a concrete one — implementing the change is separate, future work, not part of this Decision.
+
+This is deliberately uniform, not a discriminated union: every Block a GM would want — a Scene, a Journal page the GM writes their own notes into, anything else — is, by design, always a reference to some real Foundry element, never Archivexus-native freeform content (a GM's personal notes still go through a Foundry `JournalEntry`, referenced the same way). Revisit this if that assumption stops holding — e.g. if Archivexus ever wants to own content that has no Foundry-side counterpart at all.
+
 ### Do Knowledge Elements expose their capabilities directly, or through composable behaviors (mixins/traits)?
 
 Directly.
@@ -155,6 +161,16 @@ Relationships and History should preserve the evolution between Nodes.
 No — not as a single unit.
 
 A Foundry `JournalEntry` is a Foundry-native container of `JournalEntryPage` documents; the container itself is a storage detail, not an Archivexus domain concept (see `01_ARCHITECTURE.md`'s "Knowledge over Documents" principle). The Foundry Adapter maps each page with distinct semantic content to its own Node, using that page's own Foundry UUID per ADR-0001. The Node's type comes from an explicit GM-set flag naming what the page represents, not from inferring it out of the page's content — Adapters carry no business logic (`01_ARCHITECTURE.md`'s Adapters section). Pages without an explicit type become a generic `Lore` Node.
+
+### Does a Foundry `Scene` map to its own Node? (ADAPT-005)
+
+No.
+
+Same reasoning as a `JournalEntry`: a Scene has no semantic meaning of its own — it's the tactical/visual representation of a place (or whatever other Node a GM's world already tracks), not a standalone concept in the sense this section's Domain Invariants require. When a GM explicitly links a Scene to a Node — an explicit flag, never inferred from the Scene's name or content, same no-inference rule as `JournalEntry`/`Actor` mapping — the Foundry Adapter represents it as a `scene`-type Block on that Node (see Knowledge Element's Decisions for Block's shape), not as a Node of its own.
+
+A Scene with no explicit link stays unmapped. The Adapter never force-creates a placeholder Node for it: a GM may have Scenes that are still being built, or maps they saved because they liked them with no plan yet for where they fit — those aren't part of the knowledge graph until the GM says they are.
+
+There's no fixed set of "place" Node types this is restricted to. `KNOWN_NODE_TYPES` already has `City` and `Kingdom`, but nothing requires a Scene's target Node to be one of those (a tavern, a single room, a region with no real-world equivalent) — `NodeType` is intentionally an open string, not a closed enum (`01_ARCHITECTURE.md`'s "Extensible" principle), because no fixed list could cover every world a GM invents. The known-types list stays a set of suggestions, never a restriction.
 
 ---
 
