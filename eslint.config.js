@@ -16,6 +16,7 @@ import prettier from 'eslint-config-prettier';
  */
 const FOUNDRY_ADAPTER_GLOBALS = {
   Hooks: 'readonly',
+  foundry: 'readonly',
 };
 
 export default [
