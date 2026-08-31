@@ -56,3 +56,16 @@ The wider community's alternative to native hooks is **libWrapper** (a de facto 
 - **`libWrapper`-based sheet patching**: rejected for now — solves a problem (patching core _behavior_) this project doesn't have; adds a dependency for capability already covered by documented hooks. Worth reconsidering only if a real need for behavior-patching (not UI-adding) shows up.
 - **A fully custom Archivexus sheet/window replacing the default Actor sheet**: rejected — throws away everything the GM already knows about Foundry's own Actor sheet for the sake of one flag, and reintroduces exactly the "extend, don't replace" problem `getHeaderControls*`/`render*` exist to solve. A future dedicated Archivexus window (e.g. a graph View) is a different, legitimate use case, but it's a new `Application`, not a replacement of Foundry's own sheets — out of scope here.
 - **Scoping this ticket to all three document types (Actor, JournalEntry, Scene) at once**: rejected in favor of Actor-only first, matching every prior Foundry Adapter ticket's incremental-per-document-type shape (ADAPT-001 for JournalEntryPage, ADAPT-004 for Actor, ADAPT-005 decided Scene stays unmapped-by-default) — no reason for the UI layer to break that established pattern.
+
+---
+
+## Addendum (2026-08-31): implementation, verified against a real render
+
+Live-inspected `CharacterActorSheet` (dnd5e 5.3.3, Foundry v14.367) via `foundry.applications.instances` and its rendered DOM in Alberto's real campaign world, before writing any injection code, using Claude in Chrome. Confirmed:
+
+- `ActorSheetV2` is present in `CharacterActorSheet`'s prototype chain (`CharacterActorSheet → BaseActorSheet → PrimarySheet5e → ... → ActorSheetV2 → DocumentSheetV2 → ApplicationV2`), so `renderActorSheetV2` fires as expected — hooking there (rather than the dnd5e-specific `CharacterActorSheet` class name) keeps this Adapter code System-agnostic, consistent with ADAPT-004's no-branching-on-actor.type rule.
+- dnd5e2 sheets render their own fixed vertical tab bar (`details`/`inventory`/`features`/`spells`/`effects`/`biography`/`specialTraits`, from dnd5e's own `TABS` config) — confirming the point made in Decision item 2 in advance: adding a new tab to that bar isn't reachable through a `render*`/`getHeaderControls*` hook alone, so the injected control is a persistent block instead, not a tab.
+- The sheet's root element is itself the `<form>` (not a descendant of one) with `submitOnChange: true` confirmed via `app.options.form`, so any named input placed anywhere inside it is picked up by Foundry's native submission with no extra glue.
+- Insertion point settled on the real DOM: `.window-content`'s first child, before dnd5e's own in-sheet `header.sheet-header` — visible regardless of active tab, and never nested inside System-owned markup.
+
+`src/adapters/foundry/actor-node-type-tag.ts` implements exactly this: `buildNodeTypeTagHTML` (pure, unit-tested) builds the control, `registerActorNodeTypeTag` wires it to `renderActorSheetV2` once at module init. Nothing in the Decision above changes as a result — this only resolves the "wasn't verified against a real render" gap the first Disadvantage bullet named for `render*`-based injection (the `getHeaderControls*` gap remains open, unrelated to this pass).

@@ -6,6 +6,7 @@
  */
 declare const Hooks: {
   once(hook: string, callback: () => void): void;
+  on(hook: string, callback: (...args: never[]) => void): void;
 };
 
 // tsconfig omits the DOM lib (Core stays platform-agnostic), so `console`
