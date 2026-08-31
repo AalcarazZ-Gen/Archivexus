@@ -89,3 +89,13 @@ One implementation-risk item surfaced during this process that this ADR delibera
 - **PostgreSQL.** Rejected: assumes a server process this single-user, local-first project doesn't run and has no reason to run.
 - **Foundry Flags as the primary store.** Rejected as a primary store (not queryable, not suited to Relationship/View volume), though it remains architecturally available as a possible small in-Foundry cache role if a future need for one appears — not decided here.
 - **Visibility-filtered ("player-safe") export, built now.** Rejected for this ADR: the only consumer today is the GM himself, so filtering would silently remove data from the GM's own export for a threat model (a non-GM recipient) that doesn't yet exist, based on guessed-at redaction semantics with no real use case to validate against. Named as a future backlog item, triggered by an actual need (e.g. sharing an export with a player) rather than built speculatively.
+
+---
+
+## Addendum (2026-08-31): STORE-002 spike result
+
+Point 8 named a required, unresolved spike: whether a dedicated Worker plus the `opfs-sahpool` VFS actually behave cleanly inside Foundry's real client sandbox. A throwaway spike (STORE-002) confirmed **yes** — the official `@sqlite.org/sqlite-wasm` package opened a persistent, OPFS-backed SQLite database via `opfs-sahpool` from inside a real running "Academia El Último Norte" Foundry v14 session, and round-tripped a write/read cleanly, reproducibly across multiple reloads.
+
+The one real failure the spike hit wasn't about `opfs-sahpool` at all: Vite's default `base: '/'` baked an absolute, root-relative URL into the dedicated-Worker chunk it emitted (`/assets/<name>-<hash>.js`), which 404'd because Foundry serves this module from a nested static path (`/modules/archivexus/dist/foundry/...`), not domain root — confirmed by fetching both the wrong and the correct path directly in the live session (404 vs. 200). Fixed by setting `base: './'` in `vite.foundry.config.ts`, which makes Vite emit paths relative to `archivexus.js`'s own location instead. This fix is permanent and applies to any future Worker or asset the Foundry bundle emits, not just this spike — it's kept in the codebase; the throwaway spike code itself (`opfs-worker-spike.ts`/`.worker.ts`, the temporary `module-entry.ts` hook, and the ambient Worker/URL/MessageEvent/self type shims) was removed once this result was recorded, per its own header comments.
+
+This closes the one implementation-risk item this ADR named as unresolved. Nothing in the Decision, Consequences, or Alternatives above changes as a result — the spike confirmed the chosen approach works rather than surfacing a reason to pick a fallback.
