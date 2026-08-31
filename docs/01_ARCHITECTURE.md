@@ -192,15 +192,11 @@ The Core depends on nothing.
 
 Storage is replaceable.
 
-Possible implementations include:
+Primary storage engine: **embedded SQLite**, compiled to WASM and running inside the client (`@sqlite.org/sqlite-wasm`, `opfs-sahpool` VFS, with an IndexedDB-backed or `sql.js`-based fallback where OPFS isn't usable) — decided in `decisions/ADR-0008-storage-provider.md`, which also covers standalone/external-consumer reachability: a deliberate, user-triggered export producing a generated JSON snapshot (not a copy of the SQLite file), never a live or continuous sync.
 
-- Foundry Flags
-- JSON
-- IndexedDB
-- SQLite
-- PostgreSQL
+Other engines considered and not chosen: Foundry Flags, plain JSON as the primary store, IndexedDB as the primary store, PostgreSQL — see ADR-0008's Alternatives Considered for why. JSON remains the documented fallback primary store if the WASM/OPFS mechanics prove unworkable inside Foundry's client sandbox (unverified as of ADR-0008 — see its point 8).
 
-This is the canonical list of storage candidates — other documents (`02_LANGUAGE.md`, `README.md`) should point here instead of repeating it.
+This is the canonical description of Archivexus's storage — other documents (`02_LANGUAGE.md`, `README.md`) should point here instead of repeating it.
 
 Changing storage must not affect the Core.
 
