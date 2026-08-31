@@ -8,6 +8,7 @@
   "scripts": {
     "build": "vite build",
     "build:foundry-module": "vite build --config vite.foundry.config.ts",
+    "release:foundry": "bash scripts/release-foundry-module.sh",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
