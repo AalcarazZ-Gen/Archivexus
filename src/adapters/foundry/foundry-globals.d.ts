@@ -16,3 +16,15 @@ declare const console: {
   warn(...args: unknown[]): void;
   error(...args: unknown[]): void;
 };
+
+// `DialogV2.prompt(...)` is the only member of Foundry's `foundry` global
+// this package touches so far (actor-node-type-tag.ts); callers immediately
+// cast through `unknown` to a narrower structural type (FoundryDialogV2Like),
+// so this stays deliberately loose rather than modeling the real API.
+declare const foundry: {
+  applications: {
+    api: {
+      DialogV2: unknown;
+    };
+  };
+};
