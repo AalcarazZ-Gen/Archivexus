@@ -308,6 +308,21 @@ Yes.
 
 Versioning allows Definitions to evolve while preserving compatibility with existing campaign data.
 
+### What concrete shape do a Relationship Definition's `inverse`, `cardinality` and `validation` take? (CORE-004)
+
+Judgment calls made implementing CORE-004, since neither ADR-0007 nor this document's text settles them (only `traversalCategory`'s taxonomy is ADR-0007's actual decision) — recorded here so they're an explicit, revisitable choice rather than silently invented:
+
+- `inverse` is a plain string label for the reverse direction (e.g. Definition `resides-in` has inverse `resident-of`), not a reference to another Relationship Definition.
+- `cardinality` is a small closed enum: `one-to-one`, `one-to-many`, `many-to-one`, `many-to-many` — the same "small, slow-changing vocabulary describing behavior" reasoning ADR-0007 applies to `traversalCategory`.
+- `validation` is an optional allow-list of Node types per endpoint (`allowedOriginTypes`/`allowedTargetTypes`); absent means no restriction, per the Optional Structure principle — a Definition is never blocked from existing because this ticket didn't anticipate its use case.
+
+### Are there cross-field invariants between a Relationship Definition's `symmetry`, `inverse` and `cardinality`? (CORE-004)
+
+Yes, two — reversible instance-level constraints, not ADR-level calls, same treatment as Relationship's "no self-relationships" rule:
+
+- A symmetric Definition (forward and inverse describe the same fact, e.g. `ally-of`) must use the same label for both directions — `inverse` must equal `name`. A non-symmetric Definition must use a distinct `inverse` label, or it couldn't actually express asymmetry.
+- A symmetric Definition cannot use an asymmetric cardinality (`one-to-many`/`many-to-one`): those shapes distinguish an origin-side count from a target-side count, which only makes sense when origin and target aren't interchangeable.
+
 ---
 
 ## Open Questions
