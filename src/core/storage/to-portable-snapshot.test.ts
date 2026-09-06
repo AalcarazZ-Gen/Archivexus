@@ -14,6 +14,9 @@ const resident = createNode({
   visibility: 'visible',
   metadata: { archived: false },
   tags: ['npc'],
+  history: [{ timestamp: new Date('2026-01-01T00:00:00.000Z'), description: 'Joined the party' }],
+  blocks: [{ id: 'Block.1', type: 'JournalEntry', data: { uuid: 'JournalEntry.abc' } }],
+  references: [{ targetId: 'Node.city' }],
 });
 
 describe('toPortableSnapshot', () => {
@@ -32,7 +35,7 @@ describe('toPortableSnapshot', () => {
     expect(exportedAtMs).toBeLessThanOrEqual(after);
   });
 
-  it('maps every Node field onto the portable shape', () => {
+  it('maps every Node field onto the portable shape, including history/blocks/references (product-owner decision, 2026-09-06)', () => {
     const snapshot = toPortableSnapshot([resident], [], { now: fixedClock });
     expect(snapshot.nodes).toEqual([
       {
@@ -41,18 +44,24 @@ describe('toPortableSnapshot', () => {
         title: 'Kael Verik',
         visibility: 'visible',
         metadata: { archived: false },
+        history: [{ timestamp: '2026-01-01T00:00:00.000Z', description: 'Joined the party' }],
+        blocks: [{ id: 'Block.1', type: 'JournalEntry', data: { uuid: 'JournalEntry.abc' } }],
         tags: ['npc'],
+        references: [{ targetId: 'Node.city' }],
       },
     ]);
   });
 
-  it('denormalizes a Relationship with its origin/target Node titles inlined', () => {
+  it('denormalizes a Relationship with its origin/target Node titles inlined, keeping its history/blocks/references intact', () => {
     const relationship = createRelationship({
       id: 'Rel.1',
       origin: 'Node.resident',
       target: 'Node.city',
       definitionId: 'resides-in',
       title: 'Kael resides in Puerto Umbral',
+      history: [{ timestamp: new Date('2026-02-01T00:00:00.000Z'), description: 'Formed' }],
+      blocks: [{ id: 'Block.2', type: 'JournalEntry', data: { uuid: 'JournalEntry.def' } }],
+      references: [{ targetId: 'Node.resident' }],
     });
     const snapshot = toPortableSnapshot([resident, city], [relationship], { now: fixedClock });
     expect(snapshot.relationships).toEqual([
@@ -66,7 +75,10 @@ describe('toPortableSnapshot', () => {
         target: 'Node.city',
         targetTitle: 'Puerto Umbral',
         metadata: {},
+        history: [{ timestamp: '2026-02-01T00:00:00.000Z', description: 'Formed' }],
+        blocks: [{ id: 'Block.2', type: 'JournalEntry', data: { uuid: 'JournalEntry.def' } }],
         tags: [],
+        references: [{ targetId: 'Node.resident' }],
       },
     ]);
   });

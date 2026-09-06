@@ -1,4 +1,7 @@
+import type { Block } from '../domain/block.js';
+import type { HistoryEntry } from '../domain/history.js';
 import type { Node } from '../domain/node.js';
+import type { KnowledgeElementReference } from '../domain/reference.js';
 import type { Relationship } from '../domain/relationship.js';
 import type { Tag } from '../domain/tag.js';
 import type { Visibility } from '../domain/visibility.js';
@@ -16,6 +19,12 @@ import type { Visibility } from '../domain/visibility.js';
  * "player-safe export" is named there as a separate, not-yet-built future
  * feature; this function has no knowledge of who's asking.
  *
+ * Carries every one of `KnowledgeElement`'s nine fields, including
+ * `history`/`blocks`/`references` — product-owner decision, 2026-09-06
+ * (`03_DOMAIN_MODEL.md`'s Knowledge Element Decisions): this export is meant
+ * to let an external AI or human agent reconstruct the whole world from it
+ * alone, not just titles/tags, so nothing gets dropped on the way out.
+ *
  * `views` isn't a parameter yet: View isn't real Core state (separate,
  * not-yet-scoped follow-up per `03_DOMAIN_MODEL.md`), so there's nothing
  * to gather. The output DTO still carries a `views: []` field so the
@@ -23,13 +32,29 @@ import type { Visibility } from '../domain/visibility.js';
  * this function's signature gains a parameter.
  */
 
+/** `HistoryEntry` with its `Date` timestamp as an ISO-8601 string — the one reshape this file does, and only for JSON-serializability (a `Date` doesn't survive `JSON.stringify` as itself). */
+export interface PortableHistoryEntry {
+  readonly timestamp: string;
+  readonly description: string;
+}
+
+function toPortableHistory(history: readonly HistoryEntry[]): readonly PortableHistoryEntry[] {
+  return history.map((entry) => ({
+    timestamp: entry.timestamp.toISOString(),
+    description: entry.description,
+  }));
+}
+
 export interface PortableNode {
   readonly id: string;
   readonly type: string;
   readonly title: string;
   readonly visibility: Visibility;
   readonly metadata: Readonly<Record<string, unknown>>;
+  readonly history: readonly PortableHistoryEntry[];
+  readonly blocks: readonly Block[];
   readonly tags: readonly Tag[];
+  readonly references: readonly KnowledgeElementReference[];
 }
 
 /**
@@ -52,7 +77,10 @@ export interface PortableRelationship {
   readonly target: string;
   readonly targetTitle: string | null;
   readonly metadata: Readonly<Record<string, unknown>>;
+  readonly history: readonly PortableHistoryEntry[];
+  readonly blocks: readonly Block[];
   readonly tags: readonly Tag[];
+  readonly references: readonly KnowledgeElementReference[];
 }
 
 /** The export's own format version — independent of, and not to be confused with, the SQLite store's `PRAGMA user_version` (ADR-0008 point 4). */
@@ -80,7 +108,10 @@ function toPortableNode(node: Node): PortableNode {
     title: node.title,
     visibility: node.visibility,
     metadata: node.metadata,
+    history: toPortableHistory(node.history),
+    blocks: node.blocks,
     tags: node.tags,
+    references: node.references,
   };
 }
 
@@ -98,7 +129,10 @@ function toPortableRelationship(
     target: relationship.target,
     targetTitle: titleById.get(relationship.target) ?? null,
     metadata: relationship.metadata,
+    history: toPortableHistory(relationship.history),
+    blocks: relationship.blocks,
     tags: relationship.tags,
+    references: relationship.references,
   };
 }
 

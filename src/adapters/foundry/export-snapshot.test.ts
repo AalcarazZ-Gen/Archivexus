@@ -39,7 +39,10 @@ describe('gatherPortableSnapshot', () => {
         title: 'Puerto Umbral',
         visibility: 'hidden',
         metadata: {},
+        history: [],
+        blocks: [],
         tags: [],
+        references: [],
       },
     ]);
     expect(snapshot.views).toEqual([]);

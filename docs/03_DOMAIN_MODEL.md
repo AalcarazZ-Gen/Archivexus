@@ -87,6 +87,10 @@ A Block is a typed reference to a Foundry element, not free-form data: `{ type, 
 
 This is deliberately uniform, not a discriminated union: every Block a GM would want — a Scene, a Journal page the GM writes their own notes into, anything else — is, by design, always a reference to some real Foundry element, never Archivexus-native freeform content (a GM's personal notes still go through a Foundry `JournalEntry`, referenced the same way). Revisit this if that assumption stops holding — e.g. if Archivexus ever wants to own content that has no Foundry-side counterpart at all.
 
+### Does the portable export (ADR-0008) include Blocks/History/References, or just titles/tags?
+
+Yes — product-owner decision, 2026-09-06: the export must let an external AI or human agent reconstruct the whole world from it alone, not just titles/tags, so `toPortableSnapshot` (`src/core/storage/to-portable-snapshot.ts`) carries every one of a Knowledge Element's nine fields, unredacted, for both Nodes and Relationships. This was a real gap in the first STORE-003 pass — `PortableNode`/`PortableRelationship` initially dropped `history`/`blocks`/`references`, caught by a reviewer pass — and is really just ADR-0008 point 6 ("the export is a full, unredacted snapshot") made explicit rather than a new rule.
+
 ### Do Knowledge Elements expose their capabilities directly, or through composable behaviors (mixins/traits)?
 
 Directly.
