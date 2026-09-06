@@ -23,5 +23,6 @@ declare class Worker {
   constructor(scriptUrl: URL | string, options?: { type?: 'module' | 'classic' });
   postMessage(message: unknown): void;
   onmessage: ((event: { data: unknown }) => void) | null;
+  onerror: ((event: { message?: string }) => void) | null;
   terminate(): void;
 }

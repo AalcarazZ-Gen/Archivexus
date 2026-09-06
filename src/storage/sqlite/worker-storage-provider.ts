@@ -10,10 +10,20 @@ import type { StorageRpcMethod, StorageRpcRequest, StorageRpcResponse } from './
  * instance satisfies this; so does a hand-rolled fake in tests (see
  * `worker-storage-provider.test.ts`), with no real Worker/postMessage
  * machinery involved.
+ *
+ * `onerror`/`terminate` cover two real failure/lifecycle gaps a plain
+ * postMessage/onmessage pair doesn't: `onerror` fires when the Worker
+ * script itself fails to load/evaluate (e.g. before `sqlite.worker.ts`'s
+ * own `main().catch(...)` can even run), which would otherwise leave every
+ * in-flight RPC call — including `init()` — pending forever; `terminate`
+ * is what actually releases the Worker's thread/resources on `close()`,
+ * since sending it a `close` RPC message alone never does.
  */
 export interface RpcTransport {
   postMessage(message: StorageRpcRequest): void;
   onmessage: ((event: { data: StorageRpcResponse }) => void) | null;
+  onerror: ((event: { message?: string }) => void) | null;
+  terminate(): void;
 }
 
 /**
@@ -35,6 +45,7 @@ export class WorkerStorageProvider implements StorageProvider {
   constructor(transport: RpcTransport) {
     this.#transport = transport;
     this.#transport.onmessage = (event): void => this.#handleResponse(event.data);
+    this.#transport.onerror = (event): void => this.#handleTransportError(event);
   }
 
   #handleResponse(response: StorageRpcResponse): void {
@@ -49,6 +60,23 @@ export class WorkerStorageProvider implements StorageProvider {
     } else {
       pending.reject(new Error(response.error));
     }
+  }
+
+  /**
+   * Fires when the Worker itself fails (e.g. the script fails to load or
+   * throws before `sqlite.worker.ts`'s own `main().catch(...)` can run) —
+   * with no matching RPC response ever coming, every in-flight call
+   * (including a caller awaiting `init()`) would otherwise hang forever.
+   * Rejects everything currently pending instead of leaving it silent.
+   */
+  #handleTransportError(event: { message?: string }): void {
+    const error = new Error(
+      `Storage worker failed: ${event.message ?? 'unknown error (no message on the error event).'}`,
+    );
+    for (const pending of this.#pending.values()) {
+      pending.reject(error);
+    }
+    this.#pending.clear();
   }
 
   #call<T>(method: StorageRpcMethod, ...args: readonly unknown[]): Promise<T> {
@@ -99,7 +127,9 @@ export class WorkerStorageProvider implements StorageProvider {
     return this.#call('getRelationshipsForNode', nodeId);
   }
 
-  close(): Promise<void> {
-    return this.#call('close');
+  /** Sends the `close` RPC, awaits its ack, then actually terminates the Worker — sending the message alone never released the Worker's thread/resources. */
+  async close(): Promise<void> {
+    await this.#call('close');
+    this.#transport.terminate();
   }
 }

@@ -5,22 +5,32 @@ import { WorkerStorageProvider, type RpcTransport } from './worker-storage-provi
 
 /**
  * A fake `RpcTransport` standing in for a real `Worker` — captures every
- * posted request and lets the test script canned responses, so this
- * exercises `WorkerStorageProvider`'s request/response correlation logic
- * with no real Worker/postMessage involved (that part is inherently
- * outside what this sandbox can verify — see `create-sqlite-storage-provider.ts`).
+ * posted request and lets the test script canned responses (or a
+ * transport-level error), so this exercises `WorkerStorageProvider`'s
+ * request/response correlation and error-handling logic with no real
+ * Worker/postMessage involved (that part is inherently outside what this
+ * sandbox can verify — see `create-sqlite-storage-provider.ts`). Also
+ * tracks whether `terminate()` was actually called, since sending a
+ * `close` RPC message alone doesn't prove the Worker was released.
  */
 function createFakeTransport(): {
   transport: RpcTransport;
   sent: StorageRpcRequest[];
   respond: (response: StorageRpcResponse) => void;
+  fail: (event: { message?: string }) => void;
+  terminated: () => boolean;
 } {
   const sent: StorageRpcRequest[] = [];
+  let terminated = false;
   const transport: RpcTransport = {
     postMessage(message) {
       sent.push(message);
     },
     onmessage: null,
+    onerror: null,
+    terminate() {
+      terminated = true;
+    },
   };
   return {
     transport,
@@ -28,6 +38,10 @@ function createFakeTransport(): {
     respond(response) {
       transport.onmessage?.({ data: response });
     },
+    fail(event) {
+      transport.onerror?.(event);
+    },
+    terminated: () => terminated,
   };
 }
 
@@ -83,6 +97,42 @@ describe('WorkerStorageProvider', () => {
     const { transport, respond } = createFakeTransport();
     new WorkerStorageProvider(transport);
     expect(() => respond({ id: 999, ok: true, result: undefined })).not.toThrow();
+  });
+
+  it('close() sends the close RPC, awaits its ack, and only then terminates the transport', async () => {
+    const { transport, sent, respond, terminated } = createFakeTransport();
+    const provider = new WorkerStorageProvider(transport);
+
+    const closePromise = provider.close();
+    expect(sent).toEqual([{ id: 1, method: 'close', args: [] }]);
+    // Not terminated yet — the RPC ack hasn't arrived.
+    expect(terminated()).toBe(false);
+
+    respond({ id: 1, ok: true, result: undefined });
+    await closePromise;
+    expect(terminated()).toBe(true);
+  });
+
+  it('rejects a pending call (e.g. init()) when the transport reports an error, instead of hanging', async () => {
+    const { transport, fail } = createFakeTransport();
+    const provider = new WorkerStorageProvider(transport);
+
+    const initPromise = provider.init();
+    fail({ message: 'Worker script failed to load' });
+
+    await expect(initPromise).rejects.toThrow('Worker script failed to load');
+  });
+
+  it('rejects every other in-flight call, not just the first, when the transport errors', async () => {
+    const { transport, fail } = createFakeTransport();
+    const provider = new WorkerStorageProvider(transport);
+
+    const first = provider.getNode('Node.1');
+    const second = provider.listNodes();
+    fail({ message: 'crashed' });
+
+    await expect(first).rejects.toThrow('crashed');
+    await expect(second).rejects.toThrow('crashed');
   });
 
   it('every StorageProvider method posts its own distinct RPC method name', () => {
