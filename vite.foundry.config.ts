@@ -35,15 +35,14 @@ export default defineConfig({
       fileName: () => 'archivexus.js',
     },
   },
-  // STORE-002 feasibility spike only (ADR-0008 point 8, opfs-worker-spike.ts)
-  // needs a real Worker built with code-splitting (it does a dynamic
-  // `import('@sqlite.org/sqlite-wasm')` inside the worker), and Rollup
-  // rejects code-split workers built as 'iife'/'umd' (Vite's default worker
-  // format) — 'es' is required. Foundry serves the whole module folder as
-  // static files, so the extra chunk this emits alongside archivexus.js is
-  // still reachable even though module.json's esmodules list only names the
-  // main entry. Revisit this setting if it's still needed once the spike
-  // is removed / becomes real storage-layer code.
+  // Required by the real SQLite storage layer's dedicated Worker
+  // (src/storage/sqlite/worker/sqlite.worker.ts, STORE-003): it does a
+  // dynamic `import('@sqlite.org/sqlite-wasm')` inside the worker, and
+  // Rollup rejects code-split workers built as 'iife'/'umd' (Vite's default
+  // worker format) — 'es' is required. Foundry serves the whole module
+  // folder as static files, so the extra chunk this emits alongside
+  // archivexus.js is still reachable even though module.json's esmodules
+  // list only names the main entry.
   worker: {
     format: 'es',
   },
