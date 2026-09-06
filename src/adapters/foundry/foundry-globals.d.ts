@@ -17,15 +17,24 @@ declare const console: {
   error(...args: unknown[]): void;
 };
 
-// `DialogV2.prompt(...)` is the only member of Foundry's `foundry` global
-// this package touches so far (actor-node-type-tag.ts); callers immediately
-// cast through `unknown` to a narrower structural type (FoundryDialogV2Like),
-// so this stays deliberately loose rather than modeling the real API.
+// `DialogV2.prompt(...)` (actor-node-type-tag.ts), `ApplicationV2` (the
+// Relationship-authoring window's base class, relationship-authoring-
+// window.ts) and `utils.fromUuid`/`utils.randomID` (resolving a dropped
+// `<document-tags>` UUID to a real Document, and minting a new
+// Relationship's id) are the only members of Foundry's `foundry` global
+// this package touches so far; callers immediately cast through `unknown`
+// to a narrower structural type of their own, so this stays deliberately
+// loose rather than modeling the real API.
 declare const foundry: {
   applications: {
     api: {
       DialogV2: unknown;
+      ApplicationV2: unknown;
     };
+  };
+  utils: {
+    fromUuid(uuid: string): Promise<unknown>;
+    randomID(length?: number): string;
   };
 };
 

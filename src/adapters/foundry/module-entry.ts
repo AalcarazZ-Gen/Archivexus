@@ -5,6 +5,7 @@
 
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import { registerActorNodeTypeTag } from './actor-node-type-tag.js';
+import { registerRelationshipAuthoringEntryPoints } from './relationship-authoring-window.js';
 import { createSqliteStorageProvider } from '../../storage/sqlite/create-sqlite-storage-provider.js';
 import { downloadPortableSnapshot } from './export-snapshot.js';
 import { createLogger } from './logger.js';
@@ -38,6 +39,7 @@ function withStorage(action: (storage: StorageProvider) => Promise<void>): void 
 Hooks.once('init', () => {
   log.info('Initializing');
   registerActorNodeTypeTag();
+  registerRelationshipAuthoringEntryPoints(() => storage, log);
 
   // Registered at init, but each callback lazily resolves `storage` at
   // call time (see withStorage) - it isn't created until `ready`.
