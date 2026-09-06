@@ -28,3 +28,23 @@ declare const foundry: {
     };
   };
 };
+
+// `game.actors`/`game.journal` (STORE-003, module-entry.ts's startup
+// backfill) — deliberately loose (`unknown[]`), same no-inference/no-real-
+// Foundry-types tradeoff as everywhere else in this file: callers cast each
+// element to `FoundryActorLike`/`FoundryJournalEntryPageLike` themselves
+// (storage-sync.ts already validates via those mapping functions, not here).
+// `game.modules.get(id).api` is where module-entry.ts exposes
+// `exportSnapshot` for now (no dedicated UI trigger yet - out of scope).
+declare const game: {
+  actors?: { contents: readonly unknown[] };
+  journal?: { contents: readonly { pages: { contents: readonly unknown[] } }[] };
+  modules: { get(id: string): { api?: Record<string, unknown> } | undefined };
+};
+
+// Foundry's own client-side "download this data as a file" helper
+// (`saveDataToFile(data, mimeType, filename)`) — used by
+// `export-snapshot.ts` instead of hand-rolled Blob/anchor-click DOM code,
+// so this package needs no Blob/URL/document ambient surface for the
+// export action.
+declare function saveDataToFile(data: string, type: string, filename: string): void;

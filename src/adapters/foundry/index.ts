@@ -10,3 +10,6 @@ export type {
   FoundryDialogV2Like,
   FoundryHeaderControlsLike,
 } from './actor-node-type-tag.js';
+
+export { syncActor, syncAllActorsAndPages, syncJournalEntryPage } from './storage-sync.js';
+export { downloadPortableSnapshot, gatherPortableSnapshot } from './export-snapshot.js';
