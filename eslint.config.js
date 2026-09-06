@@ -17,6 +17,22 @@ import prettier from 'eslint-config-prettier';
 const FOUNDRY_ADAPTER_GLOBALS = {
   Hooks: 'readonly',
   foundry: 'readonly',
+  game: 'readonly',
+  saveDataToFile: 'readonly',
+};
+
+/**
+ * Browser/Worker globals the SQLite storage layer needs (ADR-0008's
+ * dedicated Worker + OPFS `opfs-sahpool`) — declared as ambient globals in
+ * src/storage/sqlite/browser-globals.d.ts and
+ * src/storage/sqlite/worker/worker-globals.d.ts, same "ESLint doesn't read
+ * .d.ts ambient declarations" reasoning as FOUNDRY_ADAPTER_GLOBALS above.
+ * Keep in sync with those two files.
+ */
+const STORAGE_BROWSER_GLOBALS = {
+  Worker: 'readonly',
+  URL: 'readonly',
+  self: 'readonly',
 };
 
 export default [
@@ -48,6 +64,14 @@ export default [
         ...FOUNDRY_ADAPTER_GLOBALS,
         console: 'readonly',
       },
+    },
+  },
+  {
+    // The SQLite storage layer's Worker/OPFS-facing files - see
+    // STORAGE_BROWSER_GLOBALS above.
+    files: ['src/storage/sqlite/**/*.ts'],
+    languageOptions: {
+      globals: STORAGE_BROWSER_GLOBALS,
     },
   },
   prettier,
