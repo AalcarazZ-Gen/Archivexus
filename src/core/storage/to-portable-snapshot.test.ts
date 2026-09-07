@@ -15,7 +15,7 @@ const resident = createNode({
   metadata: { archived: false },
   tags: ['npc'],
   history: [{ timestamp: new Date('2026-01-01T00:00:00.000Z'), description: 'Joined the party' }],
-  blocks: [{ id: 'Block.1', type: 'JournalEntry', data: { uuid: 'JournalEntry.abc' } }],
+  blocks: [{ type: 'JournalEntryPage', uuid: 'JournalEntryPage.abc', title: 'Some Lore' }],
   references: [{ targetId: 'Node.city' }],
 });
 
@@ -45,7 +45,7 @@ describe('toPortableSnapshot', () => {
         visibility: 'visible',
         metadata: { archived: false },
         history: [{ timestamp: '2026-01-01T00:00:00.000Z', description: 'Joined the party' }],
-        blocks: [{ id: 'Block.1', type: 'JournalEntry', data: { uuid: 'JournalEntry.abc' } }],
+        blocks: [{ type: 'JournalEntryPage', uuid: 'JournalEntryPage.abc', title: 'Some Lore' }],
         tags: ['npc'],
         references: [{ targetId: 'Node.city' }],
       },
@@ -60,7 +60,7 @@ describe('toPortableSnapshot', () => {
       definitionId: 'resides-in',
       title: 'Kael resides in Puerto Umbral',
       history: [{ timestamp: new Date('2026-02-01T00:00:00.000Z'), description: 'Formed' }],
-      blocks: [{ id: 'Block.2', type: 'JournalEntry', data: { uuid: 'JournalEntry.def' } }],
+      blocks: [{ type: 'JournalEntryPage', uuid: 'JournalEntryPage.def', title: 'Some Other Lore' }],
       references: [{ targetId: 'Node.resident' }],
     });
     const snapshot = toPortableSnapshot([resident, city], [relationship], { now: fixedClock });
@@ -76,7 +76,7 @@ describe('toPortableSnapshot', () => {
         targetTitle: 'Puerto Umbral',
         metadata: {},
         history: [{ timestamp: '2026-02-01T00:00:00.000Z', description: 'Formed' }],
-        blocks: [{ id: 'Block.2', type: 'JournalEntry', data: { uuid: 'JournalEntry.def' } }],
+        blocks: [{ type: 'JournalEntryPage', uuid: 'JournalEntryPage.def', title: 'Some Other Lore' }],
         tags: [],
         references: [{ targetId: 'Node.resident' }],
       },

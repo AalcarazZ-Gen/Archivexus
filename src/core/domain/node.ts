@@ -100,6 +100,38 @@ export function createNode(input: CreateNodeInput): Node {
   return Object.freeze({ ...base, kind: 'node' as const, type });
 }
 
+/**
+ * Idempotent Block-upsert-by-uuid (ADR-0011's Amendment, DBA pass,
+ * 2026-09-06): replaces any existing entry in `node.blocks` whose `uuid`
+ * matches `block.uuid`, appending only if none matched. Pure, no I/O, no
+ * Foundry dependency — this is general Node/Block manipulation, not
+ * Foundry-Adapter logic, so `storage-sync.ts`'s JournalEntryPage-attachment
+ * orchestration and ADAPT-005's still-unimplemented Scene→Block mapping can
+ * both call it without duplicating this logic. Returns a new, frozen Node
+ * (Nodes are immutable — "Can a Node change its type? No" applies to the
+ * whole value, not just `type`); `node` itself is never mutated.
+ */
+export function upsertBlockByUuid(node: Node, block: Block): Node {
+  const existingIndex = node.blocks.findIndex((existing) => existing.uuid === block.uuid);
+  const blocks =
+    existingIndex === -1
+      ? [...node.blocks, block]
+      : node.blocks.map((existing, index) => (index === existingIndex ? block : existing));
+
+  return Object.freeze({ ...node, blocks: Object.freeze(blocks) });
+}
+
+/**
+ * Detach/re-attach-elsewhere cleanup (ADR-0011's Amendment, DBA pass,
+ * 2026-09-06): drops any entry in `node.blocks` whose `uuid` matches
+ * `uuid`, a no-op (returns an equivalent Node, not the same reference) if
+ * none does. Same purity/immutability contract as `upsertBlockByUuid`.
+ */
+export function removeBlockByUuid(node: Node, uuid: string): Node {
+  const blocks = node.blocks.filter((existing) => existing.uuid !== uuid);
+  return Object.freeze({ ...node, blocks: Object.freeze(blocks) });
+}
+
 export function isNode(value: unknown): value is Node {
   if (!isKnowledgeElement(value)) {
     return false;

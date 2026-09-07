@@ -12,6 +12,16 @@ export type {
 } from './actor-node-type-tag.js';
 
 export {
+  buildJournalEntryPageNodeTagDialogContent,
+  registerJournalEntryPageNodeTag,
+} from './journal-entry-page-node-tag.js';
+export type {
+  FoundryJournalEntryPageDocumentLike,
+  FoundryJournalEntryPageSheetAppLike,
+  JournalEntryPageNodeTagDialogResult,
+} from './journal-entry-page-node-tag.js';
+
+export {
   buildRelationshipAuthoringContentHTML,
   registerRelationshipAuthoringEntryPoints,
 } from './relationship-authoring-window.js';

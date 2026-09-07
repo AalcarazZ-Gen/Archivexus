@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FALLBACK_NODE_TYPE,
   mapJournalEntryPageToNode,
+  resolvePageAttachment,
   type FoundryJournalEntryPageLike,
 } from './journal-entry-page-to-node.js';
 import { InvalidKnowledgeElementError } from '../../core/domain/knowledge-element.js';
@@ -101,5 +102,34 @@ describe('mapJournalEntryPageToNode', () => {
 
   it('bubbles InvalidKnowledgeElementError for a page with an empty uuid (empty Node id)', () => {
     expect(() => mapJournalEntryPageToNode({ ...basePage, uuid: '' })).toThrow(InvalidKnowledgeElementError);
+  });
+});
+
+describe('resolvePageAttachment', () => {
+  it('reports unattached when there is no attachedToNodeId flag at all', () => {
+    expect(resolvePageAttachment(basePage)).toEqual({ attached: false });
+  });
+
+  it('reports unattached when flags.archivexus is present but attachedToNodeId is not', () => {
+    const page = { ...basePage, flags: { archivexus: { nodeType: 'Lore' } } };
+    expect(resolvePageAttachment(page)).toEqual({ attached: false });
+  });
+
+  it('reports attached with the target id when attachedToNodeId is set (ADR-0011)', () => {
+    const page = { ...basePage, flags: { archivexus: { attachedToNodeId: 'Actor.fausto' } } };
+    expect(resolvePageAttachment(page)).toEqual({ attached: true, targetNodeId: 'Actor.fausto' });
+  });
+
+  it('trims whitespace and reports unattached for a whitespace-only flag value', () => {
+    const page = { ...basePage, flags: { archivexus: { attachedToNodeId: '   ' } } };
+    expect(resolvePageAttachment(page)).toEqual({ attached: false });
+  });
+
+  it('does not read nodeType at all - the two flags are independent', () => {
+    const page = {
+      ...basePage,
+      flags: { archivexus: { nodeType: 'Character', attachedToNodeId: 'Actor.fausto' } },
+    };
+    expect(resolvePageAttachment(page)).toEqual({ attached: true, targetNodeId: 'Actor.fausto' });
   });
 });

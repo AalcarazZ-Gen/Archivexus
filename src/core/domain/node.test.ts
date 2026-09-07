@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { createNode, InvalidNodeError, isNode, KNOWN_NODE_TYPES } from './node.js';
+import {
+  createNode,
+  InvalidNodeError,
+  isNode,
+  KNOWN_NODE_TYPES,
+  removeBlockByUuid,
+  upsertBlockByUuid,
+} from './node.js';
 import { InvalidKnowledgeElementError } from './knowledge-element.js';
+import type { Block } from './block.js';
 
 const baseInput = { id: 'node-1', type: 'City', title: 'Waterdeep' };
 
@@ -79,6 +87,72 @@ describe('createNode', () => {
   it('bubbles KnowledgeElement Domain Invariant errors (empty id/title) unchanged', () => {
     expect(() => createNode({ ...baseInput, id: '' })).toThrow(InvalidKnowledgeElementError);
     expect(() => createNode({ ...baseInput, title: '' })).toThrow(InvalidKnowledgeElementError);
+  });
+});
+
+describe('upsertBlockByUuid', () => {
+  const pageBlock: Block = { type: 'JournalEntryPage', uuid: 'JournalEntryPage.bio', title: 'Biografía' };
+  const sceneBlock: Block = { type: 'scene', uuid: 'Scene.1', title: 'Tavern map' };
+
+  it('appends the Block when no existing entry matches its uuid', () => {
+    const node = createNode(baseInput);
+    const updated = upsertBlockByUuid(node, pageBlock);
+    expect(updated.blocks).toEqual([pageBlock]);
+  });
+
+  it('replaces the matching entry in place rather than appending a duplicate', () => {
+    const node = createNode({ ...baseInput, blocks: [sceneBlock, pageBlock] });
+    const replacement: Block = { type: 'JournalEntryPage', uuid: 'JournalEntryPage.bio', title: 'Updated title' };
+
+    const updated = upsertBlockByUuid(node, replacement);
+
+    expect(updated.blocks).toHaveLength(2);
+    expect(updated.blocks).toEqual([sceneBlock, replacement]);
+  });
+
+  it('does not mutate the original Node', () => {
+    const node = createNode({ ...baseInput, blocks: [sceneBlock] });
+    upsertBlockByUuid(node, pageBlock);
+    expect(node.blocks).toEqual([sceneBlock]);
+  });
+
+  it('returns a new, frozen Node', () => {
+    const node = createNode(baseInput);
+    const updated = upsertBlockByUuid(node, pageBlock);
+    expect(updated).not.toBe(node);
+    expect(Object.isFrozen(updated)).toBe(true);
+    expect(Object.isFrozen(updated.blocks)).toBe(true);
+  });
+});
+
+describe('removeBlockByUuid', () => {
+  const pageBlock: Block = { type: 'JournalEntryPage', uuid: 'JournalEntryPage.bio', title: 'Biografía' };
+  const sceneBlock: Block = { type: 'scene', uuid: 'Scene.1', title: 'Tavern map' };
+
+  it('removes the Block matching the given uuid', () => {
+    const node = createNode({ ...baseInput, blocks: [sceneBlock, pageBlock] });
+    const updated = removeBlockByUuid(node, pageBlock.uuid);
+    expect(updated.blocks).toEqual([sceneBlock]);
+  });
+
+  it('is a no-op (equivalent result, not the same reference) when no Block matches', () => {
+    const node = createNode({ ...baseInput, blocks: [sceneBlock] });
+    const updated = removeBlockByUuid(node, 'JournalEntryPage.does-not-exist');
+    expect(updated.blocks).toEqual([sceneBlock]);
+    expect(updated).not.toBe(node);
+  });
+
+  it('does not mutate the original Node', () => {
+    const node = createNode({ ...baseInput, blocks: [sceneBlock, pageBlock] });
+    removeBlockByUuid(node, pageBlock.uuid);
+    expect(node.blocks).toEqual([sceneBlock, pageBlock]);
+  });
+
+  it('returns a new, frozen Node', () => {
+    const node = createNode({ ...baseInput, blocks: [pageBlock] });
+    const updated = removeBlockByUuid(node, pageBlock.uuid);
+    expect(Object.isFrozen(updated)).toBe(true);
+    expect(Object.isFrozen(updated.blocks)).toBe(true);
   });
 });
 

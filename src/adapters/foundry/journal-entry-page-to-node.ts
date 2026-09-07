@@ -25,6 +25,12 @@ const FOUNDRY_OWNERSHIP_OWNER = 3;
  * - `flags.archivexus.nodeType` → explicit, GM-set Node type. No inference
  *   from title/content — Adapters carry no business logic
  *   (01_ARCHITECTURE.md). Missing flag → generic `Lore` fallback.
+ * - `flags.archivexus.attachedToNodeId` → ADR-0011's attachment flag,
+ *   read (not resolved) by `resolvePageAttachment` below. Does not affect
+ *   this function — `mapJournalEntryPageToNode` always computes what the
+ *   page's *own* standalone Node would look like; deciding whether that's
+ *   actually what gets persisted is `storage-sync.ts`'s orchestration job
+ *   (ADR-0011 point 3).
  *
  * Page content/text isn't mapped yet — Block's shape is still undesigned.
  */
@@ -40,6 +46,7 @@ export interface FoundryJournalEntryPageLike {
   readonly flags?: {
     readonly archivexus?: {
       readonly nodeType?: string;
+      readonly attachedToNodeId?: string;
     };
   };
 }
@@ -85,4 +92,25 @@ export function mapJournalEntryPageToNode(page: FoundryJournalEntryPageLike): No
   };
 
   return createNode(input);
+}
+
+/** What `resolvePageAttachment` reports — see its own doc comment. */
+export type PageAttachmentResolution =
+  | { readonly attached: true; readonly targetNodeId: string }
+  | { readonly attached: false };
+
+/**
+ * Reads only `flags.archivexus.attachedToNodeId` (ADR-0011 point 3) — pure
+ * and synchronous, no Foundry API calls, same purity contract as
+ * `mapJournalEntryPageToNode`. Whether the referenced Node actually exists
+ * is a storage-layer concern this function has no way to answer (it only
+ * has the page in hand, not a `StorageProvider`) — `storage-sync.ts`'s
+ * orchestration resolves that and decides what to persist.
+ */
+export function resolvePageAttachment(page: FoundryJournalEntryPageLike): PageAttachmentResolution {
+  const targetNodeId = page.flags?.archivexus?.attachedToNodeId?.trim();
+  if (targetNodeId === undefined || targetNodeId.length === 0) {
+    return { attached: false };
+  }
+  return { attached: true, targetNodeId };
 }
