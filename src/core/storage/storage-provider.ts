@@ -14,8 +14,8 @@ import type { Relationship } from '../domain/relationship.js';
  * ADR-0007's required 1-hop neighbor lookup. Does not (yet) expose View
  * persistence (View isn't real Core state yet) or the N-hop
  * composition/category filtering ADR-0007 assigns to Core's own Query API
- * — `getRelationshipsForNode` is the 1-hop primitive that future Query API
- * work composes on top of, not a replacement for it.
+ * — `getRelationshipsForNode` is the 1-hop primitive `src/core/query/traversal.ts`
+ * (CORE-005) composes on top of, not a replacement for it.
  *
  * Every method is async: the concrete SQLite engine runs across a Worker
  * boundary (OPFS `SyncAccessHandle`s only work inside a dedicated Worker —

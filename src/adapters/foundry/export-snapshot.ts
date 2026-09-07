@@ -8,7 +8,8 @@ import type { StorageProvider } from '../../core/storage/storage-provider.js';
  * The Foundry Adapter's half of ADR-0008's export (point 4/5): gathers
  * Nodes/Relationships through the `StorageProvider`'s own Query-API-ish
  * surface (`listNodes`/`listRelationships` — the real Query API with
- * category/depth traversal is separate, not-yet-built Core work) and
+ * category/depth traversal, `src/core/query/traversal.ts`, is a separate
+ * Core module this one doesn't call) and
  * calls Core's `toPortableSnapshot`. No shaping logic lives here — this
  * function is exactly "gather, then call the Core transform," per
  * ADR-0008 point 5's split of responsibility.
