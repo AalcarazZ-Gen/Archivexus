@@ -63,10 +63,15 @@ export async function syncActor(actor: FoundryActorLike, storage: StorageProvide
  * (Alberto's real ~102-Node count, and `module-entry.ts`'s Hook wiring
  * already being fire-and-forget).
  *
- * Deliberately does **not** implement ADR-0011 point 5's non-blocking
- * `ui.notifications.warn` about Relationships orphaned by a retag — out of
- * this ticket's explicit orchestration scope; flagged, not silently
- * dropped (see the PR/session log).
+ * ADR-0011 point 5's non-blocking `ui.notifications.warn`: before deleting
+ * a page's own standalone Node in the attach-resolves-to-a-real-target
+ * branch, checks `storage.getRelationshipsForNode(page.uuid)` (the same
+ * 1-hop primitive ADR-0010's cardinality check already uses) purely to know
+ * whether to warn. If any exist, warns the GM by name/count that they're
+ * about to become dangling references — preserved, not deleted or
+ * corrupted (ADR-0007 point 8), only excluded from traversal until
+ * re-authored against the new target. Warn, never block: the delete/attach
+ * proceeds regardless of whether any Relationships were found.
  */
 export async function syncJournalEntryPage(
   page: FoundryJournalEntryPageLike,
@@ -78,11 +83,19 @@ export async function syncJournalEntryPage(
   if (attachment.attached) {
     const target = await storage.getNode(attachment.targetNodeId);
     if (target) {
+      const title = mapJournalEntryPageToNode(page).title;
+      const orphanedRelationships = await storage.getRelationshipsForNode(page.uuid);
+      if (orphanedRelationships.length > 0) {
+        ui.notifications.warn(
+          `${title} had ${orphanedRelationships.length} Relationship(s); they're preserved but excluded from the graph until re-authored against ${target.title} directly.`,
+        );
+      }
+
       await storage.deleteNode(page.uuid);
       const block: Block = {
         type: 'JournalEntryPage',
         uuid: page.uuid,
-        title: mapJournalEntryPageToNode(page).title,
+        title,
       };
       await storage.saveNode(upsertBlockByUuid(target, block));
       resolvedTargetId = target.id;
