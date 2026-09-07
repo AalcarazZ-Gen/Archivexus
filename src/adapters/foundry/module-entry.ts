@@ -7,6 +7,7 @@ import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import { registerActorNodeTypeTag } from './actor-node-type-tag.js';
 import { registerJournalEntryPageNodeTag } from './journal-entry-page-node-tag.js';
 import { registerRelationshipAuthoringEntryPoints } from './relationship-authoring-window.js';
+import { registerRelationshipListEntryPoints } from './relationship-list-window.js';
 import { createSqliteStorageProvider } from '../../storage/sqlite/create-sqlite-storage-provider.js';
 import { downloadPortableSnapshot } from './export-snapshot.js';
 import { createLogger } from './logger.js';
@@ -42,6 +43,7 @@ Hooks.once('init', () => {
   registerActorNodeTypeTag();
   registerJournalEntryPageNodeTag();
   registerRelationshipAuthoringEntryPoints(() => storage, log);
+  registerRelationshipListEntryPoints(() => storage, log);
 
   // Registered at init, but each callback lazily resolves `storage` at
   // call time (see withStorage) - it isn't created until `ready`.
