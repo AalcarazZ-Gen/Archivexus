@@ -256,6 +256,10 @@ Yes — a `traversalCategory`, from a small, closed taxonomy (`location`, `affil
 
 Yes. Cascading the delete would silently destroy a historical fact just because one endpoint was removed, contradicting "History is Part of the World"; blocking the delete instead adds resolution friction the project doesn't need. A Relationship whose origin or target no longer resolves to an existing Node is simply excluded wherever current Nodes are expected (e.g. View traversal) — no special-case logic needed. This doesn't resolve the broader question of Node deletion policy (hard delete vs. archival), which stays open for whoever designs delete workflows. See ADR-0007. **This same answer is reused, not re-derived, by ADR-0011 for what happens to a Relationship when its endpoint page is retagged and its standalone Node is deleted (2026-09-06).**
 
+### How does a GM delete a Relationship instance?
+
+Via a new per-Node "Relationships…" list window in the Foundry Adapter (a `getHeaderControls*` button, same entry-point family as ADR-0009/ADR-0010), listing every Relationship touching that Node (`StorageProvider.getRelationshipsForNode`, 1-hop, no traversal-depth involved) with a per-row delete action gated by a native confirm dialog — a deliberate, reasoned exception to this project's usual warn-never-block posture, since a delete here is actually irreversible, unlike a cardinality conflict or a retag-orphaned Relationship. Deleting a Relationship never affects the two Nodes it connected (no cascade, no FK — ADR-0007 point 8 restated, not re-derived) and needs no `StorageProvider` change (`deleteRelationship` already existed, fully implemented). See `decisions/ADR-0013-relationship-deletion-ui.md` (2026-09-06).
+
 ### Can a Relationship connect a Node to itself (origin equals target)?
 
 No.
@@ -384,11 +388,15 @@ Yes — as a Knowledge Element instance, with an Archivexus-internal identifier 
 
 A declarative spec on the View, expressed in Relationship Definition's `traversalCategory` vocabulary plus a depth, resolved by a Core Query API — never a per-View-format traversal implementation, never a general query language. For the MVP, the GM only ever picks among 3 fixed presets ("Direct only" — 1 hop, every category; "Everything connected" — composed traversal to depth 2; "Curated by me" — manual per-Node curation starting from "Direct only"), not open per-category config. Because the spec is declarative and re-evaluated against current Knowledge Elements, this satisfies the "always derivable" Domain Invariant above with no extra effort; a saved expand/collapse arrangement is presentation metadata over that derivable content, not additional knowledge, so it doesn't strain the invariant either. See `decisions/ADR-0007-relationship-view-traversal.md`.
 
+### Before the real graph canvas (VIEW-001) exists, is there an interim way to actually see a Node's connections?
+
+Yes — `decisions/ADR-0012-node-connections-panel.md` (2026-09-06): a narrow, Foundry-Adapter-side "Connections" panel (`getHeaderControls*` entry point, same mechanism as ADR-0009/ADR-0010, plus a dedicated `ApplicationV2` window like ADR-0010's), showing only the "Direct only" preset grouped by `traversalCategory`, with no View persistence of its own — every open recomputes fresh from current storage. This is deliberately a separate, smaller ticket (proposed `ADAPT-011`) than VIEW-001, not a first slice of it: VIEW-001 still owns the real graph/canvas rendering, "Everything connected"'s mandated cluster grouping, "Curated by me," and any persisted View arrangement. ADR-0012 also gives the first concrete answer to this section's content-prominence Open Question below, scoped to this one panel.
+
 ---
 
 ## Open Questions
 
-Which attribute (if any) orders results within a large same-category cluster (e.g. which of 40 residents shows first, before a "+36 more")? Not resolved by ADR-0007 — deferred to whoever implements the View/UI layer.
+Which attribute (if any) orders results within a large same-category cluster (e.g. which of 40 residents shows first, before a "+36 more")? Partially resolved for the interim Connections panel by `decisions/ADR-0012-node-connections-panel.md`: degree-descending (the connected Node's own total relationship count elsewhere in the graph), alphabetical tiebreak. Still open for VIEW-001's own fuller case: manual drag-to-reorder plus persisting that arrangement, which needs a real View instance to save into.
 
 ---
 
@@ -411,3 +419,4 @@ Resolved this round (2026-08-30):
 Resolved this round (2026-09-06):
 
 - Should a JournalEntryPage always become its own Node, with no way to unify several fragments describing one concept? → See Node's Decisions ("Can a JournalEntryPage attach itself to another Node instead of becoming its own Node?") and `decisions/ADR-0011-journal-entry-page-node-attachment.md`.
+- Before VIEW-001's full graph canvas exists, is there an interim way to actually see a Node's connections, and does ADR-0011 change what that interim surface needs to handle? → See View's Decisions ("Before the real graph canvas (VIEW-001) exists...") and `decisions/ADR-0012-node-connections-panel.md`. Also gives a first concrete (though scoped) answer to View's own content-prominence-ordering Open Question.
