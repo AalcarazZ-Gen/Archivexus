@@ -336,6 +336,23 @@ export function getRelationshipListApplicationClass(): RelationshipListApplicati
 // Entry points (ADR-0013 point 1): getHeaderControls* on both sheet families
 // ---------------------------------------------------------------------------
 
+/**
+ * On a resolution failure this deliberately refuses to open at all, unlike
+ * `relationship-authoring-window.ts`'s sibling `openRelationshipAuthoringWindow`,
+ * which still opens with `prefillOrigin` simply omitted (reviewer-flagged as a
+ * possible inconsistency — resolved here, not left silent). The two windows
+ * aren't actually symmetric: the authoring window has a real recovery path
+ * (the GM can drop any other document into either drop zone, so an empty
+ * Origin is just a starting state, not a dead end), while this window has no
+ * such affordance — it's permanently scoped to the single Node whose sheet
+ * opened it, with no way to re-target it after the fact. A failed resolution
+ * here means there is no Node id to query `getRelationshipsForNode` against
+ * at all, so there's nothing a rendered-but-empty window could usefully show
+ * or let the GM recover from. Refusing to open (and logging why) is the
+ * correct behavior for this window's shape, not an oversight to align with
+ * the other one. In practice this is currently unreachable dead code, since
+ * both header-control buttons only render on the two supported sheet types.
+ */
 function openRelationshipListWindow(
   app: FoundrySheetAppLike,
   storage: StorageProvider | undefined,
