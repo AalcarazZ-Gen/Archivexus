@@ -19,6 +19,7 @@ const FOUNDRY_ADAPTER_GLOBALS = {
   foundry: 'readonly',
   game: 'readonly',
   saveDataToFile: 'readonly',
+  ui: 'readonly',
 };
 
 /**

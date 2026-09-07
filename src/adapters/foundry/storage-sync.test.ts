@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createNode, type Node } from '../../core/domain/node.js';
+import { createRelationship, type Relationship } from '../../core/domain/relationship.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import { syncActor, syncAllActorsAndPages, syncJournalEntryPage } from './storage-sync.js';
 
@@ -32,6 +33,7 @@ function fakeStorage(): StorageProvider & { saved: Node[] } {
  */
 function fakeStatefulStorage(
   initialNodes: readonly Node[] = [],
+  initialRelationships: readonly Relationship[] = [],
 ): StorageProvider & {
   nodes: Map<string, Node>;
   saveNode: ReturnType<typeof vi.fn>;
@@ -53,7 +55,8 @@ function fakeStatefulStorage(
     getRelationship: async () => undefined,
     deleteRelationship: async () => undefined,
     listRelationships: async () => [],
-    getRelationshipsForNode: async () => [],
+    getRelationshipsForNode: async (nodeId: string) =>
+      initialRelationships.filter((r) => r.origin === nodeId || r.target === nodeId),
     close: async () => undefined,
   };
 }
@@ -78,6 +81,17 @@ describe('syncJournalEntryPage', () => {
 });
 
 describe('syncJournalEntryPage — ADR-0011 attachment orchestration', () => {
+  let warnMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    warnMock = vi.fn();
+    (globalThis as { ui?: unknown }).ui = { notifications: { warn: warnMock } };
+  });
+
+  afterEach(() => {
+    delete (globalThis as { ui?: unknown }).ui;
+  });
+
   it('attach + target exists: deletes the page\'s own standalone Node and upserts a Block on the target', async () => {
     const target = createNode({ id: 'Actor.fausto', type: 'Character', title: 'Fausto Farcon' });
     const existingStandalonePage = createNode({
@@ -99,6 +113,60 @@ describe('syncJournalEntryPage — ADR-0011 attachment orchestration', () => {
     expect(storage.deleteNode).toHaveBeenCalledWith('JournalEntryPage.bio');
     expect(await storage.getNode('JournalEntryPage.bio')).toBeUndefined();
 
+    const updatedTarget = await storage.getNode('Actor.fausto');
+    expect(updatedTarget?.blocks).toEqual([
+      { type: 'JournalEntryPage', uuid: 'JournalEntryPage.bio', title: 'Biografía' },
+    ]);
+    expect(warnMock).not.toHaveBeenCalled();
+  });
+
+  it('ADAPT-010/ADR-0011 point 5: warns the GM by name/count when retagging a page that already has real Relationships, but still proceeds with the delete/attach', async () => {
+    const target = createNode({ id: 'Actor.fausto', type: 'Character', title: 'Fausto Farcon' });
+    const existingStandalonePage = createNode({
+      id: 'JournalEntryPage.bio',
+      type: 'Lore',
+      title: 'Biografía',
+    });
+    const someOtherNode = createNode({ id: 'Node.other', type: 'Lore', title: 'Something else' });
+    const relationshipA = createRelationship({
+      id: 'Relationship.1',
+      origin: 'JournalEntryPage.bio',
+      target: 'Node.other',
+      definitionId: 'related-to',
+      title: 'Biografía relates to Something else',
+    });
+    const relationshipB = createRelationship({
+      id: 'Relationship.2',
+      origin: 'Node.other',
+      target: 'JournalEntryPage.bio',
+      definitionId: 'related-to',
+      title: 'Something else relates to Biografía',
+    });
+    const storage = fakeStatefulStorage(
+      [target, existingStandalonePage, someOtherNode],
+      [relationshipA, relationshipB],
+    );
+
+    await syncJournalEntryPage(
+      {
+        uuid: 'JournalEntryPage.bio',
+        name: 'Biografía',
+        flags: { archivexus: { attachedToNodeId: 'Actor.fausto' } },
+      },
+      storage,
+    );
+
+    // The warning fires with the correct count...
+    expect(warnMock).toHaveBeenCalledTimes(1);
+    const [message] = warnMock.mock.calls[0] as [string];
+    expect(message).toContain('Biografía');
+    expect(message).toContain('2');
+    expect(message).toContain('Fausto Farcon');
+
+    // ...but the delete/attach proceeds exactly as it would without any
+    // Relationships — non-blocking, per ADR-0011 point 5.
+    expect(storage.deleteNode).toHaveBeenCalledWith('JournalEntryPage.bio');
+    expect(await storage.getNode('JournalEntryPage.bio')).toBeUndefined();
     const updatedTarget = await storage.getNode('Actor.fausto');
     expect(updatedTarget?.blocks).toEqual([
       { type: 'JournalEntryPage', uuid: 'JournalEntryPage.bio', title: 'Biografía' },

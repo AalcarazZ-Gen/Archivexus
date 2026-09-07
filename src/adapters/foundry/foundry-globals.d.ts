@@ -57,3 +57,13 @@ declare const game: {
 // so this package needs no Blob/URL/document ambient surface for the
 // export action.
 declare function saveDataToFile(data: string, type: string, filename: string): void;
+
+// `ui.notifications.warn(message)` (storage-sync.ts, ADR-0011 point 5) — the
+// non-blocking GM-facing notification for a retag that orphans existing
+// Relationships. Same minimal-surface tradeoff as everything else in this
+// file: only the one method this codebase actually calls is declared.
+declare const ui: {
+  notifications: {
+    warn(message: string): void;
+  };
+};
