@@ -54,14 +54,16 @@ describe('createKnowledgeElement', () => {
       ...baseInput,
       metadata: { source: 'foundry' },
       history: [{ timestamp, description: 'Imported from Foundry' }],
-      blocks: [{ id: 'block-1', type: 'description', data: 'A bustling city.' }],
+      blocks: [{ type: 'JournalEntryPage', uuid: 'JournalEntryPage.1', title: 'A bustling city.' }],
       tags: ['city', 'sword-coast'],
       references: [{ targetId: 'node-2' }],
     });
 
     expect(element.metadata).toEqual({ source: 'foundry' });
     expect(element.history).toEqual([{ timestamp, description: 'Imported from Foundry' }]);
-    expect(element.blocks).toEqual([{ id: 'block-1', type: 'description', data: 'A bustling city.' }]);
+    expect(element.blocks).toEqual([
+      { type: 'JournalEntryPage', uuid: 'JournalEntryPage.1', title: 'A bustling city.' },
+    ]);
     expect(element.tags).toEqual(['city', 'sword-coast']);
     expect(element.references).toEqual([{ targetId: 'node-2' }]);
   });

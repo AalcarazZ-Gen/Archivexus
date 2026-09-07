@@ -1,4 +1,5 @@
-export type { Block } from './block.js';
+export { createBlock, InvalidBlockError, isBlock } from './block.js';
+export type { Block, CreateBlockInput } from './block.js';
 export type { HistoryEntry } from './history.js';
 export {
   createKnowledgeElement,
@@ -11,7 +12,14 @@ export type {
   KnowledgeElement,
   KnowledgeElementKind,
 } from './knowledge-element.js';
-export { createNode, InvalidNodeError, isNode, KNOWN_NODE_TYPES } from './node.js';
+export {
+  createNode,
+  InvalidNodeError,
+  isNode,
+  KNOWN_NODE_TYPES,
+  removeBlockByUuid,
+  upsertBlockByUuid,
+} from './node.js';
 export type { CreateNodeInput, Node, NodeType } from './node.js';
 export type { KnowledgeElementReference } from './reference.js';
 export { createRelationship, InvalidRelationshipError, isRelationship } from './relationship.js';

@@ -18,7 +18,7 @@ describe('node row round-trip', () => {
       visibility: 'visible',
       metadata: { level: 5, aliases: ['K'] },
       tags: ['npc', 'ally'],
-      blocks: [{ id: 'b1', type: 'scene', data: { uuid: 'Scene.1' } }],
+      blocks: [{ type: 'scene', uuid: 'Scene.1', title: 'A scene' }],
       references: [{ targetId: 'Node.other' }],
       history: [{ timestamp: new Date('2026-01-01T00:00:00.000Z'), description: 'created' }],
     });
