@@ -83,13 +83,13 @@ Per this section's Domain Invariants, every Knowledge Element may exist without 
 
 ### What does a Block actually contain?
 
-A Block is a typed reference to a Foundry element, not free-form data: `{ type, uuid, title? }` — `type` names what kind of Foundry document it points to (e.g. `scene`, `JournalEntry`), `uuid` is that document's real Foundry UUID (per `decisions/ADR-0001-use-foundry-UUID.md`), and an optional `title` lets a consumer display it without re-fetching. This replaces `Block.data: unknown`'s placeholder shape (`src/core/domain/block.ts`) with a concrete one — implementing the change is separate, future work, not part of this Decision.
+A Block is a typed reference to a Foundry element, not free-form data: `{ type, uuid, title? }` — `type` names what kind of Foundry document it points to (e.g. `scene`, `JournalEntry`), `uuid` is that document's real Foundry UUID (per `decisions/ADR-0001-use-foundry-UUID.md`), and an optional `title` lets a consumer display it without re-fetching. This replaces `Block.data: unknown`'s placeholder shape (`src/core/domain/block.ts`) with a concrete one — implementing the change is separate, future work, not part of this Decision. **First real concrete producer decided by ADR-0011 (2026-09-06): a `JournalEntryPage` the GM explicitly attaches to another Node becomes a `{ type: 'JournalEntryPage', uuid, title }` Block on that Node — see Node's Decisions below.** ADAPT-005's Scene→Block mapping remains decided but not yet implemented.
 
 This is deliberately uniform, not a discriminated union: every Block a GM would want — a Scene, a Journal page the GM writes their own notes into, anything else — is, by design, always a reference to some real Foundry element, never Archivexus-native freeform content (a GM's personal notes still go through a Foundry `JournalEntry`, referenced the same way). Revisit this if that assumption stops holding — e.g. if Archivexus ever wants to own content that has no Foundry-side counterpart at all.
 
 ### Does the portable export (ADR-0008) include Blocks/History/References, or just titles/tags?
 
-Yes — product-owner decision, 2026-09-06: the export must let an external AI or human agent reconstruct the whole world from it alone, not just titles/tags, so `toPortableSnapshot` (`src/core/storage/to-portable-snapshot.ts`) carries every one of a Knowledge Element's nine fields, unredacted, for both Nodes and Relationships. This was a real gap in the first STORE-003 pass — `PortableNode`/`PortableRelationship` initially dropped `history`/`blocks`/`references`, caught by a reviewer pass — and is really just ADR-0008 point 6 ("the export is a full, unredacted snapshot") made explicit rather than a new rule.
+Yes — product-owner decision, 2026-09-06: the export must let an external AI or human agent reconstruct the whole world from it alone, not just titles/tags, so `toPortableSnapshot` (`src/core/storage/to-portable-snapshot.ts`) carries every one of a Knowledge Element's nine fields, unredacted, for both Nodes and Relationships. This was a real gap in the first STORE-003 pass — `PortableNode`/`PortableRelationship` initially dropped `history`/`blocks`/`references` — caught by a reviewer pass — and is really just ADR-0008 point 6 ("the export is a full, unredacted snapshot") made explicit rather than a new rule.
 
 ### Do Knowledge Elements expose their capabilities directly, or through composable behaviors (mixins/traits)?
 
@@ -164,7 +164,7 @@ Relationships and History should preserve the evolution between Nodes.
 
 No — not as a single unit.
 
-A Foundry `JournalEntry` is a Foundry-native container of `JournalEntryPage` documents; the container itself is a storage detail, not an Archivexus domain concept (see `01_ARCHITECTURE.md`'s "Knowledge over Documents" principle). The Foundry Adapter maps each page with distinct semantic content to its own Node, using that page's own Foundry UUID per ADR-0001. The Node's type comes from an explicit GM-set flag naming what the page represents, not from inferring it out of the page's content — Adapters carry no business logic (`01_ARCHITECTURE.md`'s Adapters section). Pages without an explicit type become a generic `Lore` Node.
+A Foundry `JournalEntry` is a Foundry-native container of `JournalEntryPage` documents; the container itself is a storage detail, not an Archivexus domain concept (see `01_ARCHITECTURE.md`'s "Knowledge over Documents" principle). The Foundry Adapter maps each page with distinct semantic content to its own Node, using that page's own Foundry UUID per ADR-0001 — **unless the GM has explicitly tagged the page as attached to another Node (`flags.archivexus.attachedToNodeId`), in which case it becomes a Block on that Node instead of a Node of its own; see `decisions/ADR-0011-journal-entry-page-node-attachment.md` for the full mechanism, storage shape and migration behavior. Amended by ADR-0011, 2026-09-06 — everything else in this paragraph (default behavior when no attachment is set) is unchanged.** The Node's type comes from an explicit GM-set flag naming what the page represents, not from inferring it out of the page's content — Adapters carry no business logic (`01_ARCHITECTURE.md`'s Adapters section). Pages without an explicit type become a generic `Lore` Node.
 
 ### Does a Foundry `Scene` map to its own Node? (ADAPT-005)
 
@@ -175,6 +175,10 @@ Same reasoning as a `JournalEntry`: a Scene has no semantic meaning of its own �
 A Scene with no explicit link stays unmapped. The Adapter never force-creates a placeholder Node for it: a GM may have Scenes that are still being built, or maps they saved because they liked them with no plan yet for where they fit — those aren't part of the knowledge graph until the GM says they are.
 
 There's no fixed set of "place" Node types this is restricted to. `KNOWN_NODE_TYPES` already has `City` and `Kingdom`, but nothing requires a Scene's target Node to be one of those (a tavern, a single room, a region with no real-world equivalent) — `NodeType` is intentionally an open string, not a closed enum (`01_ARCHITECTURE.md`'s "Extensible" principle), because no fixed list could cover every world a GM invents. The known-types list stays a set of suggestions, never a restriction.
+
+### Can a JournalEntryPage attach itself to another Node instead of becoming its own Node? (ADR-0011)
+
+Yes — see the amended "Is a Foundry Journal a Node?" Decision above and `decisions/ADR-0011-journal-entry-page-node-attachment.md` in full. A GM-set `flags.archivexus.attachedToNodeId` flag names the target Node (Actor-backed or JournalEntryPage-backed, no restriction) the page's content contributes to as a Block, instead of the page becoming its own standalone Node. This is a single per-page authoring-time choice, not a Relationship authored after the fact — settled this way over a `same-entity-as` symmetric `RelationshipDefinition` alternative specifically because Alberto judged the latter's per-fragment authoring burden overwhelming for a case (a Character or City assembled from several pages) that's common, not exceptional, in real campaign data. Retagging an already-synced standalone page as attached deletes its standalone Node; any Relationships already authored against it survive as dangling references (ADR-0007 point 8's existing answer, not a new one) and the GM is warned, non-blockingly, after the fact. No forced migration of the 61 pages already synced via STORE-003's backfill — attachment is opt-in and opportunistic only.
 
 ---
 
@@ -246,7 +250,7 @@ Yes — a `traversalCategory`, from a small, closed taxonomy (`location`, `affil
 
 ### Can a Relationship survive the deletion of its origin or target Node?
 
-Yes. Cascading the delete would silently destroy a historical fact just because one endpoint was removed, contradicting "History is Part of the World"; blocking the delete instead adds resolution friction the project doesn't need. A Relationship whose origin or target no longer resolves to an existing Node is simply excluded wherever current Nodes are expected (e.g. View traversal) — no special-case logic needed. This doesn't resolve the broader question of Node deletion policy (hard delete vs. archival), which stays open for whoever designs delete workflows. See ADR-0007.
+Yes. Cascading the delete would silently destroy a historical fact just because one endpoint was removed, contradicting "History is Part of the World"; blocking the delete instead adds resolution friction the project doesn't need. A Relationship whose origin or target no longer resolves to an existing Node is simply excluded wherever current Nodes are expected (e.g. View traversal) — no special-case logic needed. This doesn't resolve the broader question of Node deletion policy (hard delete vs. archival), which stays open for whoever designs delete workflows. See ADR-0007. **This same answer is reused, not re-derived, by ADR-0011 for what happens to a Relationship when its endpoint page is retagged and its standalone Node is deleted (2026-09-06).**
 
 ### Can a Relationship connect a Node to itself (origin equals target)?
 
@@ -399,3 +403,7 @@ Resolved this round (2026-08-27):
 Resolved this round (2026-08-30):
 
 - What mechanism governs which connected Relationships/Nodes a View selects when generated or expanded? → See Relationship's and View's Decisions sections, and `decisions/ADR-0007-relationship-view-traversal.md`.
+
+Resolved this round (2026-09-06):
+
+- Should a JournalEntryPage always become its own Node, with no way to unify several fragments describing one concept? → See Node's Decisions ("Can a JournalEntryPage attach itself to another Node instead of becoming its own Node?") and `decisions/ADR-0011-journal-entry-page-node-attachment.md`.
