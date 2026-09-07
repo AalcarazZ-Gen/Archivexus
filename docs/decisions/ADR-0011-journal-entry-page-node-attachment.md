@@ -101,3 +101,49 @@ This is a real, named cost — flagged plainly, not undersold: retagging an alre
 - **A forced/scripted batch migration re-triaging all 61 existing pages** (asking the GM to explicitly confirm standalone-vs-attached for every one before shipping). Rejected — directly contradicts the "opportunistic, nothing forced" property both product-owner's and ux-ui-designer's proposals implicitly assumed, and there is no deadline or correctness reason requiring it; the pages work exactly as they do today until touched.
 - **Deleting/orphaning silently, with no warning at all, on retag.** Rejected — cheap to check (the same existing 1-hop lookup ADR-0010's cardinality warning already uses), and a GM who doesn't realize a page's Relationships just went dangling deserves to know, even non-blockingly, same reasoning ADR-0010 itself used for its own warn-never-block cardinality check.
 - **Blocking the retag entirely if Relationships exist** (require the GM to first delete/re-author them before attaching). Rejected — adds real friction for a case (a City's page turning out to relate to another City page, or Fausto's pages turning out to belong together) that's a completely legitimate, even expected, authoring correction, not a mistake to gate.
+
+---
+
+## Amendment (2026-09-06): DBA resolution — Block-upsert-by-uuid and detach-cleanup mechanics
+
+This ADR's Consequences section named two mechanics as real implementation requirements it deliberately didn't itself specify: idempotent Block-upsert-by-uuid, and detach/re-attach-elsewhere cleanup. Resolved here (DBA pass), against the actual current code (`src/core/storage/storage-provider.ts`, `src/storage/sqlite/row-mapping.ts`, `src/storage/sqlite/migration.ts`, `src/adapters/foundry/storage-sync.ts`, `src/adapters/foundry/module-entry.ts`) — decide-only, no code changed by this pass.
+
+**1. Idempotent Block-upsert-by-uuid lives in Core, not the Foundry Adapter, as two small pure functions on `Node`.**
+
+`upsertBlockByUuid(node: Node, block: Block): Node` and `removeBlockByUuid(node: Node, uuid: string): Node` belong in `src/core/domain/node.ts`, alongside `createNode` — pure, synchronous, no I/O, returning a new frozen `Node` (same style as every other Node-shaping function there). `upsertBlockByUuid` replaces any existing entry in `node.blocks` whose `uuid` matches the given Block's `uuid`, appending only if none matched; `removeBlockByUuid` drops any entry matching `uuid`, a no-op if none does.
+
+This is a Core concern, not a Foundry-Adapter one, even though ADR-0011's only current producer is JournalEntryPage attachment — "replace a Node's Block for a given Foundry document, don't duplicate it on repeated sync" has zero Foundry-specific behavior in it, and ADAPT-005's still-unimplemented Scene→Block mapping will need the exact same idempotent-upsert behavior (a Scene's `updateScene`-equivalent Hook fires repeatedly too). Putting it only in `storage-sync.ts` would duplicate this logic a second time once Scene→Block ships, and would put general Node/Block manipulation — not Foundry integration — on the wrong side of `01_ARCHITECTURE.md`'s Core/Adapter boundary.
+
+`storage-sync.ts`'s orchestration (point 3 of the Decision above) calls it like so, needing nothing beyond `StorageProvider.getNode`/`saveNode` (both already exist — no new `StorageProvider` method):
+
+```
+const target = await storage.getNode(targetNodeId); // already resolved as existing, per point 3
+const block: Block = { type: 'JournalEntryPage', uuid: page.uuid, title: resolveTitle(page) };
+await storage.saveNode(upsertBlockByUuid(target, block));
+```
+
+**Named limitation, not fixed by this pass:** this is a plain read-modify-write, not a transaction — two overlapping `syncJournalEntryPage` calls targeting the same Node (e.g. two rapid edits racing each other across the Worker RPC boundary) could lose one's write. Accepted as-is: `ADR-0008` already establishes "single local file, single user, no concurrent-writer coordination problem to solve for," and Foundry's own document-update Hooks aren't naturally concurrent within one client tab. Would need a real transaction (or an optimistic-concurrency check) if this ever ran against a genuinely concurrent writer — not this project's shape.
+
+**Real prerequisite this surfaces, not yet done by any ticket: `src/core/domain/block.ts`'s actual TypeScript shape is still the CORE-001 placeholder (`{ id, type, data }`), not the shape `03_DOMAIN_MODEL.md` and this ADR already assume (`{ type, uuid, title? }`, decided by ADAPT-005, "implementing the change is separate, future work" per that Decision's own text).** `upsertBlockByUuid`/`removeBlockByUuid` match Blocks by `uuid` — a field that doesn't exist on `Block` yet. Confirmed via a repo-wide grep that nothing outside `block.ts` itself reads `Block.id`/`Block.data`, so this is an isolated, low-risk type change, not a cross-cutting migration — but it is a real, currently-unscoped prerequisite. Whoever implements ADR-0011 must implement this shape change first (or as part of the same ticket); it is not automatically covered by ADAPT-005 (decided, not implemented) or this ADR (decided, not implemented) alone.
+
+**2. Detach/re-attach-elsewhere cleanup: the architect's own "full scan over `listNodes()`" suggestion is confirmed as the right design, unconditional (no gating), with no new `StorageProvider` method and no schema change.**
+
+Concretely, `storage-sync.ts`'s orchestration runs this on every `syncJournalEntryPage` call (both live Hook fires and the `ready`-time backfill), after resolving the page's current target (`targetNodeId`, `undefined` if standalone):
+
+```
+const allNodes = await storage.listNodes();
+for (const node of allNodes) {
+  if (node.id === targetNodeId) continue; // the legitimate current location, if any
+  if (node.blocks.some((b) => b.uuid === page.uuid)) {
+    await storage.saveNode(removeBlockByUuid(node, page.uuid));
+  }
+}
+```
+
+This needs nothing beyond `listNodes()` and `saveNode()` — both already exist on `StorageProvider`. A dedicated method (e.g. a `findNodesReferencingBlock(uuid)`) was considered and rejected for now: at Alberto's real numbers (41 Actors + 61 Pages ≈ 102 Nodes today), a full `listNodes()` scan plus an in-memory filter is trivially cheap — comfortably sub-100ms even at 10x that count — and `migration.ts`'s own stated policy is to leave `blocks` as an unindexed JSON column "until a real query need appears" (Rule 9). Building a new port method and a SQL-side JSON1/indexed lookup for the SQLite implementation to satisfy it now would be premature for a personal-scale, single-GM campaign that isn't trending toward thousands of Nodes or high-frequency re-attach churn.
+
+**Running it unconditionally on every sync call (not gated on whether the attachment flag actually changed) is the deliberate, simpler choice, not an oversight** — confirmed against `module-entry.ts`'s actual Hook wiring: `withStorage`'s `void action(storage).catch(...)` means every `create/updateActor`/`create/updateJournalEntryPage` Hook already runs its storage sync as fire-and-forget, never awaited by Foundry's own dispatch. So this scan never blocks the GM's UI regardless of cost — the "blocking synchronously on every page edit" framing in this ADR's Disadvantages doesn't hold against the actual Hook-wiring code, which was already async/non-blocking before this ADR. Given that, gating the scan behind Foundry's `changes` diff (only run it when `attachedToNodeId` is actually part of a given `updateJournalEntryPage` payload) was considered and rejected too: it would need `syncJournalEntryPage`'s signature to grow a Foundry-specific `changes`-diff parameter threaded through from `module-entry.ts`, real added complexity, to save a sub-100ms scan that doesn't block anything and isn't a repeated cost on a hot path a GM would ever notice. Revisit this specific tradeoff only if the campaign's Node count grows by roughly an order of magnitude *and* attach/detach edits become frequent enough that repeated full scans show up as an actual, measured cost — not preemptively.
+
+**3. Schema (`migration.ts`) is unchanged by both mechanics — this is purely an orchestration-layer (`storage-sync.ts` + `src/core/domain/node.ts`) concern.** `blocks` stays exactly what it is today: an unindexed JSON `TEXT` column on `nodes`, written and read whole via `row-mapping.ts`'s existing `nodeToRow`/`rowToNode`. Neither mechanic needs a new column, a new table, or a new index — confirmed explicitly, not left implicit.
+
+**Future lever, not built now:** if the "no index over `blocks`" cost ever does become real, the principled place to add it is a new `StorageProvider.findNodesReferencingBlock(uuid): Promise<readonly Node[]>` method — engine-agnostic at the port level (the SQLite implementation could satisfy it via SQLite's JSON1 functions, e.g. a `json_each` join, without pulling/deserializing full rows via `listNodes()`; a simpler JSON-file fallback implementation could still just filter in JS) — not a SQL-specific escape hatch bolted onto `storage-sync.ts` directly. Naming this now so it doesn't need to be rediscovered from scratch if the scale assumption above ever stops holding.
