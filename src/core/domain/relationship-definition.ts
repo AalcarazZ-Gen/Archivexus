@@ -269,7 +269,8 @@ export function isRelationshipDefinition(value: unknown): value is RelationshipD
  * in-memory collection. Deliberately not a stateful registry/storage-backed
  * repository (that's STORE-003's Storage Provider's concern, and it's an
  * optional stretch for this ticket) and not the View Query API/traversal
- * engine (out of scope, separate future work).
+ * engine (`src/core/query/traversal.ts`, CORE-005 — a separate module this
+ * one doesn't depend on).
  */
 export function resolveRelationshipDefinition(
   definitions: readonly RelationshipDefinition[],
