@@ -113,3 +113,5 @@ A live bug report (Alberto) exposed three problems, fixed together:
 **3. Stray drops escaped the window.** A drag that landed just outside the drop box bubbled out and popped a Foundry "Create Actor" dialog / switched the sidebar to Actors. Every endpoint drop now `preventDefault`s + `stopPropagation`s, and the `<form>` has a catch-all that swallows any drop that is not on an endpoint field.
 
 Decision points 1, 2, 5, 6 stand. Point 3's "native `<document-tags>` drag-and-drop" is narrowed to "native HTML5 drag-and-drop, handled by this module" — the mechanism (drag an Actor/page onto a target) is unchanged; only the widget rendering it is now ours.
+
+**Follow-up (same session): "Save & add another".** Alberto: authoring several members against one Organization meant reopening the window (and re-dropping the anchor) after every Save. Added a second footer button that saves, keeps the window open, and clears only Target + the Definition — Origin stays pinned — with a transient "Saved: …" notice. Plain "Save" still closes.
