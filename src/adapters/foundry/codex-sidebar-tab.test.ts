@@ -1,12 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createNode } from '../../core/domain/node.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import {
-  buildCodexContentHTML,
+  buildNavigatorGroupsHTML,
+  buildNavigatorShellHTML,
+  buildNavigatorStateHTML,
   ensureCodexStyles,
   getCodexSidebarTabClass,
   registerCodexSidebarTab,
   type FoundryUiConfigLike,
 } from './codex-sidebar-tab.js';
+import { groupNodesByType } from './node-navigator.js';
 import { createLogger } from './logger.js';
 
 const log = createLogger('archivexus-test');
@@ -19,16 +23,11 @@ function fakeUiConfig(): FoundryUiConfigLike {
 /**
  * A minimal stand-in for the `foundry` global so `getCodexSidebarTabClass`
  * can build its `AbstractSidebarTab` subclass without a real client — the
- * class body only needs the base constructor and `_prepareContext` on its
- * prototype (Cytoscape is a separate lazy dynamic import, not touched at
- * class-build time).
+ * class body only needs the base constructor on its prototype.
  */
 class FakeAbstractSidebarTab {
   element = { innerHTML: '', querySelector: () => null };
   active = false;
-  async _prepareContext(): Promise<Record<string, unknown>> {
-    return {};
-  }
   _onActivate(): void {}
   render(): void {}
 }
@@ -45,16 +44,49 @@ afterEach(() => {
   delete (globalThis as { foundry?: unknown }).foundry;
 });
 
-describe('buildCodexContentHTML', () => {
-  it('renders a toolbar with a "Whole graph" reset action and a canvas mount point', () => {
-    const html = buildCodexContentHTML();
-    expect(html).toContain('data-action="resetGraph"');
-    expect(html).toContain('data-role="canvas"');
+describe('buildNavigatorShellHTML', () => {
+  it('renders the toolbar "Open graph" action, a search box, and a list region', () => {
+    const html = buildNavigatorShellHTML();
+    expect(html).toContain('data-action="openWholeGraph"');
+    expect(html).toContain('data-role="search"');
+    expect(html).toContain('data-role="list"');
     expect(html).toContain('data-role="hint"');
   });
+});
 
-  it('has an "Open graph" button that launches the popout window (VIEW-001b)', () => {
-    expect(buildCodexContentHTML()).toContain('data-action="openPopout"');
+describe('buildNavigatorStateHTML', () => {
+  it('has a loading, an error, and an empty message', () => {
+    expect(buildNavigatorStateHTML('loading')).toContain('Loading');
+    expect(buildNavigatorStateHTML('error')).toContain("Couldn't load");
+    expect(buildNavigatorStateHTML('empty')).toContain('No knowledge yet');
+  });
+});
+
+describe('buildNavigatorGroupsHTML', () => {
+  it('shows the empty state when there are no groups', () => {
+    expect(buildNavigatorGroupsHTML([])).toBe(buildNavigatorStateHTML('empty'));
+  });
+
+  it('emits one section per group and one row per node, carrying data-node-id and a lowercased data-title', () => {
+    const nodes = [
+      createNode({ id: 'City.1', type: 'City', title: 'Waterdeep' }),
+      createNode({ id: 'Character.1', type: 'Character', title: 'Volo' }),
+    ];
+    const html = buildNavigatorGroupsHTML(groupNodesByType(nodes));
+    expect(html).toContain('data-group="City"');
+    expect(html).toContain('data-group="Character"');
+    expect(html).toContain('data-node-id="City.1"');
+    expect(html).toContain('data-title="waterdeep"');
+    expect(html).toContain('data-action="focusNode"');
+    expect(html).toContain('>Waterdeep<');
+  });
+
+  it('escapes node titles', () => {
+    const html = buildNavigatorGroupsHTML(
+      groupNodesByType([createNode({ id: 'Lore.1', type: 'Lore', title: '<script>' })]),
+    );
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).not.toContain('<script>');
   });
 });
 
@@ -72,7 +104,6 @@ describe('registerCodexSidebarTab', () => {
     const config = fakeUiConfig();
     registerCodexSidebarTab(config, noStorage, log);
     expect(typeof config.codex).toBe('function');
-    // The class extends whatever AbstractSidebarTab the foundry global exposes.
     expect(Object.getPrototypeOf(config.codex as new () => unknown)).toBe(FakeAbstractSidebarTab);
     expect((config.codex as { tabName: string }).tabName).toBe('codex');
   });
@@ -110,6 +141,6 @@ describe('ensureCodexStyles', () => {
 
     expect(appended).toHaveLength(1);
     expect(appended[0]?.id).toBe('archivexus-codex-styles');
-    expect(appended[0]?.textContent).toContain('.archivexus-codex-canvas');
+    expect(appended[0]?.textContent).toContain('.archivexus-codex-rows');
   });
 });

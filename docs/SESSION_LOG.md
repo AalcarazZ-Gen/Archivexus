@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-09-08 (software-developer: VIEW-001c — Codex sidebar navigator)
+
+**Built:** VIEW-001c (#63), first item of the "Next batch". The Codex sidebar tab drops VIEW-001a's in-tab Cytoscape rendering and becomes a **node navigator** — a search box + a `node.type`-grouped list of every Node — per ADR-0014 Amendment A2. Row click → `openGraphPopout(getStorage, log, { rootNodeId })` (the VIEW-001b popout, re-rooted); an "Open graph ⧉" toolbar button opens the whole graph. Branched `feat/view-001c-navigator` off `dev` (it also carried the ARCH-002 resolution commit — ADR-0014 Amendment 2).
+
+**Scoping calls made inline:**
+- **VIEW-001c = the navigator rebuild + its own styles.** The `ensureArchivexusStyles()` shared-style extraction (ADR-0006 / ADR-0014 Amendment 2 decision 4) and **node-type graph colouring** are *not* in it — colouring is a graph concern and the sidebar no longer draws a graph, so both move to **ADAPT-013** (the shared-style-baseline ticket, already scheduled last). Noted on the ticket.
+- The "stuck on *Storage not ready*" state is fixed here: the list shows "Loading campaign…" until `storage` exists, and the existing `Hooks.on('archivexus.ready', …)` re-fetch (bound once) fills it in.
+- No "Relationships" / "Getting started" toolbar buttons yet — those are VIEW-001i / VIEW-001g. No dead buttons (ADR-0009 discipline).
+
+**Formalized:**
+- `src/adapters/foundry/node-navigator.ts` (new, pure, unit-tested) — `groupNodesByType` (order: place-like `City`/`Kingdom` → `Character` → `Organization` → rest of `KNOWN_NODE_TYPES` alpha → GM-invented types alpha; alpha by title within a group; empty groups omitted) + `filterNodesByQuery` (case-insensitive title substring, empty query matches all).
+- `codex-sidebar-tab.ts` rewritten — pure `buildNavigatorShellHTML` / `buildNavigatorGroupsHTML` / `buildNavigatorStateHTML`; the `AbstractSidebarTab` subclass keeps the deferred-factory + raw `_renderHTML`/`_replaceHTML` pattern; search filters client-side by toggling row/group visibility off a lowercased `data-title` (no re-render → input keeps focus). `filterNodesForViewer` (ADR-0003) on every load path; "· N hidden" GM-only. No Cytoscape import here any more.
+- `index.ts` swaps `buildCodexContentHTML` for the new builders, re-exports `node-navigator`. CHANGELOG + PROJECT.md item 30 updated.
+- +11 unit tests (423 total). `tsc`/`eslint`/`vitest`/`build:foundry-module` all clean.
+
+**Still informal / not yet done:** not live-verified on a running Foundry client (needs a redeploy). VIEW-001g/i/d/e/f and ADAPT-014/013 still queued per PROJECT.md items 30–35.
+
 ## 2026-09-08 (product-owner + ux-ui-designer consult: UI look / onboarding / relationship-management console)
 
 **Discussed:** Alberto asked for three things "after a proper discussion between agents": (1) a UI-polish ticket, (2) onboarding for first setup "so the user can setup relations as expected", (3) a relationship-management console — "I'm not seeing one, maybe in the codex sidebar". Ran a **parallel consult** — product-owner (scope / priority / success criteria) and ux-ui-designer (design substance / flows / where things live), each briefed on the other's remit.

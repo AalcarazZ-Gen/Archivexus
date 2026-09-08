@@ -1,79 +1,40 @@
+import type { Node } from '../../core/domain/node.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
-import { resolveTraversal } from '../../core/query/traversal.js';
-import {
-  CYTOSCAPE_STYLE,
-  ensureCytoscape,
-  getLoadedCytoscape,
-  layoutFor,
-  type CytoscapeCoreLike,
-} from './cytoscape-loader.js';
 import { isViewerGM } from './foundry-viewer.js';
-import {
-  buildGraphViewElements,
-  collectTraversalNodes,
-  filterNodesForViewer,
-  type GraphViewElement,
-} from './graph-view-elements.js';
+import { filterNodesForViewer } from './graph-view-elements.js';
 import { openGraphPopout } from './graph-popout-window.js';
 import type { Logger } from './logger.js';
+import { groupNodesByType, type NavigatorGroup } from './node-navigator.js';
 
 /**
- * The Codex: a first-level Foundry sidebar tab rendering the campaign's
- * whole Knowledge-Element graph (VIEW-001a, implementing
- * `decisions/ADR-0014-graph-view-sidebar-tab.md`). Registered via Foundry's
- * own native `CONFIG.ui.sidebar.TABS` (no third-party sidebar-registration
- * dependency — ADR-0009's posture), rendered with **Cytoscape.js** (the one
- * new runtime dependency ADR-0014 point 3 accepts, since no native Foundry
- * API renders a graph at all).
+ * The Codex: a first-level Foundry sidebar tab. Since the ADR-0014
+ * Amendment (2026-09-08, A2) it is a **node navigator** — search + a
+ * `node.type`-grouped list of every Node — not a graph. It is the launch
+ * point for the graph popout (`graph-popout-window.ts`, VIEW-001b):
+ * clicking a row opens/re-roots the popout on that Node; the "Open graph"
+ * button opens it on the whole graph.
  *
- * **Verified against a live Foundry v14.367 client (2026-09-08):**
- * - `SidebarTabDescriptor` shape: `{ documentName?, tooltip?, icon?, gmOnly? }`
- *   — the core `settings` tab is the model (no `documentName`, explicit
- *   `tooltip` + `icon`). The tab class is registered at `CONFIG.ui[tabName]`
- *   and `CONFIG.ui.sidebar.TABS === Sidebar.TABS`.
- * - `AbstractSidebarTab` → `ApplicationV2` → `EventEmitter` — **no
- *   HandlebarsApplicationMixin**, so the raw `_renderHTML` (returns a
- *   string) / `_replaceHTML` (inserts it) contract applies, same as
- *   `relationship-list-window.ts`.
- * - **Cytoscape can NOT be a static `import`** — see `cytoscape-loader.ts`
- *   (the guarded lazy loader, extracted so `graph-popout-window.ts`
- *   reuses it). Foundry v13+ locks
- *   `Array.prototype.equals` (and `deepFlatten`/`filterJoin`/`findSplice`/
- *   `partition`) as non-writable, non-configurable. Cytoscape's collection
- *   prototype is `Object.create(Array.prototype)` and `Object.assign`s its
- *   own `equals` onto it during module evaluation → an uncatchable
- *   `TypeError` that killed the whole module bundle at load. Fixed by
- *   loading Cytoscape via a guarded dynamic `import()` (`ensureCytoscape`
- *   below) that swaps in a defensive `Object.assign` — one that falls back
- *   to `defineProperty` when the stock `[[Set]]` would throw — for the
- *   duration of Cytoscape's evaluation only. This also keeps Cytoscape in
- *   its own code-split chunk, off the module's synchronous load path.
+ * VIEW-001a's in-tab Cytoscape rendering was removed in VIEW-001c — the
+ * graph lives in the popout now (the ~300px sidebar was too cramped for a
+ * canvas). `cytoscape-loader.ts` / `graph-view-elements.ts` are still used
+ * by the popout, just no longer imported here.
  *
- * **Verified end-to-end on Foundry v14.367 (2026-09-08):** the tab loads,
- * auto-pulls the whole graph, single-tap re-renders via `resolveTraversal`,
- * double-tap opens the Node's real sheet, the player-visibility filter
- * works (a player sees only non-`hidden` Nodes).
- *
- * Gestures here are the subset of ADR-0014's Amendment (2026-09-08, A3)
- * that makes sense before VIEW-001b's popout exists: single-tap → "Direct
- * only" view, double-tap → open the Foundry sheet. The full design ("Everything
- * connected", a right-click context menu, and an attached-content Inspector
- * panel) all move to the VIEW-001b popout window — this sidebar tab is
- * slated to become a node navigator (VIEW-001c), not a graph, once that
- * lands.
+ * **Foundry sidebar-tab mechanics (verified live, VIEW-001a):**
+ * `SidebarTabDescriptor` is `{ tooltip, icon }` (the core `settings` tab is
+ * the model — no `documentName`); the tab class is registered at
+ * `CONFIG.ui[tabName]` and `CONFIG.ui.sidebar.TABS === Sidebar.TABS`.
+ * `AbstractSidebarTab → ApplicationV2 → EventEmitter`, no Handlebars mixin,
+ * so the raw `_renderHTML` (returns a string) / `_replaceHTML` (inserts it)
+ * contract applies.
  *
  * Non-GM viewers only see Nodes whose `visibility` isn't `hidden`
- * (ADR-0003) — `filterNodesForViewer` in `graph-view-elements.ts`, applied
- * to every render path here, and the "N hidden" hint suffix is GM-only.
- * Conservative: a `hidden` Node a specific player was granted access to is
- * still hidden (a per-user, live-permission resolution belongs with a real
- * `View` scope — see ADR-0014 Amendment A4 / A8).
+ * (ADR-0003) — `filterNodesForViewer`; the "N hidden" count is GM-only.
  *
- * What's pure and unit-tested: `graph-view-elements.ts` (element transform
- * + `filterNodesForViewer`), `resolveTraversal` (CORE-005),
- * `buildCodexContentHTML`/`ensureCodexStyles`, and
- * `registerCodexSidebarTab`'s descriptor writing. Still flagged as glue:
- * the render lifecycle timing.
+ * What's pure and unit-tested: `node-navigator.ts` (grouping/filter),
+ * `buildNavigatorShellHTML` / `buildNavigatorGroupsHTML` /
+ * `buildNavigatorStateHTML` (this file), and `registerCodexSidebarTab`'s
+ * descriptor writing. Still flagged as glue: the `AbstractSidebarTab`
+ * render lifecycle and the search-input / row-click wiring.
  */
 
 const CODEX_TAB_NAME = 'codex';
@@ -81,26 +42,24 @@ const CODEX_TAB_ICON = 'fa-solid fa-share-nodes';
 const CODEX_TAB_TOOLTIP = 'Codex';
 
 // ---------------------------------------------------------------------------
-// Minimal structural types — no real cytoscape/Foundry/DOM types dependency
-// (tsconfig omits the DOM lib; same cast-through-`unknown` tradeoff as
-// `sqlite-executor.ts` and `relationship-authoring-window.ts`). The
-// Cytoscape shapes + the guarded loader live in `cytoscape-loader.ts`.
+// Minimal structural types — tsconfig omits the DOM lib, same
+// cast-through-`unknown` tradeoff as the rest of this package.
 // ---------------------------------------------------------------------------
 
-interface CodexContentElementLike {
+interface MinimalDomElementLike {
   innerHTML: string;
-  querySelector(selector: string): unknown;
-}
-
-interface FoundryDocumentWithSheetLike {
-  readonly sheet?: { render(force?: boolean): unknown } | null;
+  hidden: boolean;
+  textContent: string | null;
+  readonly value: string;
+  querySelector(selector: string): MinimalDomElementLike | null;
+  querySelectorAll(selector: string): Iterable<MinimalDomElementLike>;
+  getAttribute(name: string): string | null;
+  addEventListener(type: string, listener: (event: unknown) => void): void;
 }
 
 interface SidebarTabInstanceLike {
-  readonly element: CodexContentElementLike;
-  /** `AbstractSidebarTab#active` — whether this tab is the one currently shown in the sidebar (so its container has non-zero size). */
+  readonly element: MinimalDomElementLike;
   readonly active: boolean;
-  render(force?: boolean): unknown;
 }
 
 type SidebarTabConstructor = new (...args: readonly unknown[]) => SidebarTabInstanceLike;
@@ -108,9 +67,8 @@ type CodexSidebarTabConstructor = new (...args: readonly unknown[]) => SidebarTa
 
 /**
  * Minimal shape of the `CONFIG.ui` surface this module writes to — `CONFIG`
- * is otherwise untyped in `foundry-globals.d.ts` (kept deliberately loose,
- * same as `game`/`ui`). `registerCodexSidebarTab` takes this explicitly so
- * it can be unit-tested against a plain object.
+ * is otherwise untyped in `foundry-globals.d.ts`. `registerCodexSidebarTab`
+ * takes this explicitly so it can be unit-tested against a plain object.
  */
 export interface FoundryUiConfigLike {
   sidebar: { TABS: Record<string, unknown> };
@@ -118,39 +76,105 @@ export interface FoundryUiConfigLike {
 }
 
 // ---------------------------------------------------------------------------
-// Rendering markup (pure)
+// Pure markup builders
 // ---------------------------------------------------------------------------
 
-/** The tab's static shell — a toolbar plus the Cytoscape mount point. Cytoscape needs an explicit height, injected once via `ensureCodexStyles`. */
-export function buildCodexContentHTML(): string {
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/** The navigator's static shell — toolbar, search box, a `data-role="list"` region the group markup drops into, a `data-role="hint"` count line. */
+export function buildNavigatorShellHTML(): string {
   return (
     `<div class="archivexus-codex">` +
     `<div class="archivexus-codex-toolbar">` +
-    `<button type="button" data-action="openPopout" title="Open the full graph in a resizable window">Open graph ⧉</button>` +
-    `<button type="button" data-action="resetGraph">Whole graph</button>` +
-    `<span class="archivexus-codex-hint" data-role="hint"></span>` +
+    `<button type="button" data-action="openWholeGraph" title="Open the campaign graph in a resizable window">Open graph ⧉</button>` +
     `</div>` +
-    `<div class="archivexus-codex-canvas" data-role="canvas"></div>` +
+    `<input type="search" class="archivexus-codex-search" data-role="search" placeholder="Filter nodes…" autocomplete="off" />` +
+    `<div class="archivexus-codex-list" data-role="list"></div>` +
+    `<div class="archivexus-codex-hint" data-role="hint"></div>` +
     `</div>`
   );
 }
 
+/** A loading / empty / error state for the `data-role="list"` region. */
+export function buildNavigatorStateHTML(
+  state: 'loading' | 'empty' | 'error',
+): string {
+  const text =
+    state === 'loading'
+      ? 'Loading campaign…'
+      : state === 'error'
+        ? "Couldn't load the campaign's nodes."
+        : 'No knowledge yet. Tag an Actor or Journal page with a Node type (its sheet → header ⋯ menu → “Archivexus Node Type”) to see it here.';
+  return `<p class="archivexus-codex-state">${text}</p>`;
+}
+
+/**
+ * The grouped node list. Each row carries `data-node-id` (for the click
+ * handler) and `data-title` (lowercased, for client-side search filtering
+ * without a re-render — same "pure builder, live class toggles DOM"
+ * split as `relationship-list-window.ts`).
+ */
+export function buildNavigatorGroupsHTML(groups: readonly NavigatorGroup[]): string {
+  if (groups.length === 0) {
+    return buildNavigatorStateHTML('empty');
+  }
+  return groups
+    .map((group) => {
+      const rows = group.nodes
+        .map(
+          (node) =>
+            `<li data-node-id="${escapeHtml(node.id)}" data-title="${escapeHtml(node.title.toLowerCase())}">` +
+            `<button type="button" data-action="focusNode" data-node-id="${escapeHtml(node.id)}">${escapeHtml(node.title)}</button>` +
+            `</li>`,
+        )
+        .join('');
+      return (
+        `<section class="archivexus-codex-group" data-group="${escapeHtml(group.type)}">` +
+        `<h4 class="archivexus-codex-group-header">${escapeHtml(group.type)} <span class="archivexus-codex-group-count">${group.nodes.length}</span></h4>` +
+        `<ul class="archivexus-codex-rows">${rows}</ul>` +
+        `</section>`
+      );
+    })
+    .join('');
+}
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
 const CODEX_STYLE_ELEMENT_ID = 'archivexus-codex-styles';
 
 const CODEX_CSS = `
-.archivexus-codex { display: flex; flex-direction: column; height: 100%; }
+.archivexus-codex { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 0.25rem; }
 .archivexus-codex-toolbar { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; }
-.archivexus-codex-hint { font-size: var(--font-size-12, 12px); opacity: 0.7; }
-.archivexus-codex-canvas { flex: 1 1 auto; min-height: 240px; }
+.archivexus-codex-search { width: 100%; }
+.archivexus-codex-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.archivexus-codex-hint { font-size: var(--font-size-12, 12px); opacity: 0.7; padding: 0.15rem 0; }
+.archivexus-codex-state { opacity: 0.6; font-style: italic; padding: 0.5rem 0; }
+.archivexus-codex-group { margin-bottom: 0.35rem; }
+.archivexus-codex-group[hidden] { display: none; }
+.archivexus-codex-group-header { margin: 0.35rem 0 0.15rem; font-size: var(--font-size-11, 11px); text-transform: uppercase; opacity: 0.7; }
+.archivexus-codex-group-count { opacity: 0.6; }
+.archivexus-codex-rows { list-style: none; margin: 0; padding: 0; }
+.archivexus-codex-rows li[hidden] { display: none; }
+.archivexus-codex-rows button {
+  display: block; width: 100%; text-align: left; border: 0; background: transparent;
+  padding: 0.2rem 0.4rem; border-radius: 3px; cursor: pointer;
+}
+.archivexus-codex-rows button:hover { background: var(--color-hover-bg, rgba(0,0,0,0.06)); }
 `;
 
 /**
- * Injects the Codex's stylesheet into `<head>` once. Done from code rather
- * than a `module.json` `styles` entry so the Foundry build stays a single
- * `archivexus.js` with no separate CSS asset to wire up (same "keep the
- * ship surface minimal" reasoning as ADR-0006). Guarded by an id so
- * repeated tab renders don't stack duplicates. `document` is reached via
- * `globalThis` since this package's tsconfig omits the DOM lib.
+ * Injects the Codex's stylesheet into `<head>` once (ADR-0014 Amendment 2
+ * decision 4: an injected `<style>` module, not a `module.json` styles
+ * asset — keeps the hand-run build a single JS emit). `document` is
+ * reached via `globalThis` since this package's tsconfig omits the DOM lib.
  */
 export function ensureCodexStyles(): void {
   const doc = (globalThis as { document?: unknown }).document as
@@ -169,19 +193,14 @@ export function ensureCodexStyles(): void {
   doc.head.appendChild(style);
 }
 
-/**
- * Lazily builds (and memoizes) the real `AbstractSidebarTab` subclass —
- * deferred behind a function for the same reason as
- * `relationship-list-window.ts`'s `getRelationshipListApplicationClass`:
- * `foundry` is only an ambient type outside a live client, so touching
- * `foundry.applications.sidebar.AbstractSidebarTab` at module-eval time
- * would throw the instant this module is imported anywhere (its own Vitest
- * run included). The class body itself no longer touches Cytoscape — that's
- * loaded on first render via `ensureCytoscape`.
- */
+// ---------------------------------------------------------------------------
+// The AbstractSidebarTab subclass (deferred — `foundry` is only an ambient
+// type outside a live client)
+// ---------------------------------------------------------------------------
+
 let cachedTabClass: CodexSidebarTabConstructor | undefined;
 
-/** Exported only for tests — production code reaches it via `registerCodexSidebarTab`. */
+/** Exported only for tests — production reaches it via `registerCodexSidebarTab`. */
 export function getCodexSidebarTabClass(
   getStorage: () => StorageProvider | undefined,
   log: Logger,
@@ -202,196 +221,95 @@ export function getCodexSidebarTabClass(
     static DEFAULT_OPTIONS = {
       classes: ['archivexus-codex-tab'],
       actions: {
-        resetGraph(this: CodexSidebarTab): void {
-          void this._renderWholeGraph();
-        },
-        openPopout(): void {
+        openWholeGraph(): void {
           openGraphPopout(getStorage, log);
+        },
+        focusNode(this: CodexSidebarTab, _event: unknown, target: MinimalDomElementLike): void {
+          const id = target.getAttribute('data-node-id');
+          if (id) {
+            openGraphPopout(getStorage, log, { rootNodeId: id });
+          }
         },
       },
     };
 
-    #cyInstance: CytoscapeCoreLike | undefined;
     #storageReadyHookBound = false;
-    /**
-     * The most recent graph to show. Held here rather than applied
-     * immediately because Cytoscape's layouts read the container's pixel
-     * size — and the sidebar can build/refresh this tab while it's the
-     * hidden tab (0×0), which piles every node at the origin. `#applyGraph`
-     * only runs the layout once the tab is actually the active one; a
-     * render that arrives while hidden is flushed by `_onActivate`.
-     */
-    #pendingElements: readonly GraphViewElement[] | undefined;
 
-    async _prepareContext(options: unknown): Promise<Record<string, unknown>> {
-      const base = (await (
-        AbstractSidebarTabBase.prototype as {
-          _prepareContext(options: unknown): Promise<Record<string, unknown>>;
-        }
-      )._prepareContext.call(this, options)) as Record<string, unknown>;
-      return { ...base };
+    _renderHTML(): string {
+      return buildNavigatorShellHTML();
     }
 
-    /** Awaited by ApplicationV2's render pipeline — the one place Cytoscape's guarded lazy load is driven from. */
-    async _renderHTML(): Promise<string> {
-      await ensureCytoscape().catch((error: unknown) => {
-        log.error(`Codex: Cytoscape failed to load: ${errorMessage(error)}`);
-      });
-      return buildCodexContentHTML();
-    }
-
-    _replaceHTML(result: string, content: CodexContentElementLike): void {
+    _replaceHTML(result: string, content: MinimalDomElementLike): void {
       ensureCodexStyles();
       content.innerHTML = result;
 
-      const cytoscapeFactory = getLoadedCytoscape();
-      if (!cytoscapeFactory) {
-        return;
-      }
-
-      const canvas = content.querySelector('[data-role="canvas"]');
-      if (!canvas) {
-        log.error('Codex: no canvas element after render — cannot mount the graph.');
-        return;
-      }
-
-      this.#cyInstance?.destroy();
-      this.#cyInstance = cytoscapeFactory({
-        container: canvas,
-        elements: [],
-        style: CYTOSCAPE_STYLE,
-        layout: { name: 'preset' },
-        wheelSensitivity: 0.2,
-      });
-
-      // Gestures — the subset of ADR-0014's Amendment (2026-09-08, A3) that
-      // makes sense before VIEW-001b's popout + Inspector panel exist:
-      //   single tap  → "Direct only" (1-hop) view of that Node
-      //   double tap  → open that Node's real Foundry sheet
-      // "Everything connected", the right-click context menu and the
-      // attached-content Inspector are all VIEW-001b, in the popout window.
-      this.#cyInstance.on('tap', 'node', (event) => {
-        void this._focusNode(event.target.id());
-      });
-      this.#cyInstance.on('dbltap', 'node', (event) => {
-        void this._openNodeSheet(event.target.id());
-      });
+      const search = content.querySelector('[data-role="search"]');
+      search?.addEventListener('input', () => this.#applyFilter(search.value));
 
       // Storage is created on Foundry's `ready` hook (STORE-003) and the
-      // sidebar can render before that — re-pull the graph once
-      // module-entry signals storage is up. Bound once; the tab is a
-      // singleton, and the re-render is idempotent.
+      // sidebar can render before that — re-pull the list once module-entry
+      // signals storage is up. Bound once (the tab is a singleton).
       if (!this.#storageReadyHookBound) {
         this.#storageReadyHookBound = true;
-        Hooks.on('archivexus.ready', () => void this._renderWholeGraph());
+        Hooks.on('archivexus.ready', () => void this._loadNodes());
       }
 
-      void this._renderWholeGraph();
+      void this._loadNodes();
     }
 
-    /**
-     * The tab just became visible — its container now has real dimensions.
-     * Flush any graph that was rendered while hidden (layout piled it at the
-     * origin), otherwise just re-fit an already-laid-out graph.
-     */
+    /** Foundry re-activates a hidden tab without a full re-render — refresh in case Nodes changed while it was hidden. */
     _onActivate(): void {
       (AbstractSidebarTabBase.prototype as { _onActivate?: () => void })._onActivate?.call(this);
-      const cy = this.#cyInstance;
-      if (!cy) {
-        return;
-      }
-      cy.resize();
-      if (this.#pendingElements) {
-        this.#applyGraph(true);
-      } else if (cy.nodes().length > 0) {
-        cy.layout(layoutFor(cy.edges().length)).run();
-      }
+      void this._loadNodes();
     }
 
-    async _renderWholeGraph(): Promise<void> {
+    async _loadNodes(): Promise<void> {
+      const listEl = this.element.querySelector('[data-role="list"]');
       const storage = getStorage();
       if (!storage) {
-        this.#setHint('Waiting for storage…');
+        if (listEl) listEl.innerHTML = buildNavigatorStateHTML('loading');
         return;
       }
       try {
-        const [allNodes, relationships] = await Promise.all([
-          storage.listNodes(),
-          storage.listRelationships(),
-        ]);
         const isGM = isViewerGM();
-        const nodes = filterNodesForViewer(allNodes, { isGM });
-        this.#render(buildGraphViewElements(nodes, relationships));
-        const hidden = allNodes.length - nodes.length;
-        this.#setHint(
-          `${nodes.length} nodes · ${relationships.length} relationships` +
-            // Only a GM is told how much is hidden — a player shouldn't
-            // learn the size of the content they can't see.
-            (isGM && hidden > 0 ? ` · ${hidden} hidden` : ''),
-        );
+        const allNodes = await storage.listNodes();
+        const visible = filterNodesForViewer(allNodes, { isGM });
+        this.#renderNodes(visible, allNodes.length - visible.length, isGM);
       } catch (error) {
-        log.error(`Codex: failed to load the whole graph: ${errorMessage(error)}`);
-        this.#setHint('Failed to load the graph.');
+        log.error(`Codex: failed to load nodes: ${errorMessage(error)}`);
+        if (listEl) listEl.innerHTML = buildNavigatorStateHTML('error');
       }
     }
 
-    async _focusNode(nodeId: string): Promise<void> {
-      const storage = getStorage();
-      if (!storage) {
-        return;
+    #renderNodes(nodes: readonly Node[], hiddenCount: number, isGM: boolean): void {
+      const listEl = this.element.querySelector('[data-role="list"]');
+      if (listEl) {
+        listEl.innerHTML = buildNavigatorGroupsHTML(groupNodesByType(nodes));
       }
-      try {
-        const result = await resolveTraversal(storage, { preset: 'direct-only', nodeId });
-        const nodes = filterNodesForViewer(collectTraversalNodes(result), { isGM: isViewerGM() });
-        this.#render(buildGraphViewElements(nodes, result.relationships));
-        this.#setHint(
-          `${result.rootNode?.title ?? nodeId} · direct connections (${Math.max(nodes.length - 1, 0)})`,
-        );
-      } catch (error) {
-        log.error(`Codex: failed to focus node "${nodeId}": ${errorMessage(error)}`);
+      const hintEl = this.element.querySelector('[data-role="hint"]');
+      if (hintEl) {
+        hintEl.textContent =
+          `${nodes.length} node${nodes.length === 1 ? '' : 's'}` +
+          (isGM && hiddenCount > 0 ? ` · ${hiddenCount} hidden` : '');
       }
-    }
-
-    async _openNodeSheet(nodeId: string): Promise<void> {
-      try {
-        const doc = (await foundry.utils.fromUuid(nodeId)) as FoundryDocumentWithSheetLike | null;
-        doc?.sheet?.render(true);
-      } catch (error) {
-        log.error(`Codex: failed to open the sheet for "${nodeId}": ${errorMessage(error)}`);
+      // Re-apply the current filter to the freshly-rendered rows.
+      const search = this.element.querySelector('[data-role="search"]');
+      if (search && search.value.trim().length > 0) {
+        this.#applyFilter(search.value);
       }
     }
 
-    #render(elements: readonly GraphViewElement[]): void {
-      this.#pendingElements = elements;
-      this.#applyGraph();
-    }
-
-    /**
-     * Swaps the canvas to `#pendingElements` and lays them out — but only
-     * while the tab is visible (see `#pendingElements`' doc), unless
-     * `force` (the tab just became visible via `_onActivate`, whose own
-     * `this.active` may not be set yet).
-     */
-    #applyGraph(force = false): void {
-      const cy = this.#cyInstance;
-      const elements = this.#pendingElements;
-      if (!cy || !elements || (!force && !this.active)) {
-        return;
-      }
-      cy.elements().remove();
-      cy.add(elements);
-      cy.resize();
-      const edgeCount = elements.reduce((n, element) => (element.group === 'edges' ? n + 1 : n), 0);
-      cy.layout(layoutFor(edgeCount)).run();
-      this.#pendingElements = undefined;
-    }
-
-    #setHint(text: string): void {
-      const hint = this.element.querySelector('[data-role="hint"]') as {
-        textContent: string;
-      } | null;
-      if (hint) {
-        hint.textContent = text;
+    /** Client-side filter — toggles row/group visibility by the lowercased `data-title`, no re-render (keeps search-input focus). */
+    #applyFilter(query: string): void {
+      const needle = query.trim().toLowerCase();
+      for (const group of this.element.querySelectorAll('.archivexus-codex-group')) {
+        let anyVisible = false;
+        for (const row of group.querySelectorAll('li[data-title]')) {
+          const match = needle.length === 0 || (row.getAttribute('data-title') ?? '').includes(needle);
+          row.hidden = !match;
+          if (match) anyVisible = true;
+        }
+        group.hidden = !anyVisible;
       }
     }
   }
@@ -410,10 +328,8 @@ function errorMessage(error: unknown): string {
 
 /**
  * Registers the Codex as a first-level sidebar tab. Call once at `init`.
- * Writes both halves of Foundry's native sidebar-tab registration: the
- * descriptor in `CONFIG.ui.sidebar.TABS` (shape confirmed against v14's
- * own `settings` tab — `{ tooltip, icon }`, no `documentName`) and the tab
- * class at `CONFIG.ui[tabName]`.
+ * Writes the descriptor in `CONFIG.ui.sidebar.TABS` and the tab class at
+ * `CONFIG.ui[tabName]` (shape confirmed against v14's own `settings` tab).
  */
 export function registerCodexSidebarTab(
   config: FoundryUiConfigLike,
