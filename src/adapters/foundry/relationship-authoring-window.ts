@@ -1,12 +1,12 @@
 import { createRelationship } from '../../core/domain/relationship.js';
 import type { RelationshipDefinition } from '../../core/domain/relationship-definition.js';
+import { DEFAULT_RELATIONSHIP_DEFINITIONS } from '../../core/domain/relationship-definitions-default.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import type { Logger } from './logger.js';
 import {
   buildDefinitionOptions,
   buildDefinitionSelectOptionsHTML,
 } from './relationship-definition-options.js';
-import { SEEDED_RELATIONSHIP_DEFINITIONS } from './relationship-definitions-seed.js';
 import {
   resolveDroppedDocumentNode,
   type ResolvedDroppedNode,
@@ -246,7 +246,7 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
       super(options as unknown as Record<string, unknown>);
       this.#storage = options.storage;
       this.#log = options.log;
-      this.#definitions = options.definitions ?? SEEDED_RELATIONSHIP_DEFINITIONS;
+      this.#definitions = options.definitions ?? DEFAULT_RELATIONSHIP_DEFINITIONS;
       this.#origin = options.prefillOrigin
         ? { node: options.prefillOrigin, error: undefined }
         : EMPTY_ENDPOINT;
@@ -531,11 +531,11 @@ export interface FoundrySheetAppLike {
   readonly document: FoundryDroppableDocumentLike;
 }
 
-function openRelationshipAuthoringWindow(
+async function openRelationshipAuthoringWindow(
   app: FoundrySheetAppLike,
   storage: StorageProvider | undefined,
   log: Logger,
-): void {
+): Promise<void> {
   if (!storage) {
     log.warn(
       'Storage provider not ready yet - cannot open the Relationship-authoring window (should only happen during startup).',
@@ -550,10 +550,28 @@ function openRelationshipAuthoringWindow(
     );
   }
 
+  // Definitions are real, editable `StorageProvider` state now (CORE-004's
+  // deferred persistence fast-follow) — bootstrapped from
+  // `DEFAULT_RELATIONSHIP_DEFINITIONS` on first run. Fall back to that
+  // default list only if the store somehow has none (a failed bootstrap),
+  // so the picker is never inexplicably empty.
+  let definitions: readonly RelationshipDefinition[] = DEFAULT_RELATIONSHIP_DEFINITIONS;
+  try {
+    const stored = await storage.listRelationshipDefinitions();
+    if (stored.length > 0) {
+      definitions = stored;
+    }
+  } catch (error) {
+    log.error(
+      `Failed to load Relationship Definitions; falling back to defaults: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
   const ApplicationClass = getRelationshipAuthoringApplicationClass();
   new ApplicationClass({
     storage,
     log,
+    definitions,
     ...(resolved.ok ? { prefillOrigin: resolved.node } : {}),
   }).render(true);
 }
@@ -579,7 +597,7 @@ export function registerRelationshipAuthoringEntryPoints(
     controls.push({
       icon: 'fa-solid fa-diagram-project',
       label: 'New Relationship…',
-      onClick: () => openRelationshipAuthoringWindow(app, getStorage(), log),
+      onClick: () => void openRelationshipAuthoringWindow(app, getStorage(), log),
     });
   };
 

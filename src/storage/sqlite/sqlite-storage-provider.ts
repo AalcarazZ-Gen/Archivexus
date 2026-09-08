@@ -1,16 +1,20 @@
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import type { Node } from '../../core/domain/node.js';
 import type { Relationship } from '../../core/domain/relationship.js';
+import type { RelationshipDefinition } from '../../core/domain/relationship-definition.js';
 import type { View } from '../../core/domain/view.js';
 import { MIGRATIONS, runMigrations } from './migration.js';
 import {
   nodeToRow,
+  relationshipDefinitionToRow,
   relationshipToRow,
   rowToNode,
   rowToRelationship,
+  rowToRelationshipDefinition,
   rowToView,
   viewToRow,
   type NodeRow,
+  type RelationshipDefinitionRow,
   type RelationshipRow,
   type ViewRow,
 } from './row-mapping.js';
@@ -21,6 +25,8 @@ const RELATIONSHIP_COLUMNS =
   'id, origin, target, definition_id, title, visibility, metadata, tags, history, blocks, "references"';
 const VIEW_COLUMNS =
   'id, format, title, visibility, spec, metadata, tags, history, blocks, "references"';
+const RELATIONSHIP_DEFINITION_COLUMNS =
+  'id, name, version, inverse, cardinality, symmetry, traversal_category, validation';
 
 /**
  * `StorageProvider` implemented against a `SqliteExecutor` (real WASM
@@ -142,6 +148,52 @@ export class SqliteStorageProvider implements StorageProvider {
       [nodeId, nodeId],
     );
     return Promise.resolve(rows.map((row) => rowToRelationship(row as unknown as RelationshipRow)));
+  }
+
+  saveRelationshipDefinition(definition: RelationshipDefinition): Promise<void> {
+    const row = relationshipDefinitionToRow(definition);
+    this.#db.run(
+      `INSERT INTO relationship_definitions (${RELATIONSHIP_DEFINITION_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         version = excluded.version,
+         inverse = excluded.inverse,
+         cardinality = excluded.cardinality,
+         symmetry = excluded.symmetry,
+         traversal_category = excluded.traversal_category,
+         validation = excluded.validation`,
+      [
+        row.id,
+        row.name,
+        row.version,
+        row.inverse,
+        row.cardinality,
+        row.symmetry,
+        row.traversal_category,
+        row.validation,
+      ],
+    );
+    return Promise.resolve();
+  }
+
+  getRelationshipDefinition(id: string): Promise<RelationshipDefinition | undefined> {
+    const rows = this.#db.all('SELECT * FROM relationship_definitions WHERE id = ?', [id]);
+    const row = rows[0];
+    return Promise.resolve(
+      row ? rowToRelationshipDefinition(row as unknown as RelationshipDefinitionRow) : undefined,
+    );
+  }
+
+  deleteRelationshipDefinition(id: string): Promise<void> {
+    this.#db.run('DELETE FROM relationship_definitions WHERE id = ?', [id]);
+    return Promise.resolve();
+  }
+
+  listRelationshipDefinitions(): Promise<readonly RelationshipDefinition[]> {
+    const rows = this.#db.all('SELECT * FROM relationship_definitions ORDER BY id');
+    return Promise.resolve(
+      rows.map((row) => rowToRelationshipDefinition(row as unknown as RelationshipDefinitionRow)),
+    );
   }
 
   saveView(view: View): Promise<void> {

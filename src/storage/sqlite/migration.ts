@@ -115,6 +115,46 @@ export const MIGRATIONS: readonly Migration[] = [
       )`,
     ],
   },
+  {
+    // Migration 3 — the `relationship_definitions` table (CORE-004's
+    // deferred persistence fast-follow). Definitions are NOT Knowledge
+    // Elements (`03_DOMAIN_MODEL.md`'s Definitions Invariants — no
+    // title/visibility/history/blocks), so this table is flatter than
+    // nodes/relationships/views: every field is a real column except
+    // `validation` (an optional per-endpoint Node-type allow-list — nothing
+    // queries into it structurally, so it's a single JSON TEXT column, NULL
+    // when absent).
+    //
+    // PK is `id` alone, not `(id, version)`: one row per Definition,
+    // `version` a column that a later edit bumps in place. Keeping old
+    // versioned rows around is the "how is Definition version migration
+    // handled" open question (`03_DOMAIN_MODEL.md`'s Definitions Open
+    // Questions) — deliberately not built here.
+    //
+    // No FK from `relationships.definition_id` to this table — same
+    // no-cascade reasoning as every other cross-table reference in this
+    // schema (ADR-0007 point 8): a Relationship whose Definition was
+    // deleted still exists, it just renders uncategorized.
+    //
+    // `idx_relationship_definitions_category` supports "group a Node's
+    // connections by category" (ADR-0012 / VIEW-001e) without a full scan.
+    version: 3,
+    statements: [
+      `CREATE TABLE relationship_definitions (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
+        inverse TEXT NOT NULL,
+        cardinality TEXT NOT NULL CHECK (cardinality IN ('one-to-one', 'one-to-many', 'many-to-one', 'many-to-many')),
+        symmetry INTEGER NOT NULL CHECK (symmetry IN (0, 1)),
+        traversal_category TEXT NOT NULL CHECK (traversal_category IN (
+          'location', 'affiliation', 'kinship', 'conflict', 'governance', 'participation', 'ownership', 'narrative'
+        )),
+        validation TEXT
+      )`,
+      `CREATE INDEX idx_relationship_definitions_category ON relationship_definitions(traversal_category)`,
+    ],
+  },
 ];
 
 function readUserVersion(executor: SqliteExecutor): number {

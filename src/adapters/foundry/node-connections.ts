@@ -12,9 +12,9 @@ import {
  * `decisions/ADR-0012-node-connections-panel.md` points 4–7 specify. Pure
  * (no storage, no DOM, no Foundry): the caller resolves a "Direct only"
  * `resolveTraversal` result (CORE-005), the connected `Node`s by id, the
- * `RelationshipDefinition`s by id (from the temporary
- * `SEEDED_RELATIONSHIP_DEFINITIONS` until CORE-004's persistence fast-follow
- * lands), and each connected Node's total degree (`getRelationshipsForNode
+ * `RelationshipDefinition`s by id (from
+ * `StorageProvider.listRelationshipDefinitions()` — real persisted state),
+ * and each connected Node's total degree (`getRelationshipsForNode
  * (id).length`), and hands them in.
  *
  * VIEW-001b's Inspector panel (`graph-popout-window.ts`) is the first
@@ -40,7 +40,7 @@ const CATEGORY_LABELS: Readonly<Record<RelationshipTraversalCategory, string>> =
   narrative: 'Narrative',
 };
 
-/** Group key for a Relationship whose Definition doesn't resolve (not in the seed list). Rendered last. */
+/** Group key for a Relationship whose Definition doesn't resolve (not in the store). Rendered last. */
 export const UNCATEGORIZED_KEY = 'other';
 const UNCATEGORIZED_LABEL = 'Other';
 
