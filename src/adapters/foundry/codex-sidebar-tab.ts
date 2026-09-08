@@ -1,11 +1,20 @@
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import { resolveTraversal } from '../../core/query/traversal.js';
 import {
+  CYTOSCAPE_STYLE,
+  ensureCytoscape,
+  getLoadedCytoscape,
+  layoutFor,
+  type CytoscapeCoreLike,
+} from './cytoscape-loader.js';
+import { isViewerGM } from './foundry-viewer.js';
+import {
   buildGraphViewElements,
   collectTraversalNodes,
   filterNodesForViewer,
   type GraphViewElement,
 } from './graph-view-elements.js';
+import { openGraphPopout } from './graph-popout-window.js';
 import type { Logger } from './logger.js';
 
 /**
@@ -26,7 +35,9 @@ import type { Logger } from './logger.js';
  *   HandlebarsApplicationMixin**, so the raw `_renderHTML` (returns a
  *   string) / `_replaceHTML` (inserts it) contract applies, same as
  *   `relationship-list-window.ts`.
- * - **Cytoscape can NOT be a static `import`.** Foundry v13+ locks
+ * - **Cytoscape can NOT be a static `import`** — see `cytoscape-loader.ts`
+ *   (the guarded lazy loader, extracted so `graph-popout-window.ts`
+ *   reuses it). Foundry v13+ locks
  *   `Array.prototype.equals` (and `deepFlatten`/`filterJoin`/`findSplice`/
  *   `partition`) as non-writable, non-configurable. Cytoscape's collection
  *   prototype is `Object.create(Array.prototype)` and `Object.assign`s its
@@ -72,35 +83,9 @@ const CODEX_TAB_TOOLTIP = 'Codex';
 // ---------------------------------------------------------------------------
 // Minimal structural types — no real cytoscape/Foundry/DOM types dependency
 // (tsconfig omits the DOM lib; same cast-through-`unknown` tradeoff as
-// `sqlite-executor.ts` and `relationship-authoring-window.ts`).
+// `sqlite-executor.ts` and `relationship-authoring-window.ts`). The
+// Cytoscape shapes + the guarded loader live in `cytoscape-loader.ts`.
 // ---------------------------------------------------------------------------
-
-interface CytoscapeCollectionLike {
-  readonly length: number;
-  remove(): unknown;
-}
-
-interface CytoscapeLayoutLike {
-  run(): unknown;
-}
-
-interface CytoscapeCoreLike {
-  add(elements: readonly GraphViewElement[]): unknown;
-  elements(selector?: string): CytoscapeCollectionLike;
-  nodes(selector?: string): CytoscapeCollectionLike;
-  edges(selector?: string): CytoscapeCollectionLike;
-  layout(options: Record<string, unknown>): CytoscapeLayoutLike;
-  on(
-    event: string,
-    selector: string,
-    handler: (event: { readonly target: { id(): string } }) => void,
-  ): void;
-  resize(): unknown;
-  fit(): unknown;
-  destroy(): void;
-}
-
-type CytoscapeFactory = (options: Record<string, unknown>) => CytoscapeCoreLike;
 
 interface CodexContentElementLike {
   innerHTML: string;
@@ -133,74 +118,6 @@ export interface FoundryUiConfigLike {
 }
 
 // ---------------------------------------------------------------------------
-// Cytoscape: guarded, lazy, code-split load (see this file's header comment,
-// point 3, for why a plain `import` can't be used).
-// ---------------------------------------------------------------------------
-
-let cytoscapeFactory: CytoscapeFactory | undefined;
-let cytoscapeLoad: Promise<CytoscapeFactory> | undefined;
-
-/**
- * A drop-in `Object.assign` that, when the stock assignment would throw a
- * `TypeError` (setting a key that resolves to a non-writable *inherited*
- * data property — exactly Cytoscape's `equals`-onto-`Array.prototype`
- * collision), instead defines an own, writable property that shadows the
- * inherited one. Behaviour is otherwise identical to `Object.assign`.
- */
-function defensiveAssign(target: object, ...sources: unknown[]): object {
-  for (const source of sources) {
-    if (source === null || source === undefined) {
-      continue;
-    }
-    const src = source as Record<PropertyKey, unknown>;
-    const isEnumerable = (key: PropertyKey): boolean =>
-      Object.prototype.propertyIsEnumerable.call(src, key);
-    const keys: PropertyKey[] = [
-      ...Object.keys(src),
-      ...Object.getOwnPropertySymbols(src).filter(isEnumerable),
-    ];
-    for (const key of keys) {
-      try {
-        (target as Record<PropertyKey, unknown>)[key] = src[key];
-      } catch {
-        Object.defineProperty(target, key, {
-          value: src[key],
-          writable: true,
-          enumerable: true,
-          configurable: true,
-        });
-      }
-    }
-  }
-  return target;
-}
-
-async function ensureCytoscape(): Promise<CytoscapeFactory> {
-  if (cytoscapeFactory) {
-    return cytoscapeFactory;
-  }
-  if (!cytoscapeLoad) {
-    cytoscapeLoad = (async () => {
-      const realAssign = Object.assign;
-      // Swap in the defensive assign only while Cytoscape's module body
-      // evaluates: it captures `Object.assign` once, at eval time
-      // (`be = Object.assign.bind(Object)`), so the patch must be live
-      // across the dynamic import and torn down straight after.
-      (Object as { assign: typeof Object.assign }).assign =
-        defensiveAssign as unknown as typeof Object.assign;
-      try {
-        const mod = (await import('cytoscape')) as { default?: unknown };
-        cytoscapeFactory = (mod.default ?? mod) as unknown as CytoscapeFactory;
-        return cytoscapeFactory;
-      } finally {
-        (Object as { assign: typeof Object.assign }).assign = realAssign;
-      }
-    })();
-  }
-  return cytoscapeLoad;
-}
-
-// ---------------------------------------------------------------------------
 // Rendering markup (pure)
 // ---------------------------------------------------------------------------
 
@@ -209,6 +126,7 @@ export function buildCodexContentHTML(): string {
   return (
     `<div class="archivexus-codex">` +
     `<div class="archivexus-codex-toolbar">` +
+    `<button type="button" data-action="openPopout" title="Open the full graph in a resizable window">Open graph ⧉</button>` +
     `<button type="button" data-action="resetGraph">Whole graph</button>` +
     `<span class="archivexus-codex-hint" data-role="hint"></span>` +
     `</div>` +
@@ -251,50 +169,6 @@ export function ensureCodexStyles(): void {
   doc.head.appendChild(style);
 }
 
-// ---------------------------------------------------------------------------
-// Cytoscape rendering config (glue)
-// ---------------------------------------------------------------------------
-
-/**
- * `cose` (force-directed) needs edges to push nodes apart — a graph with
- * none collapses into a single column (seen live: 102 nodes, 0
- * relationships). Fall back to a grid until there's something to lay out.
- */
-function layoutFor(edgeCount: number): Record<string, unknown> {
-  return edgeCount === 0
-    ? { name: 'grid', fit: true, padding: 24 }
-    : { name: 'cose', animate: false, fit: true, padding: 24 };
-}
-
-const CYTOSCAPE_STYLE: readonly Record<string, unknown>[] = [
-  {
-    selector: 'node',
-    style: {
-      label: 'data(label)',
-      'font-size': 11,
-      'min-zoomed-font-size': 8,
-      'text-wrap': 'ellipsis',
-      'text-max-width': 120,
-      'background-color': '#6b7bb3',
-      color: '#e8e8e8',
-      'text-valign': 'bottom',
-    },
-  },
-  {
-    selector: 'edge',
-    style: {
-      label: 'data(label)',
-      'font-size': 8,
-      'curve-style': 'bezier',
-      'target-arrow-shape': 'triangle',
-      'line-color': '#8a8a8a',
-      'target-arrow-color': '#8a8a8a',
-      color: '#b8b8b8',
-      'text-rotation': 'autorotate',
-    },
-  },
-];
-
 /**
  * Lazily builds (and memoizes) the real `AbstractSidebarTab` subclass —
  * deferred behind a function for the same reason as
@@ -330,6 +204,9 @@ export function getCodexSidebarTabClass(
       actions: {
         resetGraph(this: CodexSidebarTab): void {
           void this._renderWholeGraph();
+        },
+        openPopout(): void {
+          openGraphPopout(getStorage, log);
         },
       },
     };
@@ -367,6 +244,7 @@ export function getCodexSidebarTabClass(
       ensureCodexStyles();
       content.innerHTML = result;
 
+      const cytoscapeFactory = getLoadedCytoscape();
       if (!cytoscapeFactory) {
         return;
       }
@@ -524,11 +402,6 @@ export function getCodexSidebarTabClass(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-/** Whether the viewer is a Gamemaster — `false` (the safe default: show only non-hidden Nodes) if `game.user` isn't resolvable yet. */
-function isViewerGM(): boolean {
-  return (game as { user?: { isGM?: boolean } }).user?.isGM === true;
 }
 
 // ---------------------------------------------------------------------------

@@ -53,15 +53,25 @@ export type { EndpointLabels } from './relationship-symmetry.js';
 export { syncActor, syncAllActorsAndPages, syncJournalEntryPage } from './storage-sync.js';
 export { downloadPortableSnapshot, gatherPortableSnapshot } from './export-snapshot.js';
 
+export { ensureCytoscape, getLoadedCytoscape, layoutFor } from './cytoscape-loader.js';
+export { isViewerGM } from './foundry-viewer.js';
 export {
   buildGraphViewElements,
   buildGraphViewElementsFromTraversal,
+  collectTraversalNodes,
+  filterNodesForViewer,
 } from './graph-view-elements.js';
 export type {
   GraphViewEdgeElement,
   GraphViewElement,
   GraphViewNodeElement,
 } from './graph-view-elements.js';
+export { buildNodeConnections, UNCATEGORIZED_KEY } from './node-connections.js';
+export type {
+  BuildNodeConnectionsInput,
+  NodeConnectionGroup,
+  NodeConnectionRow,
+} from './node-connections.js';
 export {
   buildCodexContentHTML,
   ensureCodexStyles,
@@ -69,3 +79,13 @@ export {
   registerCodexSidebarTab,
 } from './codex-sidebar-tab.js';
 export type { FoundryUiConfigLike } from './codex-sidebar-tab.js';
+export {
+  buildContextMenuHTML,
+  buildGraphPopoutContentHTML,
+  buildInspectorEmptyHTML,
+  buildInspectorHTML,
+  ensureGraphPopoutStyles,
+  gatherNodeConnections,
+  openGraphPopout,
+} from './graph-popout-window.js';
+export type { GraphPopoutOptions } from './graph-popout-window.js';

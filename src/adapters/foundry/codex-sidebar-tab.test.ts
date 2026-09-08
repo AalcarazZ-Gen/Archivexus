@@ -52,6 +52,10 @@ describe('buildCodexContentHTML', () => {
     expect(html).toContain('data-role="canvas"');
     expect(html).toContain('data-role="hint"');
   });
+
+  it('has an "Open graph" button that launches the popout window (VIEW-001b)', () => {
+    expect(buildCodexContentHTML()).toContain('data-action="openPopout"');
+  });
 });
 
 describe('registerCodexSidebarTab', () => {
