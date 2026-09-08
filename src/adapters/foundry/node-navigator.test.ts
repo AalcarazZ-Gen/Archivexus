@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createNode, type Node } from '../../core/domain/node.js';
-import { filterNodesByQuery, groupNodesByType } from './node-navigator.js';
+import {
+  FAVOURITES_GROUP_TYPE,
+  filterNodesByQuery,
+  groupNodesByType,
+  groupNodesWithFavourites,
+  normalizeFavouriteNodeIds,
+} from './node-navigator.js';
 
 function node(type: string, title: string): Node {
   return createNode({ id: `${type}:${title}`, type, title });
@@ -67,5 +73,38 @@ describe('groupNodesByType', () => {
 
   it('returns no groups for no nodes', () => {
     expect(groupNodesByType([])).toEqual([]);
+  });
+});
+
+describe('groupNodesWithFavourites', () => {
+  const waterdeep = node('City', 'Waterdeep');
+  const volo = node('Character', 'Volo');
+  const laeral = node('Character', 'Laeral');
+  const nodes = [waterdeep, volo, laeral];
+
+  it('is identical to groupNodesByType when there are no favourites', () => {
+    expect(groupNodesWithFavourites(nodes, new Set())).toEqual(groupNodesByType(nodes));
+  });
+
+  it('prepends a title-sorted favourites group, keeping the favourites in their own type groups too', () => {
+    const groups = groupNodesWithFavourites(nodes, new Set([volo.id, waterdeep.id]));
+    expect(groups[0]?.type).toBe(FAVOURITES_GROUP_TYPE);
+    expect(groups[0]?.nodes.map((n) => n.title)).toEqual(['Volo', 'Waterdeep']);
+    // still present under City / Character
+    expect(groups.slice(1).flatMap((g) => g.nodes)).toHaveLength(3);
+  });
+
+  it('omits the favourites group when no favourite id matches a node', () => {
+    expect(groupNodesWithFavourites(nodes, new Set(['Actor.gone'])).map((g) => g.type)).not.toContain(
+      FAVOURITES_GROUP_TYPE,
+    );
+  });
+});
+
+describe('normalizeFavouriteNodeIds', () => {
+  it('keeps only non-empty strings from an array, and returns [] for anything else', () => {
+    expect(normalizeFavouriteNodeIds(['a', '', 3, null, 'b'])).toEqual(['a', 'b']);
+    expect(normalizeFavouriteNodeIds(undefined)).toEqual([]);
+    expect(normalizeFavouriteNodeIds('a,b')).toEqual([]);
   });
 });

@@ -124,6 +124,19 @@ describe('buildNavigatorGroupsHTML', () => {
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('▸');
   });
+
+  it('renders a favourite ☆/★ toggle per row reflecting favouriteIds (VIEW-001d)', () => {
+    const groups = groupNodesByType([
+      createNode({ id: 'City.1', type: 'City', title: 'Waterdeep' }),
+      createNode({ id: 'City.2', type: 'City', title: 'Baldur' }),
+    ]);
+    const html = buildNavigatorGroupsHTML(groups, new Set(), new Set(['City.1']));
+    expect(html).toContain('data-action="toggleFavourite"');
+    expect(html).toContain('aria-pressed="true"'); // City.1
+    expect(html).toContain('aria-pressed="false"'); // City.2
+    expect(html).toContain('★');
+    expect(html).toContain('☆');
+  });
 });
 
 describe('navigatorGroupsStartExpanded', () => {

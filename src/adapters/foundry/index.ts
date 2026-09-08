@@ -85,8 +85,11 @@ export {
 } from './codex-sidebar-tab.js';
 export type { FoundryUiConfigLike } from './codex-sidebar-tab.js';
 export {
+  FAVOURITES_GROUP_TYPE,
   filterNodesByQuery,
   groupNodesByType,
+  groupNodesWithFavourites,
+  normalizeFavouriteNodeIds,
 } from './node-navigator.js';
 export type { NavigatorGroup } from './node-navigator.js';
 export {
