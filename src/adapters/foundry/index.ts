@@ -52,3 +52,20 @@ export type { EndpointLabels } from './relationship-symmetry.js';
 
 export { syncActor, syncAllActorsAndPages, syncJournalEntryPage } from './storage-sync.js';
 export { downloadPortableSnapshot, gatherPortableSnapshot } from './export-snapshot.js';
+
+export {
+  buildGraphViewElements,
+  buildGraphViewElementsFromTraversal,
+} from './graph-view-elements.js';
+export type {
+  GraphViewEdgeElement,
+  GraphViewElement,
+  GraphViewNodeElement,
+} from './graph-view-elements.js';
+export {
+  buildCodexContentHTML,
+  ensureCodexStyles,
+  getCodexSidebarTabClass,
+  registerCodexSidebarTab,
+} from './codex-sidebar-tab.js';
+export type { FoundryUiConfigLike } from './codex-sidebar-tab.js';

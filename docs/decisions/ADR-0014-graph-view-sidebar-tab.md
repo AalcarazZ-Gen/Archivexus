@@ -8,7 +8,7 @@ VIEW-001: the Graph View is a first-level Foundry sidebar tab (not a per-sheet p
 
 ## Status
 
-Accepted
+Accepted (amended 2026-09-08 — see Amendment below: graph moves to a popout window, sidebar becomes a navigator)
 
 ---
 
@@ -125,3 +125,86 @@ Only `curated-by-me` carries anything that must actually be *saved* (the curated
 - **react-force-graph**. Would drag React and Three.js in as dependencies purely to render a graph, in a codebase that uses neither — a materially larger and stranger dependency footprint than a single graph library, for no capability gain over Cytoscape.js. Rejected.
 - **Adopting the Obsidian Canvas JSON format wholesale as `View`'s persisted shape** (full node/edge/group/color schema), instead of Archivexus's own minimal `GraphViewSpec` (point 6). Rejected — Archivexus's Nodes already carry `type` and Relationships already carry `traversalCategory`; re-deriving Canvas's own color/label vocabulary on top would duplicate a source of truth (Rule 4) instead of reusing the one that already exists. Canvas's *positions-as-an-id-keyed-map* shape was still worth borrowing directly, since nothing in this codebase already solves that narrower problem.
 - **Building a generic `ViewDefinition` entity now** (point 6b), matching `RelationshipDefinition`'s own real-Core-state treatment. Rejected as premature for a single format — same reasoning as rejecting a closed `NodeType` enum: revisit once a second format is a real, named need, not before.
+
+---
+
+## Amendment (2026-09-08): VIEW-001b redesign — graph popout + sidebar navigator
+
+VIEW-001a shipped and was live-tested on a real v14.367 client (see `SESSION_LOG.md`). Two things the original Decision got wrong or left open surfaced immediately: the ~300px sidebar is genuinely too cramped for a graph canvas (node labels overlap, no room to pan), and the "no Node selected" default and gesture semantics needed a real design pass. Alberto steered the direction; a ux-ui-designer pass worked it through; the points below amend the Decision accordingly. **Decide-only — no code changed by this pass.** VIEW-001a stays as merged-pending (its gestures trimmed to a clean subset of point A3 below, done in the same commit as this amendment).
+
+### A1. The Cytoscape canvas moves out of the sidebar into a dedicated popout window.
+
+A standalone, resizable, **singleton `ApplicationV2`** — not a `DocumentSheetV2` (no backing document), not Foundry's native sidebar pop-out. Reuses the deferred-factory-class + raw `_renderHTML`/`_replaceHTML` pattern `relationship-authoring-window.ts` / `relationship-list-window.ts` already established. Re-clicking a launch point updates the one open window (`render(true)` focuses the existing instance), never spawns a duplicate.
+
+The first-level sidebar tab from point 2 of the original Decision **stays** — it still answers Alberto's "same level as Journal, Actors" framing — but its *content* becomes a navigator (A2), not a graph. Consequences: Cytoscape's guarded dynamic `import()` (the `Array.prototype.equals` workaround, VIEW-001a) now only runs when the popout first opens, not on every sidebar render; the label-overlap cosmetic issue disappears with the narrow canvas.
+
+Launch points, priority order: (1) click a row in the sidebar navigator → open/re-root the popout keeping its current preset; (2) an "Open whole graph" button at the top of the sidebar tab; (3) an unbound-by-default `game.keybindings` toggle; (4) — deferred to VIEW-001f — a "See in graph" link in ADR-0012's Connections panel. **Not** a scene-control button (scene controls are canvas-drawing tools; a knowledge graph isn't scene-scoped).
+
+### A2. The sidebar tab becomes a node navigator (no graph).
+
+Top to bottom: a filter-as-you-type search box; an "Open whole graph" button; a pinned **★ Favourites** group (shown only when non-empty — A2b); then every Node in **collapsible groups by `node.type`**, alphabetical within each group, place-like types (`City`, `Kingdom`, `Region`, …) ordered first, then `Character`, `Organization`, then the rest, then `(untyped)`. `node.type` is already on every Node — zero new state.
+
+Chosen over flat-alphabetical (102 rows is a scroll) and over degree-ordered (meaningless at 0 relationships, and a weak proxy for "what I want to start from" even later — it may become a *secondary* within-group sort, not now). Alberto's "pick a Country / Region / City and re-root" is just the place-typed groups sitting at the top of this same list — no separate mechanism. A places-only filter was rejected: it makes every Character/Org/Event/Lore Node unreachable from the sidebar.
+
+**Root vs. preset are cleanly separated**: the sidebar picks the *root* (the "what"); the traversal preset (the "how much") is a control in the **popout toolbar** (`(•Direct) (Everything) (Curated)` segmented control), not the sidebar. First root of a session defaults to "Direct only" (ADR-0007 point 6's "a GM with zero context isn't handed a decision screen").
+
+States: storage-not-ready → "Loading campaign…" (fixes VIEW-001a's permanently-stuck "Storage not ready yet…"); 0 Nodes → "No knowledge yet. Tag an Actor or Journal entry as a Node to see it here."; non-GM viewer → the same list, pre-filtered by `filterNodesForViewer` (VIEW-001a).
+
+### A2b. Favourites: a pinned navigator group, per-user, stored as Foundry user-flags — explicitly NOT Core state.
+
+A `☆`/`★` toggle on each navigator row (hover-reveal on normal rows, always-shown on favourited ones), optionally also a right-click context-menu item. Favourited Nodes appear in the pinned group at the top.
+
+**Where the state lives (architect follow-up, light):** favourites are per-user (Alberto's ≠ a player's) and are *not* campaign knowledge (`CONTRIBUTING_GUIDE.md` Rule 6 — they don't preserve the memory of the world, they're a personal navigation convenience). Therefore: **not** `StorageProvider` state, **not** a `View`, **not** in `GraphViewSpec`, **not** in the portable snapshot (ADR-0008 — an external AI planner shouldn't see Alberto's bookmarks). Home: `game.user.setFlag('archivexus', 'favouriteNodeIds', string[])` — per-user, per-world, Foundry-synced, survives reload, zero schema change, zero migration. Same category as "which sidebar tab is open." This is a deliberate contrast with a saved **"Curated by me" View**, which *is* Core state, *is* shared per its Visibility, *is* campaign-meaningful — the two must not be conflated.
+
+Optional cheap complement (Alberto's call, not decided here): a "Recent" auto-group (last ~5 rooted-on Nodes), also in `game.user` flags, zero manual upkeep.
+
+### A3. Gesture map (Alberto confirmed both open questions 2026-09-08).
+
+| Gesture | Action |
+|---|---|
+| **single-tap a Node** | Select it: highlight it + its 1-hop neighbours on the canvas, **and** populate an **Inspector panel** (A3a) with its attached content and its grouped connections |
+| **double-tap a Node** | Open the Node's primary Foundry sheet (`fromUuid` → `sheet.render(true)`) — the universal double-click-to-open convention |
+| **right-click a Node** | Context menu: *Open sheet* · *Re-root graph here* · *Everything connected from here* · *Add to favourites* |
+| **right-click canvas background** | *Whole graph* · *Change layout* · *Preview as player* |
+
+Alberto's confirmed answers to the two ambiguities the design pass raised: (1) his "double-tap → related nodes / journals / actors / *related information*" meant **surfacing the Node's attached content** (its Blocks), not a 2-hop graph expansion — delivered as the Inspector panel on single-tap select; (2) **double-tap = open sheet** (the designer's recommendation), reverting VIEW-001a's interim "double-tap = everything connected" / "right-click = open sheet" — "Everything connected" is now a deliberate menu/toolbar action, not a gesture you stumble into (ADR-0007 point 6's flood-avoidance spirit).
+
+### A3a. The Inspector panel — a new surface (VIEW-001b).
+
+A collapsible panel docked on the right of the popout, showing for the selected Node: title + type; **Attached (N)** — each Block's `title`, clickable → `fromUuid(block.uuid)` → `sheet.render(true)` (`Block.uuid`/`title` are already on every `Node` `resolveTraversal`/`listNodes` returns — no new Core/Storage work); **Connections (grouped)** — reusing ADR-0012's Connections-panel logic verbatim (group by `traversalCategory`, degree-descending / alpha tiebreak, "+N more"). This is the one place ADR-0012's content-prominence ordering answer transfers directly. The graph does not render Blocks today — this panel is where "related information" lives.
+
+### A4. Visibility in the graph.
+
+- **No "something hidden here" placeholder for players.** A marker leaks that a secret exists, its position in the graph, and that it bridges two known Nodes. A player's graph is a clean, self-consistent subgraph of what they may know — hidden Nodes and every edge touching them simply don't exist for that player (matching how Foundry itself omits an unowned Journal Entry from the directory, no ghost row). `buildGraphViewElements` already drops any edge with a missing endpoint, so this is **already the behaviour** for edges — stated here as intentional: if Kingdom A (visible) is `at-war-with` a hidden faction, the player does not learn Kingdom A is at war with anyone.
+- **A `visible` Node whose only links are to hidden Nodes shows as an isolated dot** — acceptable (not a leak; the player was allowed to see that Node). An optional "Hide unconnected nodes" toggle in whole-graph mode (default off) is a reasonable fast-follow if it bothers Alberto; not decided here.
+- **A GM-only "Preview as player (approximate)" toggle** in the popout toolbar re-runs `filterNodesForViewer` with `isGM: false` and shows a persistent banner ("Previewing as player — N nodes hidden"). Labelled "approximate" because the current filter reads `Node.visibility` (derived from *default* document ownership) and won't reflect a secret shared with one specific player via a per-document OBSERVER grant — it still catches gross mistakes (exactly the leak VIEW-001a's review found).
+- **Two independent layers that compose** (stated so VIEW-001f doesn't re-derive it): (1) *can this viewer open this View at all?* → `View.visibility` (relevant only once saved Views exist); (2) *within a View they can open, node-level filtering still applies* → a player opening a `visible` shared View still doesn't see `hidden` Nodes in it. The whole-graph overview has no `View` record — it's implicitly "openable by everyone, node-filtered."
+
+### A5. Content-prominence / cluster ordering.
+
+**Spatial layout is enough for the canvas.** On a 2D canvas there is no "first N before +36 more" — the layout separates clusters spatially and the GM pans/zooms. ADR-0007's deferred ordering question resolves as: (1) the **Inspector panel's connections list** (A3a) is a list → reuse ADR-0012's ordering; (2) **"Everything connected" collapsed clusters** (VIEW-001e): when a cluster node ("Residents (40)") is expanded, show *all* of it — a canvas has effectively infinite 2D space, so no paging and therefore no ordering needed; (3) if rendering performance ever forces a node cap on expansion, fall back to degree-desc / alpha to match ADR-0012 — named as the escalation path, not built (102 Nodes; Cytoscape handles this fine).
+
+### A6. CORE-006 / `GraphViewSpec` needs no change.
+
+Walked through the redesign: the popout preset toggle → `spec.preset`; re-rooting → `spec.rootNodeId`; favourites → `game.user` flags (not the spec, by design); sidebar group state / search text → ephemeral, not persisted; "Preview as player" → runtime toggle, not persisted; the Inspector panel → reads existing `Node.blocks` + `resolveTraversal`. **CORE-006 stands as implemented; VIEW-001b–f need nothing new from it.**
+
+One gap, named not actioned: the **whole-graph overview** has no `rootNodeId` and no preset, so it is not representable as a `GraphViewSpec` today. This only matters if Alberto ever wants to *save* "my whole-world graph with this hand-placed layout" as a named View. If that materialises: `GraphViewSpec` needs an optional `rootNodeId` or a 4th `{ scope: 'whole-graph'; layout? }` variant, plus SQLite migration 3 — an architect + DBA follow-up, conditional on the want appearing.
+
+### A7. Revised ticket breakdown.
+
+The original VIEW-001b (issue #57) scope — "Everything connected clustering + Curated-by-me + saved layout" — plus this direction is too much for one ticket. Split:
+
+- **VIEW-001b (revised, #57): the graph popout.** Standalone singleton `ApplicationV2`. Toolbar: root selector, preset segmented control, layout picker, "Whole graph", GM-only "Preview as player". Cytoscape rendering moves here from the sidebar. Inspector panel (A3a): attached Blocks (clickable) + connections list (reuse ADR-0012). Gestures per A3. Depends on VIEW-001a (merge it) + CORE-005 (done); **no CORE-006 dependency**.
+- **VIEW-001c: the sidebar navigator.** Strip Cytoscape from `codex-sidebar-tab.ts`; rebuild as search + type-grouped collapsible node list + "Open whole graph"; row click opens/re-roots the popout; fix the stuck "Storage not ready" state. Depends on VIEW-001b.
+- **VIEW-001d: favourites.** Star toggle → `game.user` flag; pinned group. Adapter-only, no Core. Optionally the "Recent" auto-group. Depends on VIEW-001c + the A2b architect confirm. Small enough to fold into VIEW-001c if budget allows, but it carries the one architect-confirm item so it's cleanly separable.
+- **VIEW-001e: "Everything connected" collapsed clusters.** ADR-0007 point 6's category-labelled cluster grouping + expand-in-place. Depends on VIEW-001b + `RelationshipDefinition` persistence (still unbuilt) + real relationship data to be meaningful.
+- **VIEW-001f: "Curated by me" + saved layout.** Prune/add UI in the popout; save/load a real `View` via CORE-006's `saveView`/`getView`/`listViews`; saved-views list in the sidebar (respecting `View.visibility`); hand-placed `layout`; the "See in graph" link from ADR-0012's Connections panel. Depends on CORE-006 (done) + VIEW-001b + VIEW-001e.
+
+Sequencing: this amendment → VIEW-001b → VIEW-001c → VIEW-001d, then VIEW-001e / VIEW-001f once real Relationships exist and `RelationshipDefinition` persistence lands.
+
+### A8. Open items routed elsewhere.
+
+- **Architect (light confirm):** favourites stay Adapter-side as Foundry user-flags, explicitly not a Knowledge Element (A2b).
+- **Architect:** whether real per-user visibility resolution (`document.testUserPermission(user, "OBSERVER")` per Node per viewer, or persisted per-user visibility) is in scope for VIEW-001f's real `View` scope, or its own ticket (A4).
+- **Architect + DBA (conditional):** the whole-graph-as-a-saved-View gap (A6) — only if the want materialises.
+- **Architect / Product Owner (sequencing):** "Everything connected" cluster **category labels** need `RelationshipDefinition` persistence (still unbuilt) — a pre-req for VIEW-001e.

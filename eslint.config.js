@@ -15,9 +15,11 @@ import prettier from 'eslint-config-prettier';
  * files together, never just one.
  */
 const FOUNDRY_ADAPTER_GLOBALS = {
+  CONFIG: 'readonly',
   Hooks: 'readonly',
   foundry: 'readonly',
   game: 'readonly',
+  globalThis: 'readonly',
   saveDataToFile: 'readonly',
   ui: 'readonly',
 };

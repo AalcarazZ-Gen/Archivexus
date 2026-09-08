@@ -398,6 +398,8 @@ Yes — `decisions/ADR-0012-node-connections-panel.md` (2026-09-06): a narrow, F
 
 **Implemented (CORE-006, 2026-09-08):** `src/core/domain/view.ts` — `View extends KnowledgeElement` with `kind: 'view'`, `format: 'graph'` (`VIEW_FORMATS`, a plain closed-union of one value), and `spec: GraphViewSpec` (the discriminated union above: derived presets carry only preset + `rootNodeId`; `curated-by-me` additionally carries a de-duplicated `relationshipIds` list and an optional `layout` of finite `{x, y}` positions). `createView`/`isView`/`isGraphViewSpec` follow `createNode`/`createRelationship`'s validating-factory style; `GRAPH_VIEW_PRESETS` is kept in sync with CORE-005's `TRAVERSAL_PRESETS` by convention (no `core/domain` → `core/query` dependency). `StorageProvider` gained `saveView`/`getView`/`deleteView`/`listViews`, backed by SQLite migration 2's `views` table (JSON-encoded `spec`, no FK — same no-cascade reasoning as `relationships`).
 
+**Redesigned after a live test (ADR-0014 Amendment, 2026-09-08):** the graph moves out of the sidebar into a standalone popout window; the sidebar tab becomes a node navigator; a Node's *attached content* (its Blocks) surfaces in a new Inspector panel, not on the graph canvas. `GraphViewSpec` is **unchanged** by this — the redesign is entirely Adapter-side (favourites live in Foundry per-user flags, not Core state). Two visibility layers compose: `View.visibility` gates whether a viewer can open a saved View at all; within a View they can open, node-level `hidden`-filtering (ADR-0003) still applies. See the Amendment's A2b/A4/A6.
+
 ---
 
 ## Open Questions

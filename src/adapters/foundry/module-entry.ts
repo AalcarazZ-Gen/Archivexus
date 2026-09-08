@@ -5,6 +5,7 @@
 
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import { registerActorNodeTypeTag } from './actor-node-type-tag.js';
+import { registerCodexSidebarTab } from './codex-sidebar-tab.js';
 import { registerJournalEntryPageNodeTag } from './journal-entry-page-node-tag.js';
 import { registerRelationshipAuthoringEntryPoints } from './relationship-authoring-window.js';
 import { registerRelationshipListEntryPoints } from './relationship-list-window.js';
@@ -44,6 +45,7 @@ Hooks.once('init', () => {
   registerJournalEntryPageNodeTag();
   registerRelationshipAuthoringEntryPoints(() => storage, log);
   registerRelationshipListEntryPoints(() => storage, log);
+  registerCodexSidebarTab(CONFIG.ui, () => storage, log);
 
   // Registered at init, but each callback lazily resolves `storage` at
   // call time (see withStorage) - it isn't created until `ready`.
@@ -73,6 +75,10 @@ Hooks.once('ready', () => {
     );
     await syncAllActorsAndPages({ actors, journalPages }, storage);
     log.info(`Backfill complete: ${actors.length} actors, ${journalPages.length} pages.`);
+
+    // Signals the Codex sidebar tab (VIEW-001a) — which may have rendered
+    // before `ready` — that storage is now up and can be queried.
+    Hooks.callAll('archivexus.ready', storage);
 
     // No export UI yet (View/graph UI is out of scope for STORE-003) - a
     // GM can trigger the full, unredacted snapshot export from Foundry's
