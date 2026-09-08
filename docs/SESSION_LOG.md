@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-09-08 (software-developer: the VIEW-001 view batch — VIEW-001h + VIEW-001d done, VIEW-001e/f deferred)
+
+**Context:** Alberto asked to "tackle all the view tickets" (VIEW-001d/e/f/h). Branched `feat/view-001-batch` off the (still-unmerged) `feat/view-001i-relationship-console` — so the branch carries VIEW-001i + VIEW-001h + VIEW-001d, three commits, merged as a unit.
+
+**VIEW-001h (#75) — done.** The navigator's `node.type` groups are collapsible now (the gap ADR-0014 Amendment A2 named). Header → `toggleGroup` button + `▾`/`▸` caret; `buildNavigatorGroupsHTML(groups, collapsedTypes)` renders a collapsed type with its `<ul>` `hidden`. `navigatorGroupsStartExpanded` = the auto-rule (single group, or ≤15 total → start expanded). Session-only per-type state on the singleton tab. Search force-expands matching groups, restores on clear. +4 tests.
+
+**VIEW-001d (#69) — done.** Per-row ☆/★ favourite toggle (hover-revealed / always-shown-when-on); a pinned **★ Favourites** group at the top. `node-navigator.ts`: `groupNodesWithFavourites` + `normalizeFavouriteNodeIds` (pure). State = `game.user.setFlag('archivexus', 'favouriteNodeIds', string[])` — per-user, explicitly **not** `StorageProvider`/`View`/snapshot state (A2b / Rule 6). +5 tests. **Architect sign-off (A8), recorded here, no ADR:** favourites are Adapter-side Foundry user-flags, not a Knowledge Element — the deliberate contrast with a saved "Curated by me" View (which *is* Core state, shared per its Visibility).
+
+**VIEW-001e (#70) + VIEW-001f (#71) — deferred (Alberto's call).** Both explicitly need real authored Relationship data to be meaningful or verifiable, and the campaign has **0 authored Relationships**. Building the cluster-grouping transform + the curate/save/load/saved-Views surface blind, against types only, with no way to see them work, isn't worth it now. The Relationship Console (VIEW-001i) is the tool to author the data first; e/f get picked up with real edges on the canvas. Issues left open with a note.
+
+**Verified:** 492 unit tests (up from 483). `tsc`/`eslint`/`vitest`/`build:foundry-module` all clean (`archivexus.js` ~100KB → ~105KB). **Not yet live-verified:** the collapse toggle + favourites star wiring on a real `AbstractSidebarTab` render, and the `game.user` flag round-trip. Not merged — Alberto merges (this branch = VIEW-001i + h + d).
+
 ## 2026-09-08 (software-developer: VIEW-001i — Relationship Console)
 
 **Built:** VIEW-001i (#67), item 34 of the "Next batch" — the world-level "wire the campaign" surface Alberto asked for. ARCH-002 (its blocker) was already resolved as ADR-0014 Amendment 2. Branched `feat/view-001i-relationship-console` off `dev`.
