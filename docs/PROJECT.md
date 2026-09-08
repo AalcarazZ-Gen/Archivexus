@@ -75,6 +75,8 @@ Live diagnosis behind these: the per-sheet entry points (node typing, "New Relat
 
 _Remaining from the ADR-0014 Amendment split, unchanged: **VIEW-001d** (favourites — `game.user` flags, pinned navigator group; issue #69), **VIEW-001e** ("Everything connected" collapsed clusters — needs ADAPT-014 + real authored Relationships; issue #70), **VIEW-001f** ("Curated by me" + saved layout — needs CORE-006/done + VIEW-001e; issue #71)._
 
+_Also open, small: **VIEW-001h** (issue #75) — make the navigator's `node.type` groups actually collapsible (collapsed by default, auto-expand on search / header click), closing the "collapsible" gap ADR-0014 Amendment A2 named but VIEW-001c shipped always-expanded. Raised by Alberto 2026-09-08; no dependency, slot it in when convenient._
+
 ## Sensitive areas — don't touch or decide without asking first
 
 - The Core's platform independence (`01_ARCHITECTURE.md`'s "Domain Ownership" section): don't let Foundry-specific concepts leak into the Core without an explicit ADR.
