@@ -52,6 +52,16 @@ describe('buildNavigatorShellHTML', () => {
     expect(html).toContain('data-role="list"');
     expect(html).toContain('data-role="hint"');
   });
+
+  it('includes the guidance button + mount by default (GM), and omits both when withGuidance is false', () => {
+    const gm = buildNavigatorShellHTML();
+    expect(gm).toContain('data-action="showGuidance"');
+    expect(gm).toContain('data-role="guidance-mount"');
+
+    const player = buildNavigatorShellHTML({ withGuidance: false });
+    expect(player).not.toContain('data-action="showGuidance"');
+    expect(player).not.toContain('data-role="guidance-mount"');
+  });
 });
 
 describe('buildNavigatorStateHTML', () => {

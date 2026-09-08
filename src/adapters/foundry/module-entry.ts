@@ -8,6 +8,11 @@ import { registerActorNodeTypeTag } from './actor-node-type-tag.js';
 import { registerCodexSidebarTab } from './codex-sidebar-tab.js';
 import { registerJournalEntryPageNodeTag } from './journal-entry-page-node-tag.js';
 import { bootstrapRelationshipDefinitions } from './relationship-definitions-bootstrap.js';
+import {
+  maybeShowWelcomeDialog,
+  registerOnboardingSetting,
+  type WelcomeDialogV2Like,
+} from './first-run-guidance.js';
 import { registerRelationshipAuthoringEntryPoints } from './relationship-authoring-window.js';
 import { registerRelationshipListEntryPoints } from './relationship-list-window.js';
 import { createSqliteStorageProvider } from '../../storage/sqlite/create-sqlite-storage-provider.js';
@@ -40,6 +45,27 @@ function withStorage(action: (storage: StorageProvider) => Promise<void>): void 
   });
 }
 
+/**
+ * Switches the sidebar to the Codex tab. The v13 ApplicationV2 `Sidebar`
+ * renamed `activateTab` → `changeTab(tab, group)`; try the new name first,
+ * fall back to the old. Best-effort — a miss just leaves the GM to click
+ * the tab themselves. Flagged as glue: unverified against a live v14 client.
+ */
+function activateCodexSidebarTab(): void {
+  try {
+    const sidebar = ui.sidebar;
+    if (sidebar?.changeTab) {
+      sidebar.changeTab('codex', 'primary');
+    } else if (sidebar?.activateTab) {
+      sidebar.activateTab('codex');
+    }
+  } catch (error) {
+    log.warn(
+      `Could not switch to the Codex tab: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 Hooks.once('init', () => {
   log.info('Initializing');
   registerActorNodeTypeTag();
@@ -47,6 +73,7 @@ Hooks.once('init', () => {
   registerRelationshipAuthoringEntryPoints(() => storage, log);
   registerRelationshipListEntryPoints(() => storage, log);
   registerCodexSidebarTab(CONFIG.ui, () => storage, log);
+  registerOnboardingSetting(game.settings);
 
   // Registered at init, but each callback lazily resolves `storage` at
   // call time (see withStorage) - it isn't created until `ready`.
@@ -86,6 +113,22 @@ Hooks.once('ready', () => {
     // Signals the Codex sidebar tab (VIEW-001a) — which may have rendered
     // before `ready` — that storage is now up and can be queried.
     Hooks.callAll('archivexus.ready', storage);
+
+    // First-run guidance (VIEW-001g): a one-time, GM-only welcome dialog
+    // pointing at the (buried) per-sheet setup entry points. Any close
+    // marks it dismissed for the world — it never nags.
+    await maybeShowWelcomeDialog({
+      settings: game.settings,
+      isGM: game.user?.isGM === true,
+      dialogV2: foundry.applications.api.DialogV2 as unknown as WelcomeDialogV2Like,
+      counts: {
+        actorCount: actors.length,
+        pageCount: journalPages.length,
+        definitionCount: (await storage.listRelationshipDefinitions()).length,
+      },
+      showCodex: activateCodexSidebarTab,
+      log,
+    });
 
     // No export/Definition-editing UI yet — a GM can drive both from the
     // console: game.modules.get('archivexus').api.exportSnapshot(),
