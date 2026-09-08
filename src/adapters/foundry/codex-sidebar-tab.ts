@@ -3,6 +3,7 @@ import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import { isViewerGM } from './foundry-viewer.js';
 import { filterNodesForViewer } from './graph-view-elements.js';
 import { openGraphPopout } from './graph-popout-window.js';
+import { openRelationshipDefinitionEditor } from './relationship-definition-editor-window.js';
 import { buildGuidancePanelHTML } from './first-run-guidance.js';
 import type { Logger } from './logger.js';
 import { groupNodesByType, type NavigatorGroup } from './node-navigator.js';
@@ -95,22 +96,24 @@ function escapeHtml(value: string): string {
 
 /**
  * The navigator's static shell — toolbar, search box, a `data-role="list"`
- * region the group markup drops into, a `data-role="hint"` count line, and
- * (when `withGuidance`, i.e. GM only) a "Getting started" toolbar button and
- * a `data-role="guidance-mount"` the first-run panel (VIEW-001g) renders
- * into.
+ * region the group markup drops into, a `data-role="hint"` count line. The
+ * GM-only affordances (`isGM`, default true) are the "Getting started"
+ * button + `data-role="guidance-mount"` for the first-run panel (VIEW-001g),
+ * and a "Relationship types" button opening the Definition editor (ADAPT-014)
+ * — both point at GM-only authoring surfaces.
  */
-export function buildNavigatorShellHTML(options: { withGuidance?: boolean } = {}): string {
-  const { withGuidance = true } = options;
+export function buildNavigatorShellHTML(options: { isGM?: boolean } = {}): string {
+  const { isGM = true } = options;
   return (
     `<div class="archivexus-codex">` +
     `<div class="archivexus-codex-toolbar">` +
     `<button type="button" data-action="openWholeGraph" title="Open the campaign graph in a resizable window">Open graph ⧉</button>` +
-    (withGuidance
-      ? `<button type="button" data-action="showGuidance" title="Show the getting-started guidance">Getting started</button>`
+    (isGM
+      ? `<button type="button" data-action="openDefinitionEditor" title="Add or edit relationship types">Relationship types</button>` +
+        `<button type="button" data-action="showGuidance" title="Show the getting-started guidance">Getting started</button>`
       : '') +
     `</div>` +
-    (withGuidance ? `<div class="archivexus-codex-guidance-mount" data-role="guidance-mount"></div>` : '') +
+    (isGM ? `<div class="archivexus-codex-guidance-mount" data-role="guidance-mount"></div>` : '') +
     `<input type="search" class="archivexus-codex-search" data-role="search" placeholder="Filter nodes…" autocomplete="off" />` +
     `<div class="archivexus-codex-list" data-role="list"></div>` +
     `<div class="archivexus-codex-hint" data-role="hint"></div>` +
@@ -267,13 +270,16 @@ export function getCodexSidebarTabClass(
         showGuidance(this: CodexSidebarTab): void {
           this.#setGuidanceExpanded(true);
         },
+        openDefinitionEditor(): void {
+          openRelationshipDefinitionEditor(getStorage, log);
+        },
       },
     };
 
     #storageReadyHookBound = false;
 
     _renderHTML(): string {
-      return buildNavigatorShellHTML({ withGuidance: isViewerGM() });
+      return buildNavigatorShellHTML({ isGM: isViewerGM() });
     }
 
     _replaceHTML(result: string, content: MinimalDomElementLike): void {

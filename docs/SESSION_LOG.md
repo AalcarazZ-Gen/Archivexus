@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-09-08 (software-developer: ADAPT-014 — Relationship Definition editor)
+
+**Built:** ADAPT-014 (#66), item 33 of the "Next batch". A screen for Alberto's stated authoring need — "adding new relation types". Definitions have been persisted editable state since the CORE-004 fast-follow, but only via the console `api` escape hatch; this is the UI. Branched `feat/adapt-014-definition-editor` off `dev`.
+
+**Formalized:**
+- `src/adapters/foundry/relationship-definition-editor-window.ts` (new): a singleton `ApplicationV2` (deferred-factory-class, raw `_renderHTML`/`_replaceHTML`, pure builders — `relationship-list-window.ts` mould). List panel (`sortDefinitions` — by `traversalCategory` taxonomy order then name; each row Edit/Delete) + an add/edit form. `slugifyDefinitionId` mints a new type's id from its name; edit upserts by existing id and bumps `version` +1 in place. Delete via `DialogV2.confirm`, no cascade. `parseDefinitionForm` + `validateDefinitionForm` wrap `createRelationshipDefinition` — a thrown `InvalidRelationshipDefinitionError` becomes an inline `data-role="form-error"` message with **no re-render** (typed input survives); a symmetric type's `inverse` is auto-forced to its `name`.
+- `codex-sidebar-tab.ts`: a new GM-only **"Relationship types"** toolbar button (`openDefinitionEditor` action). `buildNavigatorShellHTML`'s `withGuidance` option generalized to `isGM` — now gates that button + the VIEW-001g guidance affordances together. `index.ts` exports the new surfaces.
+- +27 unit tests (464 total). `tsc`/`eslint`/`vitest`/`build:foundry-module` all clean (`archivexus.js` ~74KB → ~86KB). `03_DOMAIN_MODEL.md` Definitions section + CHANGELOG + PROJECT.md item 33 updated.
+
+**Scoping calls made inline (no ADR — small Adapter surface, proportionate to a personal project):**
+- **All correctness stays in the Core factory.** The window has no validation logic of its own — it renders the factory's error text. Keeps the "Adapters carry no business logic" line clean.
+- **Edit bumps `version` in place**, no historical rows — that's `03_DOMAIN_MODEL.md`'s still-open migration question, not this ticket. Flagged.
+- **New id = slug of the name** (not `randomID`) — matches the semantic ids the defaults use (`resides-in`, `ally-of`). Flagged.
+- Launch point is the **Codex toolbar only** for now; the "+ New type" affordance in VIEW-001i's Console create-flow is that ticket's job.
+- Out of scope per the ticket and untouched: Definition version migration, bulk import/export.
+
+**Not yet live-verified (needs Alberto's v14 client):** the `ApplicationV2` render + `actions`/`data-action` wiring, `DialogV2.confirm` for delete, and the `[name=…]` form-value reads (`.value`/`.checked` off the real controls). Not merged — Alberto merges.
+
+**Still queued:** VIEW-001i (#67), ADAPT-013 (#68), VIEW-001d/e/f (#69–71), VIEW-001h (#75, small) per PROJECT.md items 34–35 + the follow-up notes.
+
 ## 2026-09-08 (software-developer: VIEW-001g — first-run guidance)
 
 **Built:** VIEW-001g (#64), item 31 of the "Next batch" and the fast-follow to VIEW-001c. A visible pointer at the buried per-sheet setup entry points — no new plumbing. Branched `feat/view-001g-first-run-guidance` off `dev`.
