@@ -73,12 +73,19 @@ export type {
   NodeConnectionRow,
 } from './node-connections.js';
 export {
-  buildCodexContentHTML,
+  buildNavigatorGroupsHTML,
+  buildNavigatorShellHTML,
+  buildNavigatorStateHTML,
   ensureCodexStyles,
   getCodexSidebarTabClass,
   registerCodexSidebarTab,
 } from './codex-sidebar-tab.js';
 export type { FoundryUiConfigLike } from './codex-sidebar-tab.js';
+export {
+  filterNodesByQuery,
+  groupNodesByType,
+} from './node-navigator.js';
+export type { NavigatorGroup } from './node-navigator.js';
 export {
   buildContextMenuHTML,
   buildGraphPopoutContentHTML,
