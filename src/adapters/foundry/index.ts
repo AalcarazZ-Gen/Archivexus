@@ -103,6 +103,25 @@ export type {
   WelcomeDialogV2Like,
 } from './first-run-guidance.js';
 export {
+  buildDefinitionEditorContentHTML,
+  buildDefinitionFormHTML,
+  buildDefinitionListHTML,
+  emptyDefinitionFormValues,
+  ensureDefinitionEditorStyles,
+  formValuesFromDefinition,
+  getRelationshipDefinitionEditorClass,
+  openRelationshipDefinitionEditor,
+  parseDefinitionForm,
+  slugifyDefinitionId,
+  sortDefinitions,
+  validateDefinitionForm,
+} from './relationship-definition-editor-window.js';
+export type {
+  DefinitionFormValues,
+  EditorApplicationOptions,
+  ValidateDefinitionResult,
+} from './relationship-definition-editor-window.js';
+export {
   buildContextMenuHTML,
   buildGraphPopoutContentHTML,
   buildInspectorEmptyHTML,
