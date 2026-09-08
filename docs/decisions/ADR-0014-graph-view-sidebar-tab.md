@@ -208,3 +208,32 @@ Sequencing: this amendment → VIEW-001b → VIEW-001c → VIEW-001d, then VIEW-
 - **Architect:** whether real per-user visibility resolution (`document.testUserPermission(user, "OBSERVER")` per Node per viewer, or persisted per-user visibility) is in scope for VIEW-001f's real `View` scope, or its own ticket (A4).
 - **Architect + DBA (conditional):** the whole-graph-as-a-saved-View gap (A6) — only if the want materialises.
 - **Architect / Product Owner (sequencing):** "Everything connected" cluster **category labels** need `RelationshipDefinition` persistence (still unbuilt) — a pre-req for VIEW-001e.
+
+---
+
+## Amendment 2 (2026-09-08): UI-surface inventory (ARCH-002, issue #65 — resolved inline)
+
+A product-owner + ux-ui-designer consult on three of Alberto's asks (a UI-polish ticket, first-run onboarding, a relationship-management console) surfaced that ~6–9 Adapter surfaces now render the same three nouns {Node, Relationship, Definition}, with no canonical entry-point map. Rather than a separate architect pass, the four small decisions and the map are recorded here (the domain and storage layers are clean — this is purely an Adapter-surface inventory). **Provisional — expected to shift once real usability testing happens against authored campaign data.**
+
+### Decisions
+
+1. **The ADAPT-011 standalone Connections panel (ADR-0012, decided but never built) is retired unbuilt.** Its job — "one Node's connections, grouped by `traversalCategory`" — becomes the **Relationship Console's "filter: involves node X"** mode. `node-connections.ts` (shipped with VIEW-001b) already implements the grouping/ordering logic reusably, so nothing is lost.
+2. **The per-sheet "Relationships…" list (ADAPT-012, shipped) stays** — it is the zero-context, in-flow view ("I'm on this sheet, what's it connected to"), a different job from the sit-down-and-wire-the-campaign Console. Its header-control button is **renamed "Connections"** so it reads as distinct from the world-level "Relationship Console".
+3. **The canonical "create a Relationship" surface is the ADAPT-007 authoring window.** Every surface that offers "new relationship" (the per-sheet button, the Console's `[+ New]`, a future navigator context menu) launches that same window, optionally prefilled. No surface implements inline relationship creation.
+4. **Shared CSS lives in one injected `<style>` module** (`ensureArchivexusStyles`, extracted in VIEW-001c), **not** a `module.json` `"styles"` asset. ADR-0006 is about the build/install boundary, not a literal CSS ban — but a second emitted asset is real friction for a hand-run build. Revisit only if the stylesheet ever exceeds a few hundred lines.
+
+### Where each thing lives
+
+| Surface | Scope | Does | Entry point | Status |
+|---|---|---|---|---|
+| "Archivexus Node Type" dialog | one document's Node type | write | sheet header ⋯ menu | shipped (ADAPT-003) |
+| "New Relationship…" window | create one Relationship | write | sheet header ⋯ menu · the Console's `[+ New]` | shipped (ADAPT-007) — **canonical create** |
+| "Connections" list | one Node's Relationships | read + delete | sheet header ⋯ menu | shipped (ADAPT-012 — button renamed from "Relationships…") |
+| Graph popout + Inspector | whole graph / a rooted subgraph; a selected Node's connections + attached Blocks | read + click-through | Codex "Open graph ⧉" button · a navigator row | shipped (VIEW-001a/b) |
+| Codex sidebar navigator | every Node grouped by `type`; search; favourites | launches popout / Console | first-level sidebar tab | VIEW-001c (#63) |
+| Relationship Console | every Relationship campaign-wide; search / filter / create / delete | read + create + delete | button in the Codex sidebar toolbar | VIEW-001i (#67) |
+| Definition editor | the default Relationship Definitions | list / add / edit / delete | Codex toolbar · the Console's "+ New type" | ADAPT-014 (#66) |
+| saved-Views list | named `View` instances | read (open in the popout) | Codex sidebar | VIEW-001f (#71) |
+| ~~ADAPT-011 standalone panel~~ | — | — | — | **retired unbuilt** |
+
+Rule for a future surface #10: if it renders one of {Node, Relationship, Definition} and it isn't in this table, it needs a row here (and a reason it isn't one of the above) before it ships.
