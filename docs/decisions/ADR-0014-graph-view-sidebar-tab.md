@@ -231,7 +231,7 @@ A product-owner + ux-ui-designer consult on three of Alberto's asks (a UI-polish
 | "Connections" list | one Node's Relationships | read + delete | sheet header ⋯ menu | shipped (ADAPT-012 — button renamed from "Relationships…") |
 | Graph popout + Inspector | whole graph / a rooted subgraph; a selected Node's connections + attached Blocks | read + click-through | Codex "Open graph ⧉" button · a navigator row | shipped (VIEW-001a/b) |
 | Codex sidebar navigator | every Node grouped by `type`; search; favourites | launches popout / Console | first-level sidebar tab | VIEW-001c (#63) |
-| Relationship Console | every Relationship campaign-wide; search / filter / create / delete | read + create + delete | button in the Codex sidebar toolbar | VIEW-001i (#67) |
+| Relationship Console | every Relationship campaign-wide; search / filter / create / delete | read + create + delete | "Relationships" button in the Codex sidebar toolbar | shipped (VIEW-001i #67) — subsumes ADAPT-011 as its "involves node X" filter; no instance-editing v1 |
 | Definition editor | the default Relationship Definitions | list / add / edit / delete | Codex toolbar · the Console's "+ New type" | ADAPT-014 (#66) |
 | saved-Views list | named `View` instances | read (open in the popout) | Codex sidebar | VIEW-001f (#71) |
 | ~~ADAPT-011 standalone panel~~ | — | — | — | **retired unbuilt** |

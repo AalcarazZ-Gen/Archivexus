@@ -4,6 +4,7 @@ import { isViewerGM } from './foundry-viewer.js';
 import { filterNodesForViewer } from './graph-view-elements.js';
 import { openGraphPopout } from './graph-popout-window.js';
 import { openRelationshipDefinitionEditor } from './relationship-definition-editor-window.js';
+import { openRelationshipConsole } from './relationship-console-window.js';
 import { buildGuidancePanelHTML } from './first-run-guidance.js';
 import type { Logger } from './logger.js';
 import { groupNodesByType, type NavigatorGroup } from './node-navigator.js';
@@ -97,9 +98,9 @@ function escapeHtml(value: string): string {
 /**
  * The navigator's static shell — toolbar, search box, a `data-role="list"`
  * region the group markup drops into, a `data-role="hint"` count line. The
- * GM-only affordances (`isGM`, default true) are the "Getting started"
- * button + `data-role="guidance-mount"` for the first-run panel (VIEW-001g),
- * and a "Relationship types" button opening the Definition editor (ADAPT-014)
+ * GM-only toolbar affordances (`isGM`, default true): "Relationships" (the
+ * Console, VIEW-001i), "Relationship types" (the Definition editor, ADAPT-014),
+ * "Getting started" + `data-role="guidance-mount"` for the first-run panel (VIEW-001g)
  * — both point at GM-only authoring surfaces.
  */
 export function buildNavigatorShellHTML(options: { isGM?: boolean } = {}): string {
@@ -109,7 +110,8 @@ export function buildNavigatorShellHTML(options: { isGM?: boolean } = {}): strin
     `<div class="archivexus-codex-toolbar">` +
     `<button type="button" data-action="openWholeGraph" title="Open the campaign graph in a resizable window">Open graph ⧉</button>` +
     (isGM
-      ? `<button type="button" data-action="openDefinitionEditor" title="Add or edit relationship types">Relationship types</button>` +
+      ? `<button type="button" data-action="openConsole" title="List, search, create and delete every relationship">Relationships</button>` +
+        `<button type="button" data-action="openDefinitionEditor" title="Add or edit relationship types">Relationship types</button>` +
         `<button type="button" data-action="showGuidance" title="Show the getting-started guidance">Getting started</button>`
       : '') +
     `</div>` +
@@ -272,6 +274,9 @@ export function getCodexSidebarTabClass(
         },
         openDefinitionEditor(): void {
           openRelationshipDefinitionEditor(getStorage, log);
+        },
+        openConsole(): void {
+          openRelationshipConsole(getStorage, log);
         },
       },
     };

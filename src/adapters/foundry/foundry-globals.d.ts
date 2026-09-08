@@ -7,6 +7,10 @@
 declare const Hooks: {
   once(hook: string, callback: () => void): void;
   on(hook: string, callback: (...args: never[]) => void): void;
+  // `Hooks.off(hook, callback)` — the Relationship Console (VIEW-001i)
+  // unbinds its `archivexus.relationshipsChanged` listener on close so a
+  // closed window can't be re-rendered by a later change.
+  off(hook: string, callback: (...args: never[]) => void): void;
   callAll(hook: string, ...args: unknown[]): void;
 };
 

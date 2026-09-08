@@ -2,7 +2,7 @@ import type { Logger } from './logger.js';
 
 /**
  * VIEW-001g — first-run guidance. The per-sheet entry points (node typing,
- * "New Relationship…", "Relationships…") aren't broken, they're buried two
+ * "New Relationship…", "Connections") aren't broken, they're buried two
  * clicks deep in each sheet's "⋯ Toggle Controls" header dropdown. A new GM
  * has no way to discover the setup path. This module is the visible pointer
  * at what already exists — deliberately *not* a wizard or a tour library
@@ -42,8 +42,9 @@ export const GUIDANCE_STEPS: readonly { readonly title: string; readonly body: s
     title: 'Connect two Nodes',
     body:
       'From that same <strong>⋯</strong> menu choose <em>“New Relationship…”</em> to link ' +
-      'them (resides-in, ally-of, member-of, …). <em>“Relationships…”</em> lists what a ' +
-      'Node already has.',
+      'them (resides-in, ally-of, member-of, …), or use the <strong>Relationships</strong> ' +
+      'button in this tab’s toolbar to wire the whole campaign in one place. <em>“Connections”</em> ' +
+      'on a sheet lists what that Node already has.',
   },
   {
     title: 'See the graph',

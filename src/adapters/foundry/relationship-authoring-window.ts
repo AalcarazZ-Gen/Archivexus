@@ -479,6 +479,8 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
           title: buildRelationshipTitle(definition, origin.title, target.title),
         });
         await this.#storage.saveRelationship(relationship);
+        // Lets any open Relationship Console (VIEW-001i) refresh its list.
+        Hooks.callAll('archivexus.relationshipsChanged');
         await this.close();
       } catch (error) {
         this.#log.error(
@@ -531,23 +533,25 @@ export interface FoundrySheetAppLike {
   readonly document: FoundryDroppableDocumentLike;
 }
 
-async function openRelationshipAuthoringWindow(
-  app: FoundrySheetAppLike,
+/**
+ * Opens the Relationship-authoring window — the canonical "create a
+ * Relationship" surface (ADR-0014 Amendment 2 decision 3: every entry point
+ * launches this same window, optionally prefilled). Callers: the per-sheet
+ * "New Relationship…" header button (via `openRelationshipAuthoringWindowFromSheet`,
+ * which resolves the sheet's document to `prefillOrigin`) and the
+ * Relationship Console's `[+ New relationship]` (VIEW-001i, prefilled from
+ * its active "involves node X" filter, if any).
+ */
+export async function openRelationshipAuthoringWindow(
   storage: StorageProvider | undefined,
   log: Logger,
+  options: { prefillOrigin?: ResolvedDroppedNode } = {},
 ): Promise<void> {
   if (!storage) {
     log.warn(
       'Storage provider not ready yet - cannot open the Relationship-authoring window (should only happen during startup).',
     );
     return;
-  }
-
-  const resolved = resolveDroppedDocumentNode(app.document.documentName, app.document);
-  if (!resolved.ok) {
-    log.warn(
-      `Opened Relationship-authoring window from an unsupported document type: ${resolved.error}`,
-    );
   }
 
   // Definitions are real, editable `StorageProvider` state now (CORE-004's
@@ -572,8 +576,24 @@ async function openRelationshipAuthoringWindow(
     storage,
     log,
     definitions,
-    ...(resolved.ok ? { prefillOrigin: resolved.node } : {}),
+    ...(options.prefillOrigin ? { prefillOrigin: options.prefillOrigin } : {}),
   }).render(true);
+}
+
+async function openRelationshipAuthoringWindowFromSheet(
+  app: FoundrySheetAppLike,
+  storage: StorageProvider | undefined,
+  log: Logger,
+): Promise<void> {
+  const resolved = resolveDroppedDocumentNode(app.document.documentName, app.document);
+  if (!resolved.ok) {
+    log.warn(
+      `Opened Relationship-authoring window from an unsupported document type: ${resolved.error}`,
+    );
+  }
+  await openRelationshipAuthoringWindow(storage, log, {
+    ...(resolved.ok ? { prefillOrigin: resolved.node } : {}),
+  });
 }
 
 /**
@@ -597,7 +617,7 @@ export function registerRelationshipAuthoringEntryPoints(
     controls.push({
       icon: 'fa-solid fa-diagram-project',
       label: 'New Relationship…',
-      onClick: () => void openRelationshipAuthoringWindow(app, getStorage(), log),
+      onClick: () => void openRelationshipAuthoringWindowFromSheet(app, getStorage(), log),
     });
   };
 
