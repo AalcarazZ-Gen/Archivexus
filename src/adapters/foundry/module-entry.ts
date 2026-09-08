@@ -46,10 +46,12 @@ function withStorage(action: (storage: StorageProvider) => Promise<void>): void 
 }
 
 /**
- * Switches the sidebar to the Codex tab. The v13 ApplicationV2 `Sidebar`
- * renamed `activateTab` → `changeTab(tab, group)`; try the new name first,
- * fall back to the old. Best-effort — a miss just leaves the GM to click
- * the tab themselves. Flagged as glue: unverified against a live v14 client.
+ * Switches the sidebar to the Codex tab (and expands the sidebar if it's
+ * collapsed — otherwise switching the active tab has no visible effect,
+ * confirmed live on v14.367). The v13 ApplicationV2 `Sidebar` renamed
+ * `activateTab` → `changeTab(tab, group)`; try the new name first, fall
+ * back to the old. Best-effort — a miss just leaves the GM to click the
+ * tab themselves.
  */
 function activateCodexSidebarTab(): void {
   try {
@@ -59,6 +61,7 @@ function activateCodexSidebarTab(): void {
     } else if (sidebar?.activateTab) {
       sidebar.activateTab('codex');
     }
+    sidebar?.expand?.();
   } catch (error) {
     log.warn(
       `Could not switch to the Codex tab: ${error instanceof Error ? error.message : String(error)}`,

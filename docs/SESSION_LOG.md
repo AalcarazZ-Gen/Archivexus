@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-09-08 (software-developer: live verification of VIEW-001g + ADAPT-014, one fix)
+
+**Tested on Foundry v14.367 (GM), after Alberto deployed VIEW-001g (merged) + ADAPT-014 (branch).** Claude in Chrome, GM session.
+
+**VIEW-001g — works.** Reset the `onboardingDismissed` world flag + reloaded: the welcome `DialogV2.wait` renders once ("41 Actors, 61 Journal pages, 17 relationship types" + the 3 steps + both buttons). Any close (button or X) sets the flag → never returns. The inline guidance panel renders expanded at 0 authored Relationships ("102 nodes · 0 relationships authored"); its header toggle and the new "Getting started" toolbar button collapse/re-expand it.
+
+**One fix, applied on the ADAPT-014 branch** (VIEW-001g was already merged, and it's a 2-line change — not worth its own branch): "Show me the Codex" *did* switch the active sidebar tab (`ui.sidebar.changeTab('codex','primary')` confirmed — `activeTab === 'codex'`), but that's invisible while the sidebar is collapsed, which is Alberto's default. `activateCodexSidebarTab` (`module-entry.ts`) now also calls `ui.sidebar.expand()` (exists on v14, alongside `collapse`/`toggleExpanded`); `foundry-globals.d.ts`'s `ui.sidebar` gains `expand?()`. `tsc`/`eslint` clean.
+
+**ADAPT-014 — works, nothing to fix.** Opens from the toolbar button. List renders the 17 seeded types grouped by `traversalCategory` (LOCATION → AFFILIATION → KINSHIP …), ↔ on the symmetric ones. Empty-form Save → the inline `data-role="form-error"` "name must be a non-empty string" with no re-render. Added "sworn-to → liege-of" (affiliation, many-to-many) → count 17 → 18, row sorted alphabetically into the AFFILIATION group, form reset to add mode. Edit prefilled the form (heading "Edit relationship type", Cancel button present); changed the inverse to "overlord-of" → Save persisted it with `version` **1 → 2**, id unchanged, still 18 total (upsert, not insert). Delete → the `DialogV2.confirm` (correct body copy) → Yes → row gone, count 17. Second toolbar click while open → one DOM window, re-rendered (singleton). Zero console errors across the whole session. Test data (`sworn-to`) deleted; world flag restored to dismissed.
+
+**Still not exercised** (nothing to test against — 0 authored Relationships in this world): a Definition delete actually leaving a Relationship uncategorized; `validation` allow-list enforcement in the authoring window's picker.
+
 ## 2026-09-08 (software-developer: ADAPT-014 — Relationship Definition editor)
 
 **Built:** ADAPT-014 (#66), item 33 of the "Next batch". A screen for Alberto's stated authoring need — "adding new relation types". Definitions have been persisted editable state since the CORE-004 fast-follow, but only via the console `api` escape hatch; this is the UI. Branched `feat/adapt-014-definition-editor` off `dev`.
