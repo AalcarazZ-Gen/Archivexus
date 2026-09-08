@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { createNode } from '../../core/domain/node.js';
 import { createRelationship } from '../../core/domain/relationship.js';
-import { nodeToRow, relationshipToRow, rowToNode, rowToRelationship } from './row-mapping.js';
+import { createView } from '../../core/domain/view.js';
+import {
+  nodeToRow,
+  relationshipToRow,
+  rowToNode,
+  rowToRelationship,
+  rowToView,
+  viewToRow,
+} from './row-mapping.js';
 
 describe('node row round-trip', () => {
   it('round-trips a minimal Node unchanged', () => {
@@ -60,5 +68,39 @@ describe('relationship row round-trip', () => {
     const row = relationshipToRow(relationship);
     expect(row.definition_id).toBe('member-of');
     expect(rowToRelationship(row).definitionId).toBe('member-of');
+  });
+});
+
+describe('view row round-trip', () => {
+  it('round-trips a minimal derived-preset View unchanged', () => {
+    const view = createView({
+      id: 'View.1',
+      title: 'Puerto Umbral — direct',
+      spec: { preset: 'direct-only', rootNodeId: 'Node.city' },
+    });
+    expect(rowToView(viewToRow(view))).toEqual(view);
+  });
+
+  it('round-trips a curated-by-me View, serializing its spec (relationshipIds + layout) as JSON', () => {
+    const view = createView({
+      id: 'View.2',
+      title: 'Curated map',
+      visibility: 'visible',
+      metadata: { note: 'two kingdoms' },
+      spec: {
+        preset: 'curated-by-me',
+        rootNodeId: 'Node.city',
+        relationshipIds: ['Rel.1', 'Rel.2'],
+        layout: { 'Node.a': { x: 10, y: -20.5 } },
+      },
+    });
+    const row = viewToRow(view);
+    expect(JSON.parse(row.spec)).toEqual({
+      preset: 'curated-by-me',
+      rootNodeId: 'Node.city',
+      relationshipIds: ['Rel.1', 'Rel.2'],
+      layout: { 'Node.a': { x: 10, y: -20.5 } },
+    });
+    expect(rowToView(row)).toEqual(view);
   });
 });

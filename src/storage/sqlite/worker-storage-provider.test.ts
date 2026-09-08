@@ -69,6 +69,33 @@ describe('WorkerStorageProvider', () => {
     await expect(promise).resolves.toEqual(node);
   });
 
+  it('round-trips a View through getView (curated-by-me spec survives structuredClone-shaped transport)', async () => {
+    const { transport, respond } = createFakeTransport();
+    const provider = new WorkerStorageProvider(transport);
+    const view = {
+      id: 'View.1',
+      kind: 'view' as const,
+      format: 'graph' as const,
+      spec: {
+        preset: 'curated-by-me' as const,
+        rootNodeId: 'Node.city',
+        relationshipIds: ['Rel.1', 'Rel.2'],
+        layout: { 'Node.a': { x: 10, y: 20 } },
+      },
+      title: 'Curated map',
+      visibility: 'hidden' as const,
+      metadata: {},
+      history: [],
+      blocks: [],
+      tags: [],
+      references: [],
+    };
+
+    const promise = provider.getView('View.1');
+    respond({ id: 1, ok: true, result: view });
+    await expect(promise).resolves.toEqual(view);
+  });
+
   it('rejects the matching call when an error response arrives', async () => {
     const { transport, respond } = createFakeTransport();
     const provider = new WorkerStorageProvider(transport);
@@ -162,6 +189,22 @@ describe('WorkerStorageProvider', () => {
     void provider.deleteRelationship('r');
     void provider.listRelationships();
     void provider.getRelationshipsForNode('n');
+    void provider.saveView({
+      id: 'v',
+      kind: 'view',
+      format: 'graph',
+      spec: { preset: 'direct-only', rootNodeId: 'n' },
+      title: 't',
+      visibility: 'hidden',
+      metadata: {},
+      history: [],
+      blocks: [],
+      tags: [],
+      references: [],
+    });
+    void provider.getView('v');
+    void provider.deleteView('v');
+    void provider.listViews();
     void provider.close();
 
     expect(sent.map((r) => r.method)).toEqual([
@@ -175,6 +218,10 @@ describe('WorkerStorageProvider', () => {
       'deleteRelationship',
       'listRelationships',
       'getRelationshipsForNode',
+      'saveView',
+      'getView',
+      'deleteView',
+      'listViews',
       'close',
     ]);
   });

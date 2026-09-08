@@ -1,5 +1,6 @@
 import type { Node } from '../../core/domain/node.js';
 import type { Relationship } from '../../core/domain/relationship.js';
+import type { View } from '../../core/domain/view.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import type { StorageRpcMethod, StorageRpcRequest, StorageRpcResponse } from './worker/protocol.js';
 
@@ -125,6 +126,22 @@ export class WorkerStorageProvider implements StorageProvider {
 
   getRelationshipsForNode(nodeId: string): Promise<readonly Relationship[]> {
     return this.#call('getRelationshipsForNode', nodeId);
+  }
+
+  saveView(view: View): Promise<void> {
+    return this.#call('saveView', view);
+  }
+
+  getView(id: string): Promise<View | undefined> {
+    return this.#call('getView', id);
+  }
+
+  deleteView(id: string): Promise<void> {
+    return this.#call('deleteView', id);
+  }
+
+  listViews(): Promise<readonly View[]> {
+    return this.#call('listViews');
   }
 
   /** Sends the `close` RPC, awaits its ack, then actually terminates the Worker — sending the message alone never released the Worker's thread/resources. */

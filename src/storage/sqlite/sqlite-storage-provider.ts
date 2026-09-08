@@ -1,20 +1,26 @@
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import type { Node } from '../../core/domain/node.js';
 import type { Relationship } from '../../core/domain/relationship.js';
+import type { View } from '../../core/domain/view.js';
 import { MIGRATIONS, runMigrations } from './migration.js';
 import {
   nodeToRow,
   relationshipToRow,
   rowToNode,
   rowToRelationship,
+  rowToView,
+  viewToRow,
   type NodeRow,
   type RelationshipRow,
+  type ViewRow,
 } from './row-mapping.js';
 import type { SqliteExecutor } from './sqlite-executor.js';
 
 const NODE_COLUMNS = 'id, type, title, visibility, metadata, tags, history, blocks, "references"';
 const RELATIONSHIP_COLUMNS =
   'id, origin, target, definition_id, title, visibility, metadata, tags, history, blocks, "references"';
+const VIEW_COLUMNS =
+  'id, format, title, visibility, spec, metadata, tags, history, blocks, "references"';
 
 /**
  * `StorageProvider` implemented against a `SqliteExecutor` (real WASM
@@ -136,6 +142,52 @@ export class SqliteStorageProvider implements StorageProvider {
       [nodeId, nodeId],
     );
     return Promise.resolve(rows.map((row) => rowToRelationship(row as unknown as RelationshipRow)));
+  }
+
+  saveView(view: View): Promise<void> {
+    const row = viewToRow(view);
+    this.#db.run(
+      `INSERT INTO views (${VIEW_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         format = excluded.format,
+         title = excluded.title,
+         visibility = excluded.visibility,
+         spec = excluded.spec,
+         metadata = excluded.metadata,
+         tags = excluded.tags,
+         history = excluded.history,
+         blocks = excluded.blocks,
+         "references" = excluded."references"`,
+      [
+        row.id,
+        row.format,
+        row.title,
+        row.visibility,
+        row.spec,
+        row.metadata,
+        row.tags,
+        row.history,
+        row.blocks,
+        row.references,
+      ],
+    );
+    return Promise.resolve();
+  }
+
+  getView(id: string): Promise<View | undefined> {
+    const rows = this.#db.all('SELECT * FROM views WHERE id = ?', [id]);
+    const row = rows[0];
+    return Promise.resolve(row ? rowToView(row as unknown as ViewRow) : undefined);
+  }
+
+  deleteView(id: string): Promise<void> {
+    this.#db.run('DELETE FROM views WHERE id = ?', [id]);
+    return Promise.resolve();
+  }
+
+  listViews(): Promise<readonly View[]> {
+    const rows = this.#db.all('SELECT * FROM views ORDER BY id');
+    return Promise.resolve(rows.map((row) => rowToView(row as unknown as ViewRow)));
   }
 
   close(): Promise<void> {

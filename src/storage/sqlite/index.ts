@@ -1,8 +1,15 @@
 export { createSqliteStorageProvider } from './create-sqlite-storage-provider.js';
 export { MIGRATIONS, runMigrations } from './migration.js';
 export type { Migration } from './migration.js';
-export { nodeToRow, relationshipToRow, rowToNode, rowToRelationship } from './row-mapping.js';
-export type { NodeRow, RelationshipRow } from './row-mapping.js';
+export {
+  nodeToRow,
+  relationshipToRow,
+  rowToNode,
+  rowToRelationship,
+  rowToView,
+  viewToRow,
+} from './row-mapping.js';
+export type { NodeRow, RelationshipRow, ViewRow } from './row-mapping.js';
 export { createSqliteExecutor } from './sqlite-executor.js';
 export type { SqliteDatabaseLike, SqliteExecutor } from './sqlite-executor.js';
 export { SqliteStorageProvider } from './sqlite-storage-provider.js';

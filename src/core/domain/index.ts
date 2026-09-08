@@ -40,5 +40,23 @@ export type {
   RelationshipTraversalCategory,
 } from './relationship-definition.js';
 export type { Tag } from './tag.js';
+export {
+  createView,
+  GRAPH_VIEW_PRESETS,
+  InvalidViewError,
+  isGraphViewSpec,
+  isView,
+  VIEW_FORMATS,
+} from './view.js';
+export type {
+  CreateViewInput,
+  CuratedGraphViewSpec,
+  DerivedGraphViewSpec,
+  GraphViewNodePosition,
+  GraphViewPreset,
+  GraphViewSpec,
+  View,
+  ViewFormat,
+} from './view.js';
 export { isVisibility, VISIBILITY_LEVELS } from './visibility.js';
 export type { Visibility } from './visibility.js';

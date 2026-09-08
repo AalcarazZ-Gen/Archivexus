@@ -20,12 +20,12 @@ describe('runMigrations', () => {
     expect(executor.scalar('PRAGMA user_version')).toBe(latestVersion);
   });
 
-  it('creates the nodes and relationships tables with the expected indexes', () => {
+  it('creates the nodes, relationships and views tables with the expected indexes', () => {
     runMigrations(executor, MIGRATIONS);
     const tables = executor
       .all("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
       .map((row) => row.name);
-    expect(tables).toEqual(['nodes', 'relationships']);
+    expect(tables).toEqual(['nodes', 'relationships', 'views']);
 
     const indexes = executor
       .all("SELECT name FROM sqlite_master WHERE type = 'index' ORDER BY name")
@@ -107,5 +107,35 @@ describe('runMigrations', () => {
          VALUES ('r1', 'gone', 'n2', 'def', 'title', 'hidden')`,
       ),
     ).not.toThrow();
+  });
+
+  describe('migration 2 — the views table (CORE-006 / ADR-0014)', () => {
+    it('creates views with no FOREIGN KEY clause (same no-cascade reasoning as relationships — ADR-0014 point 7)', () => {
+      runMigrations(executor, MIGRATIONS);
+      const sql = executor.scalar(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'views'",
+      ) as string;
+      expect(sql.replace(/--.*$/gm, '').toUpperCase()).not.toContain('FOREIGN KEY');
+    });
+
+    it('constrains format to the single supported value', () => {
+      runMigrations(executor, MIGRATIONS);
+      expect(() =>
+        executor.run(
+          `INSERT INTO views (id, format, title, visibility, spec)
+           VALUES ('v1', 'timeline', 't', 'hidden', '{}')`,
+        ),
+      ).toThrow();
+    });
+
+    it('accepts a graph View row and lets its spec reference a Node id that has no row (no FK)', () => {
+      runMigrations(executor, MIGRATIONS);
+      expect(() =>
+        executor.run(
+          `INSERT INTO views (id, format, title, visibility, spec)
+           VALUES ('v1', 'graph', 'Kingdom overview', 'hidden', '{"preset":"direct-only","rootNodeId":"Node.gone"}')`,
+        ),
+      ).not.toThrow();
+    });
   });
 });

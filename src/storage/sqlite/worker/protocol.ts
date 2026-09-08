@@ -3,7 +3,7 @@
  * async `StorageProvider` contract across the dedicated Worker boundary
  * OPFS `SyncAccessHandle`s require (ADR-0008). Every `StorageProvider`
  * method name is a valid `method`; args/result are passed as plain
- * `structuredClone`-able values (Node/Relationship/string/undefined) —
+ * `structuredClone`-able values (Node/Relationship/View/string/undefined) —
  * this file has no SQLite- or Foundry-specific code, just the wire shape.
  */
 
@@ -18,6 +18,10 @@ export type StorageRpcMethod =
   | 'deleteRelationship'
   | 'listRelationships'
   | 'getRelationshipsForNode'
+  | 'saveView'
+  | 'getView'
+  | 'deleteView'
+  | 'listViews'
   | 'close';
 
 export interface StorageRpcRequest {

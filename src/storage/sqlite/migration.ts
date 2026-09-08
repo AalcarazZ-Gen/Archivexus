@@ -78,6 +78,43 @@ export const MIGRATIONS: readonly Migration[] = [
       `CREATE INDEX idx_relationships_definition_id ON relationships(definition_id)`,
     ],
   },
+  {
+    // Migration 2 — the `views` table (CORE-006,
+    // `decisions/ADR-0014-graph-view-sidebar-tab.md` point 7). Same
+    // per-KnowledgeElement-type table pattern migration 1 established:
+    // queryable/constrainable fields as real columns, the rest as JSON
+    // TEXT. `spec` is the one View-specific column — a JSON-encoded
+    // `GraphViewSpec` (preset + rootNodeId, plus curated relationship ids
+    // and an optional layout for "curated-by-me"); nothing queries into it
+    // structurally, so it stays a single TEXT column, not its own tables.
+    //
+    // Deliberately NO foreign key from `spec`'s rootNodeId /
+    // relationshipIds to `nodes`/`relationships` — same "no cascade, no
+    // delete-blocking" reasoning migration 1's `relationships` table
+    // applies to origin/target (ADR-0007 point 8 / ADR-0014 point 7): a
+    // View referencing a since-deleted Node just resolves fewer results on
+    // its next open, never a storage-level integrity error. (A JSON column
+    // can't carry a real FK anyway — this comment records that it's a
+    // deliberate design choice, not only a technical limitation.)
+    //
+    // No `idx_views_format`: only one format exists and nothing filters by
+    // it — Rule 9, add it when a real query needs it.
+    version: 2,
+    statements: [
+      `CREATE TABLE views (
+        id TEXT PRIMARY KEY,
+        format TEXT NOT NULL CHECK (format IN ('graph')),
+        title TEXT NOT NULL,
+        visibility TEXT NOT NULL CHECK (visibility IN ('hidden', 'visible', 'owned')),
+        spec TEXT NOT NULL,
+        metadata TEXT NOT NULL DEFAULT '{}',
+        tags TEXT NOT NULL DEFAULT '[]',
+        history TEXT NOT NULL DEFAULT '[]',
+        blocks TEXT NOT NULL DEFAULT '[]',
+        "references" TEXT NOT NULL DEFAULT '[]'
+      )`,
+    ],
+  },
 ];
 
 function readUserVersion(executor: SqliteExecutor): number {
