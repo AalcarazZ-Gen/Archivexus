@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-09-08 (software-developer: ADAPT-015 — relationship-authoring UX pass, from a live bug report)
+
+**Triggered:** Alberto hit a wall trying to record "Hodor is a member of the party" from the **party's** (Organization) sheet — `member-of` was disabled because its `validation` expects `target` to be an Organization, and the window always prefills the current sheet's Node as `origin`. Live-diagnosed via Claude in Chrome (the deployed `feat/view-001-batch` build): the Console / sheet "New Relationship…" paths and the auto-refresh all work cold; the gap is real (authoring is only reachable from the "member" side), plus two smaller issues Alberto flagged — the `<document-tags>` chip-above-input is confusing, and a stray drag can escape the window and pop a Foundry "Create Actor" dialog.
+
+**Alberto's steer (`AskUserQuestion`):** auto-orient on save (not a manual ⇄ button, not inverse-in-picker); improve the field display (name in the field, not a chip above); fold the stray-drop fix in.
+
+**Built (ADAPT-015, #77, on `feat/view-001-batch` — it heavily edits `relationship-authoring-window.ts` which VIEW-001i also touched, so it rides that branch):**
+- `relationship-definition-options.ts`: `resolveDefinitionOrientation(def, originType, targetType)` → `forward`/`reversed`/`either`/`none`. `buildDefinitionOptions` offers a Definition if *either* orientation validates; `DefinitionOption` gains `orientation`.
+- `relationship-authoring-window.ts`: `#orientedEndpoints` swaps origin↔target on `reversed` in both `#refreshDerivedUI` (summary/cardinality) and `_onSave`. **No Core change** — `createRelationship` takes origin/target as given; the Adapter decides.
+- Endpoint fields: `buildEndpointFieldHTML` (new, pure) — a controlled `<input>` (empty → placeholder; resolved → Node title read-only, UUID in `title` + a dim `data-role="*-uuid"` line, ✕ clear button). Replaces both `<document-tags>`. `parseDropPayloadUuid` (new, pure) parses `{type,uuid}` JSON or a bare UUID. `_resolveEndpoint` (was `#handleEndpointChanged`) + `#renderEndpointField`. `_onRender` wires per-field `dragover`/`drop` (both `preventDefault`+`stopPropagation`) + a `<form>` catch-all → stray drops swallowed. `ensureRelationshipAuthoringStyles` injects the CSS. `MinimalDomElementLike` gains `setAttribute`/`removeAttribute`/`classList` + writable `value`.
+- `ADR-0010` amended (status + a full Amendment section). `index.ts` exports the new surfaces. CHANGELOG + PROJECT.md item 40.
+- +10 unit tests (502 total), incl. one class test driving `_resolveEndpoint`×2 + select + `_onSave` on a fake DOM → asserts the saved Relationship is `Hodor → member-of → Party` (swapped) with title "Hodor member-of Party". `tsc`/`eslint`/`vitest`/`build:foundry-module` clean (`archivexus.js` ~105KB → ~110KB).
+
+**Scoping calls made inline:** symmetric / unrestricted Definitions keep the dropped order (only `reversed` swaps). The picker still shows the disable-reason against the *dropped* order when neither orientation works. The point-4 "no type-to-search" limitation is unchanged.
+
+**Not yet live-verified:** the real drop-event payload shape, `foundry.utils.fromUuid` resolution, the `data-action`/`actions` wiring, and the readonly-input + ✕-clear UX feel — needs Alberto's v14 client. **Also created one test relationship** ("Aethran Voss knows Cassandra Vell") while probing — flagged for Alberto to keep (unblocks VIEW-001e/f) or delete.
+
 ## 2026-09-08 (software-developer: the VIEW-001 view batch — VIEW-001h + VIEW-001d done, VIEW-001e/f deferred)
 
 **Context:** Alberto asked to "tackle all the view tickets" (VIEW-001d/e/f/h). Branched `feat/view-001-batch` off the (still-unmerged) `feat/view-001i-relationship-console` — so the branch carries VIEW-001i + VIEW-001h + VIEW-001d, three commits, merged as a unit.

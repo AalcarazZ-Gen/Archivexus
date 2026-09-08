@@ -4,6 +4,7 @@ import {
   buildDefinitionOptions,
   buildDefinitionSelectOptionsHTML,
   DEFINITION_SELECT_PLACEHOLDER,
+  resolveDefinitionOrientation,
 } from './relationship-definition-options.js';
 
 const unrestricted = createRelationshipDefinition({
@@ -25,6 +26,38 @@ const restricted = createRelationshipDefinition({
   validation: { allowedOriginTypes: ['Character'], allowedTargetTypes: ['City', 'Kingdom'] },
 });
 
+const memberOf = createRelationshipDefinition({
+  id: 'member-of',
+  name: 'member-of',
+  inverse: 'has-member',
+  cardinality: 'many-to-many',
+  symmetry: false,
+  traversalCategory: 'affiliation',
+  validation: {
+    allowedOriginTypes: ['Character', 'Creature', 'Organization'],
+    allowedTargetTypes: ['Organization'],
+  },
+});
+
+describe('resolveDefinitionOrientation', () => {
+  it('is "forward" when the dropped order validates', () => {
+    expect(resolveDefinitionOrientation(restricted, 'Character', 'City')).toBe('forward');
+  });
+
+  it('is "reversed" when only the swapped order validates (ADAPT-015 — author from either end)', () => {
+    expect(resolveDefinitionOrientation(memberOf, 'Organization', 'Character')).toBe('reversed');
+  });
+
+  it('is "either" for an unrestricted Definition, or when both orders validate', () => {
+    expect(resolveDefinitionOrientation(unrestricted, 'Character', 'Kingdom')).toBe('either');
+    expect(resolveDefinitionOrientation(memberOf, 'Organization', 'Organization')).toBe('either');
+  });
+
+  it('is "none" when neither order validates', () => {
+    expect(resolveDefinitionOrientation(restricted, 'Creature', 'Item')).toBe('none');
+  });
+});
+
 describe('buildDefinitionOptions', () => {
   it('returns an empty list before both endpoint types are known', () => {
     expect(buildDefinitionOptions([restricted], undefined, 'City')).toEqual([]);
@@ -32,15 +65,28 @@ describe('buildDefinitionOptions', () => {
     expect(buildDefinitionOptions([restricted], undefined, undefined)).toEqual([]);
   });
 
-  it('marks a Definition with no validation as always eligible', () => {
+  it('marks a Definition with no validation as always eligible ("either" orientation)', () => {
     const [option] = buildDefinitionOptions([unrestricted], 'Character', 'Kingdom');
-    expect(option).toEqual({ definition: unrestricted, disabled: false, label: 'ally-of' });
+    expect(option).toEqual({
+      definition: unrestricted,
+      disabled: false,
+      label: 'ally-of',
+      orientation: 'either',
+    });
+  });
+
+  it('keeps a Definition eligible when only the reversed orientation validates', () => {
+    const [option] = buildDefinitionOptions([memberOf], 'Organization', 'Character');
+    expect(option?.disabled).toBe(false);
+    expect(option?.label).toBe('member-of');
+    expect(option?.orientation).toBe('reversed');
   });
 
   it('marks a Definition eligible when both resolved types satisfy its validation', () => {
     const [option] = buildDefinitionOptions([restricted], 'Character', 'City');
     expect(option?.disabled).toBe(false);
     expect(option?.label).toBe('resides-in');
+    expect(option?.orientation).toBe('forward');
   });
 
   it('disables with an origin-type reason when the origin type is disallowed', () => {

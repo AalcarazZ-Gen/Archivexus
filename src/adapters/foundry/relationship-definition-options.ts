@@ -12,19 +12,61 @@ function escapeHtml(value: string): string {
 
 /**
  * RelationshipDefinition filtering for the Definition `<select>` (ADAPT-007,
- * ADR-0010 point 4): "A Definition with a `validation.allowedOriginTypes`/
- * `allowedTargetTypes` that doesn't include the two resolved types is shown
- * disabled, not removed, with its `<option>` label carrying the reason ...
- * A Definition with no `validation` (absent = unrestricted) is always
- * eligible. Before either endpoint resolves, the `<select>` is
- * empty/disabled with placeholder text."
+ * ADR-0010 point 4; **ADR-0010 amendment, ADAPT-015**): a Definition is
+ * eligible if its `validation` passes in **either** endpoint orientation, so
+ * a relationship can be authored from either end (e.g. adding a member from
+ * the Organization's sheet, not only the member's). It is shown disabled,
+ * not removed, only when *neither* orientation validates, with its
+ * `<option>` label carrying the reason. A Definition with no `validation`
+ * (absent = unrestricted) is always eligible. Before either endpoint
+ * resolves, the `<select>` is empty/disabled with placeholder text.
  */
+
+/**
+ * How the two resolved endpoint types line up with a Definition's
+ * `validation`:
+ * - `forward`  — the dropped (origin, target) validates; store as dropped.
+ * - `reversed` — only (target, origin) validates; the window swaps them at save.
+ * - `either`   — both orientations validate (unrestricted, or a symmetric
+ *   allow-list); keep the dropped order.
+ * - `none`     — neither validates; the option is disabled.
+ */
+export type DefinitionOrientation = 'forward' | 'reversed' | 'either' | 'none';
+
+function validatesAs(
+  definition: RelationshipDefinition,
+  originType: NodeType,
+  targetType: NodeType,
+): boolean {
+  const allowedOrigin = definition.validation?.allowedOriginTypes;
+  const allowedTarget = definition.validation?.allowedTargetTypes;
+  return (
+    (allowedOrigin === undefined || allowedOrigin.includes(originType)) &&
+    (allowedTarget === undefined || allowedTarget.includes(targetType))
+  );
+}
+
+/** Pure: which orientation(s) of `(originType, targetType)` a Definition's validation accepts. */
+export function resolveDefinitionOrientation(
+  definition: RelationshipDefinition,
+  originType: NodeType,
+  targetType: NodeType,
+): DefinitionOrientation {
+  const forward = validatesAs(definition, originType, targetType);
+  const reversed = validatesAs(definition, targetType, originType);
+  if (forward && reversed) return 'either';
+  if (forward) return 'forward';
+  if (reversed) return 'reversed';
+  return 'none';
+}
 
 export interface DefinitionOption {
   readonly definition: RelationshipDefinition;
   readonly disabled: boolean;
   /** The full `<option>` label text — includes the ineligibility reason when `disabled`. */
   readonly label: string;
+  /** The orientation that will be used if this option is chosen (`'none'` iff `disabled`). */
+  readonly orientation: DefinitionOrientation;
 }
 
 /** Placeholder shown while one or both endpoints haven't resolved yet (ADR-0010 point 4, last sentence). */
@@ -46,22 +88,28 @@ export function buildDefinitionOptions(
   }
 
   return definitions.map((definition) => {
-    const reasons: string[] = [];
+    const orientation = resolveDefinitionOrientation(definition, originType, targetType);
+    if (orientation !== 'none') {
+      return { definition, disabled: false, label: definition.name, orientation };
+    }
 
+    // Neither orientation validates — surface the constraint against the
+    // dropped order (the orientation the GM is looking at).
+    const reasons: string[] = [];
     const allowedOriginTypes = definition.validation?.allowedOriginTypes;
     if (allowedOriginTypes !== undefined && !allowedOriginTypes.includes(originType)) {
       reasons.push(`requires origin type: ${allowedOriginTypes.join(', ')}`);
     }
-
     const allowedTargetTypes = definition.validation?.allowedTargetTypes;
     if (allowedTargetTypes !== undefined && !allowedTargetTypes.includes(targetType)) {
       reasons.push(`requires target type: ${allowedTargetTypes.join(', ')}`);
     }
-
-    const disabled = reasons.length > 0;
-    const label = disabled ? `${definition.name} — ${reasons.join('; ')}` : definition.name;
-
-    return { definition, disabled, label };
+    return {
+      definition,
+      disabled: true,
+      label: `${definition.name} — ${reasons.join('; ')}`,
+      orientation: 'none',
+    };
   });
 }
 

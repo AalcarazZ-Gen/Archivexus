@@ -22,11 +22,17 @@ export type {
 } from './journal-entry-page-node-tag.js';
 
 export {
+  buildEndpointFieldHTML,
   buildRelationshipAuthoringContentHTML,
+  ensureRelationshipAuthoringStyles,
   openRelationshipAuthoringWindow,
+  parseDropPayloadUuid,
   registerRelationshipAuthoringEntryPoints,
 } from './relationship-authoring-window.js';
-export type { FoundrySheetAppLike } from './relationship-authoring-window.js';
+export type {
+  FoundrySheetAppLike,
+  ResolvedEndpointDisplay,
+} from './relationship-authoring-window.js';
 export { bootstrapRelationshipDefinitions } from './relationship-definitions-bootstrap.js';
 export { resolveDroppedDocumentNode } from './relationship-node-resolution.js';
 export type {
@@ -37,8 +43,12 @@ export type {
 export {
   buildDefinitionOptions,
   buildDefinitionSelectOptionsHTML,
+  resolveDefinitionOrientation,
 } from './relationship-definition-options.js';
-export type { DefinitionOption } from './relationship-definition-options.js';
+export type {
+  DefinitionOption,
+  DefinitionOrientation,
+} from './relationship-definition-options.js';
 export {
   buildCardinalityWarningMessage,
   findCardinalityConflict,

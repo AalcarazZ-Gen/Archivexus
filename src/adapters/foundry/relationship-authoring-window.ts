@@ -6,6 +6,7 @@ import type { Logger } from './logger.js';
 import {
   buildDefinitionOptions,
   buildDefinitionSelectOptionsHTML,
+  resolveDefinitionOrientation,
 } from './relationship-definition-options.js';
 import {
   resolveDroppedDocumentNode,
@@ -23,51 +24,37 @@ import {
 
 /**
  * The Relationship-authoring `ApplicationV2` window (ADAPT-007, implementing
- * `docs/decisions/ADR-0010-relationship-authoring-ui.md`) — a dedicated
- * window (not a `DialogV2.prompt`, ADR-0009's mechanism for the
- * single-field/single-document ADAPT-003 case) with two native
- * `<document-tags single>` drop zones, a reactively-filtered Relationship
- * Definition `<select>`, a live (warn, never block) cardinality check, and
- * a Save action that persists a real `Relationship` via `StorageProvider`.
+ * `docs/decisions/ADR-0010-relationship-authoring-ui.md`; **ADR-0010
+ * amendment, ADAPT-015 issue #77**) — a dedicated window (not a
+ * `DialogV2.prompt`) with two controlled endpoint `<input>`s (each accepts
+ * a dropped Actor/JournalEntryPage or a pasted UUID and then shows the
+ * Node's title, read-only, with the UUID beneath), a reactively-filtered
+ * Relationship Definition `<select>`, a live (warn, never block) cardinality
+ * check, and a Save action that persists a real `Relationship`.
  *
- * **What's pure and unit-tested vs. what's Foundry glue trusted only via
- * research (no live Foundry client in this environment — flagged the same
- * way ADR-0009/ADR-0010 themselves flag their own unverified pieces):**
- * - `buildRelationshipAuthoringContentHTML` (this file) is pure/tested,
- *   same "content-builder function" split as `actor-node-type-tag.ts`'s
- *   `buildNodeTypeDialogContent`.
- * - Node-type resolution, Definition filtering, the cardinality check and
- *   the symmetric/asymmetric display text all live in their own pure,
- *   fully unit-tested modules (`relationship-node-resolution.ts`,
- *   `relationship-definition-options.ts`, `relationship-cardinality.ts`,
- *   `relationship-symmetry.ts`) that this class only calls.
- * - `RelationshipAuthoringApplication` itself — the actual `ApplicationV2`
- *   subclass, its DOM event wiring, and `registerRelationshipAuthoring
- *   EntryPoints`'s two `getHeaderControls*` registrations — is Foundry
- *   glue with no real DOM/Foundry runtime available to exercise it against
- *   in this environment. Needs live verification before Alberto trusts it,
- *   same discipline as every prior ADR-0009 pass:
- *   1. Whether `<document-tags>` actually dispatches a `change` event when
- *      its value is set via drag/paste (documented as `formAssociated`
- *      with `_setValue`, but the public API reference doesn't spell out
- *      the event name — inferred from Foundry's own `submitOnChange`/
- *      standard form-element convention, not confirmed against a render).
- *   2. Whether a `value="<uuid>"` HTML attribute actually pre-fills
- *      `<document-tags single>` on initial render (used here for the
- *      pre-filled Origin) the same way it does for plain `<input>`s.
- *   3. `getHeaderControlsJournalEntryPageSheet` as the second entry point's
- *      hook name — researched against Foundry v14's public API docs
- *      (`JournalEntryPageTextSheet → JournalEntryPageHandlebarsSheet →
- *      JournalEntryPageSheet → DocumentSheetV2 → ApplicationV2`, so
- *      `getHeaderControlsJournalEntryPageSheet` should fire the same way
- *      `getHeaderControlsActorSheetV2` was confirmed to for `Character
- *      ActorSheet` in ADR-0009's Amendment), but NOT verified against a
- *      real render — ADR-0010's own Disadvantages section names this
- *      exact gap and leaves it for the implementing ticket.
- *   4. The `actions` map / `data-action` wiring for the Save button (a
- *      different mechanism from `getHeaderControls*`'s direct `onClick`,
- *      which ADR-0009's Amendment did verify live) — standard, documented
- *      `ApplicationV2` behavior, not verified live here.
+ * **ADAPT-015 changed three things** (all from a live bug report):
+ * 1. **Direction-agnostic.** A Definition is offered if its `validation`
+ *    passes in *either* endpoint orientation; on Save the window swaps
+ *    origin/target when only the reversed order validates (so "member-of"
+ *    can be authored from the Organization's sheet, not only the member's).
+ *    `resolveDefinitionOrientation` (`relationship-definition-options.ts`).
+ * 2. **Endpoint fields** replaced the native `<document-tags>` (which showed
+ *    the resolved entity as a chip *above* the input) with controlled
+ *    `<input>`s — clearer, and it drops the unverified "does `<document-tags>`
+ *    fire `change` on drop" assumption ADR-0010 point 3 carried.
+ * 3. **Stray drops are swallowed** — every endpoint drop `preventDefault`s
+ *    + `stopPropagation`s, and the `<form>` catches any near-miss, so a
+ *    stray drag can't escape to a Foundry "Create Actor" dialog.
+ *
+ * **Pure and unit-tested:** `buildEndpointFieldHTML` /
+ * `buildRelationshipAuthoringContentHTML` / `parseDropPayloadUuid` (this
+ * file), and the resolution / filtering / cardinality / symmetric-label
+ * modules it calls. One class test drives `_resolveEndpoint` × 2 + the
+ * select + `_onSave` against a fake DOM to prove the orientation swap.
+ * **Still Foundry glue, flagged for live verification:** the real drop-event
+ * payload shape, `foundry.utils.fromUuid` resolution, the `actions` /
+ * `data-action` wiring, and `getHeaderControlsJournalEntryPageSheet` as the
+ * JournalEntryPage-sheet hook name (researched, not yet live-verified).
  */
 
 // ---------------------------------------------------------------------------
@@ -83,39 +70,64 @@ function escapeHtmlAttribute(value: string): string {
     .replace(/>/g, '&gt;');
 }
 
+/** What an endpoint field displays once its document resolves (ADAPT-015). */
+export interface ResolvedEndpointDisplay {
+  readonly title: string;
+  readonly uuid: string;
+}
+
+/**
+ * One endpoint field (ADAPT-015 — replaces the native `<document-tags>`,
+ * which rendered the resolved entity as a chip *above* the input, confusing
+ * next to a still-empty second field). A controlled plain `<input>`: empty
+ * shows the placeholder; once resolved the input holds the Node's **title**
+ * (read-only, the UUID in its `title` attribute and a dim line below), with
+ * a ✕ clear button. Drops are handled by this module's own listeners
+ * (`preventDefault` + `stopPropagation` on every drop), so a near-miss drag
+ * can't escape the window (the old `<document-tags>` let it bubble to a
+ * "Create Actor" dialog). No `type` restriction — a Node can be Actor- or
+ * JournalEntryPage-backed (ADR-0010 point 2).
+ */
+export function buildEndpointFieldHTML(
+  side: 'origin' | 'target',
+  label: string,
+  resolved?: ResolvedEndpointDisplay,
+): string {
+  const Side = side === 'origin' ? 'Origin' : 'Target';
+  const hasValue = resolved !== undefined;
+  const valueAttr = hasValue ? ` value="${escapeHtmlAttribute(resolved.title)}" readonly` : '';
+  const titleAttr = hasValue ? ` title="${escapeHtmlAttribute(resolved.uuid)}"` : '';
+  const uuidLine = hasValue
+    ? `<p class="archivexus-rel-endpoint-uuid" data-role="${side}-uuid">${escapeHtmlAttribute(resolved.uuid)}</p>`
+    : `<p class="archivexus-rel-endpoint-uuid" data-role="${side}-uuid" hidden></p>`;
+  return (
+    `<div class="form-group archivexus-rel-endpoint" data-endpoint="${side}">` +
+    `<label for="archivexus-relationship-${side}" data-role="${side}-label">${label}</label>` +
+    `<div class="archivexus-rel-endpoint-control" data-role="${side}-drop">` +
+    `<input type="text" id="archivexus-relationship-${side}" name="${side}" data-role="${side}-input" autocomplete="off" placeholder="Drop an Actor or Journal page here, or paste its UUID"${valueAttr}${titleAttr} />` +
+    `<button type="button" class="archivexus-rel-endpoint-clear" data-action="clear${Side}" title="Clear" aria-label="Clear ${label}"${hasValue ? '' : ' hidden'}>✕</button>` +
+    `</div>` +
+    uuidLine +
+    `<p class="notification error" data-role="${side}-error" hidden></p>` +
+    `</div>`
+  );
+}
+
 /**
  * Builds the window's initial markup. Pure and unit-testable (no DOM) —
  * the live class only ever mutates specific descendants of this afterward
- * (definition options, labels, summary/warning text, the Save button's
- * label/disabled state); it never regenerates this whole string again,
- * since doing so would wipe out the two `<document-tags>` elements' own
- * internal, browser-held drag/paste state.
- *
- * `type` is deliberately omitted from both `<document-tags>` elements
- * (ADR-0010 point 2) — a Node can be backed by either an Actor or a
- * JournalEntryPage, so restricting the widget to one Foundry document type
- * would make it unable to accept the other.
+ * (endpoint field state, definition options, labels, summary/warning text,
+ * the Save button); it never regenerates the whole string.
  */
 export function buildRelationshipAuthoringContentHTML(
   originLabel: string,
   targetLabel: string,
-  prefillOriginUuid?: string,
+  prefillOrigin?: ResolvedEndpointDisplay,
 ): string {
-  const originValueAttr =
-    prefillOriginUuid !== undefined ? ` value="${escapeHtmlAttribute(prefillOriginUuid)}"` : '';
-
   return (
     `<form class="archivexus-relationship-authoring" autocomplete="off">` +
-    `<div class="form-group">` +
-    `<label for="archivexus-relationship-origin" data-role="origin-label">${originLabel}</label>` +
-    `<document-tags single name="origin" id="archivexus-relationship-origin"${originValueAttr}></document-tags>` +
-    `<p class="notification error" data-role="origin-error" hidden></p>` +
-    `</div>` +
-    `<div class="form-group">` +
-    `<label for="archivexus-relationship-target" data-role="target-label">${targetLabel}</label>` +
-    `<document-tags single name="target" id="archivexus-relationship-target"></document-tags>` +
-    `<p class="notification error" data-role="target-error" hidden></p>` +
-    `</div>` +
+    buildEndpointFieldHTML('origin', originLabel, prefillOrigin) +
+    buildEndpointFieldHTML('target', targetLabel) +
     `<div class="form-group">` +
     `<label for="archivexus-relationship-definition">Relationship</label>` +
     `<select name="definitionId" id="archivexus-relationship-definition" disabled>` +
@@ -131,26 +143,92 @@ export function buildRelationshipAuthoringContentHTML(
   );
 }
 
+/** Extracts a document UUID from a native Foundry drag payload (`{type,uuid}` JSON) or a bare UUID string. */
+export function parseDropPayloadUuid(raw: string): string | undefined {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+  try {
+    const data = JSON.parse(trimmed) as { uuid?: unknown };
+    if (typeof data.uuid === 'string' && data.uuid.length > 0) {
+      return data.uuid;
+    }
+  } catch {
+    // not JSON — fall through to the bare-UUID check
+  }
+  return /^[A-Za-z]+\.[A-Za-z0-9]+/.test(trimmed) ? trimmed : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
+const STYLE_ELEMENT_ID = 'archivexus-relationship-authoring-styles';
+
+const CSS = `
+.archivexus-rel-endpoint-control { display: flex; align-items: center; gap: 0.35rem; }
+.archivexus-rel-endpoint-control input { flex: 1 1 auto; min-width: 0; }
+.archivexus-rel-endpoint-control input[readonly] { font-weight: 600; }
+.archivexus-rel-endpoint-clear {
+  flex: 0 0 auto; border: 0; background: transparent; cursor: pointer; padding: 0.15rem 0.4rem; opacity: 0.7;
+}
+.archivexus-rel-endpoint-clear:hover { opacity: 1; }
+.archivexus-rel-endpoint-uuid {
+  margin: 0.1rem 0 0; font-size: var(--font-size-11, 11px); font-family: var(--font-mono, monospace); opacity: 0.55;
+}
+.archivexus-rel-endpoint-control.archivexus-rel-drop-active input { outline: 1px dashed var(--color-border-highlight, #ff9); }
+`;
+
+export function ensureRelationshipAuthoringStyles(): void {
+  const doc = (globalThis as { document?: unknown }).document as
+    | {
+        getElementById(id: string): unknown;
+        createElement(tag: string): { id: string; textContent: string };
+        head: { appendChild(node: unknown): unknown };
+      }
+    | undefined;
+  if (!doc || doc.getElementById(STYLE_ELEMENT_ID)) {
+    return;
+  }
+  const style = doc.createElement('style');
+  style.id = STYLE_ELEMENT_ID;
+  style.textContent = CSS;
+  doc.head.appendChild(style);
+}
+
 // ---------------------------------------------------------------------------
 // Foundry glue — minimal structural types, no real DOM/Foundry-types dependency
 // ---------------------------------------------------------------------------
 
+/** Minimal subset of a drag/keyboard event the endpoint-field listeners touch (ADAPT-015). */
+export interface MinimalUiEventLike {
+  preventDefault(): void;
+  stopPropagation(): void;
+  readonly key?: string;
+  readonly dataTransfer?: { getData(type: string): string } | null;
+}
+
 /**
  * Minimal structural subset of a real DOM element this class needs —
  * deliberately loose (a single shape covering every element kind touched:
- * `<document-tags>`, `<select>`, `<p>`, `<button>`), same no-real-types
+ * `<input>`, `<select>`, `<p>`, `<button>`, the form), same no-real-types
  * tradeoff as the rest of this package. `tsconfig.json` omits the DOM lib
  * entirely (Core stays platform-agnostic), so there is no `HTMLElement` to
  * borrow from even loosely.
  */
 export interface MinimalDomElementLike {
-  readonly value: string;
+  value: string;
   textContent: string | null;
   innerHTML: string;
   disabled: boolean;
   hidden: boolean;
-  addEventListener(type: string, listener: () => void): void;
+  classList: { add(name: string): void; remove(name: string): void };
+  addEventListener(type: string, listener: (event: MinimalUiEventLike) => void): void;
   querySelector(selector: string): MinimalDomElementLike | null;
+  getAttribute(name: string): string | null;
+  setAttribute(name: string, value: string): void;
+  removeAttribute(name: string): void;
 }
 
 export interface FoundryApplicationV2InstanceLike {
@@ -231,6 +309,12 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
         save(this: RelationshipAuthoringApplication): void {
           void this._onSave();
         },
+        clearOrigin(this: RelationshipAuthoringApplication): void {
+          void this._resolveEndpoint('origin', '');
+        },
+        clearTarget(this: RelationshipAuthoringApplication): void {
+          void this._resolveEndpoint('target', '');
+        },
       },
     };
 
@@ -261,29 +345,53 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
 
     async _renderHTML(): Promise<string> {
       const { originLabel, targetLabel } = resolveEndpointLabels(this.selectedDefinition);
-      return buildRelationshipAuthoringContentHTML(
-        originLabel,
-        targetLabel,
-        this.#origin.node?.nodeId,
-      );
+      const prefillOrigin = this.#origin.node
+        ? { title: this.#origin.node.title, uuid: this.#origin.node.nodeId }
+        : undefined;
+      return buildRelationshipAuthoringContentHTML(originLabel, targetLabel, prefillOrigin);
     }
 
     _replaceHTML(result: string, content: MinimalDomElementLike): void {
+      ensureRelationshipAuthoringStyles();
       content.innerHTML = result;
     }
 
     _onRender(): void {
       const root = this.element;
-      const originEl = root.querySelector('[name="origin"]');
-      const targetEl = root.querySelector('[name="target"]');
-      const selectEl = root.querySelector('[name="definitionId"]');
 
-      originEl?.addEventListener('change', () => {
-        void this.#handleEndpointChanged('origin', originEl);
+      for (const side of ['origin', 'target'] as const) {
+        const drop = root.querySelector(`[data-role="${side}-drop"]`);
+        const input = root.querySelector(`[data-role="${side}-input"]`);
+        drop?.addEventListener('dragover', (event) => {
+          event.preventDefault();
+          drop.classList.add('archivexus-rel-drop-active');
+        });
+        drop?.addEventListener('dragleave', () => drop.classList.remove('archivexus-rel-drop-active'));
+        drop?.addEventListener('drop', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          drop.classList.remove('archivexus-rel-drop-active');
+          const uuid = parseDropPayloadUuid(event.dataTransfer?.getData('text/plain') ?? '');
+          if (uuid) void this._resolveEndpoint(side, uuid);
+        });
+        input?.addEventListener('change', () => void this._resolveEndpoint(side, input.value));
+        input?.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            void this._resolveEndpoint(side, input.value);
+          }
+        });
+      }
+
+      // Swallow any drop that misses an endpoint field so a stray drag can't
+      // escape the window to a Foundry "Create Actor" dialog (ADAPT-015).
+      root.addEventListener('dragover', (event) => event.preventDefault());
+      root.addEventListener('drop', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
       });
-      targetEl?.addEventListener('change', () => {
-        void this.#handleEndpointChanged('target', targetEl);
-      });
+
+      const selectEl = root.querySelector('[name="definitionId"]');
       selectEl?.addEventListener('change', () => {
         this.#selectedDefinitionId = selectEl.value.length > 0 ? selectEl.value : undefined;
         void this.#refreshDerivedUI();
@@ -294,29 +402,34 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
 
     // -- Endpoint resolution --
 
-    async #handleEndpointChanged(
-      side: 'origin' | 'target',
-      element: MinimalDomElementLike | null,
-    ): Promise<void> {
-      const uuid = element?.value ?? '';
-      if (uuid.length === 0) {
+    /**
+     * Resolves a UUID (from a drop, a paste, or the ✕ clear button passing
+     * `''`) to a Node, updates that endpoint's state + field display, and
+     * re-derives the rest of the UI. Not `#`-private so `clearOrigin`/
+     * `clearTarget` and tests can call it, same convention as `_onSave`.
+     */
+    async _resolveEndpoint(side: 'origin' | 'target', rawValue: string): Promise<void> {
+      const value = rawValue.trim();
+      if (value.length === 0) {
         this.#setEndpoint(side, EMPTY_ENDPOINT);
+        this.#renderEndpointField(side);
         await this.#refreshDerivedUI();
         return;
       }
 
       let document_: unknown;
       try {
-        document_ = await foundry.utils.fromUuid(uuid);
+        document_ = await foundry.utils.fromUuid(value);
       } catch (error) {
         this.#log.error(
-          `Failed to resolve dropped document "${uuid}": ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to resolve dropped document "${value}": ${error instanceof Error ? error.message : String(error)}`,
         );
         document_ = null;
       }
 
       if (document_ === null || document_ === undefined) {
         this.#setEndpoint(side, { node: undefined, error: 'Could not resolve that document.' });
+        this.#renderEndpointField(side);
         await this.#refreshDerivedUI();
         return;
       }
@@ -325,12 +438,40 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
       const resolved = resolveDroppedDocumentNode(doc.documentName, doc);
       if (!resolved.ok) {
         this.#setEndpoint(side, { node: undefined, error: resolved.error });
+        this.#renderEndpointField(side);
         await this.#refreshDerivedUI();
         return;
       }
 
       this.#setEndpoint(side, { node: resolved.node, error: undefined });
+      this.#renderEndpointField(side);
       await this.#refreshDerivedUI();
+    }
+
+    /** Reflects an endpoint's state into its `<input>` / ✕ button / UUID line (ADAPT-015). */
+    #renderEndpointField(side: 'origin' | 'target'): void {
+      const state = side === 'origin' ? this.#origin : this.#target;
+      const root = this.element;
+      const input = root.querySelector(`[data-role="${side}-input"]`);
+      const clear = root.querySelector(`[data-endpoint="${side}"] .archivexus-rel-endpoint-clear`);
+      const uuidLine = root.querySelector(`[data-role="${side}-uuid"]`);
+      const node = state.node;
+      if (input) {
+        if (node) {
+          input.value = node.title;
+          input.setAttribute('readonly', 'readonly');
+          input.setAttribute('title', node.nodeId);
+        } else {
+          input.value = '';
+          input.removeAttribute('readonly');
+          input.removeAttribute('title');
+        }
+      }
+      if (clear) clear.hidden = node === undefined;
+      if (uuidLine) {
+        uuidLine.textContent = node?.nodeId ?? '';
+        uuidLine.hidden = node === undefined;
+      }
     }
 
     #setEndpoint(side: 'origin' | 'target', state: EndpointState): void {
@@ -398,8 +539,13 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
         return;
       }
 
-      const originNode = this.#origin.node;
-      const targetNode = this.#target.node;
+      // ADAPT-015: store/display in whichever orientation the Definition's
+      // validation accepts — the GM can drop the two ends either way round.
+      const { origin: originNode, target: targetNode } = this.#orientedEndpoints(
+        definition,
+        this.#origin.node,
+        this.#target.node,
+      );
       this.#setHiddenText(
         root,
         '[data-role="summary"]',
@@ -413,6 +559,16 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
         saveButton.disabled = false;
         saveButton.textContent = warning ? 'Save anyway' : 'Save';
       }
+    }
+
+    /** The (origin, target) pair to store — swapped when only the reversed orientation validates (ADAPT-015). */
+    #orientedEndpoints(
+      definition: RelationshipDefinition,
+      origin: ResolvedDroppedNode,
+      target: ResolvedDroppedNode,
+    ): { origin: ResolvedDroppedNode; target: ResolvedDroppedNode } {
+      const orientation = resolveDefinitionOrientation(definition, origin.nodeType, target.nodeType);
+      return orientation === 'reversed' ? { origin: target, target: origin } : { origin, target };
     }
 
     async #checkCardinality(
@@ -464,11 +620,20 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
 
     async _onSave(): Promise<void> {
       const definition = this.selectedDefinition;
-      const origin = this.#origin.node;
-      const target = this.#target.node;
-      if (!definition || !origin || !target || origin.nodeId === target.nodeId) {
+      const droppedOrigin = this.#origin.node;
+      const droppedTarget = this.#target.node;
+      if (
+        !definition ||
+        !droppedOrigin ||
+        !droppedTarget ||
+        droppedOrigin.nodeId === droppedTarget.nodeId
+      ) {
         return;
       }
+
+      // ADAPT-015: swap to the orientation the Definition's validation
+      // accepts (e.g. authoring "member-of" from the Organization's sheet).
+      const { origin, target } = this.#orientedEndpoints(definition, droppedOrigin, droppedTarget);
 
       try {
         const relationship = createRelationship({

@@ -4,19 +4,50 @@ import type { Relationship } from '../../core/domain/relationship.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import type { Logger } from './logger.js';
 import {
+  buildEndpointFieldHTML,
   buildRelationshipAuthoringContentHTML,
   getRelationshipAuthoringApplicationClass,
+  parseDropPayloadUuid,
   registerRelationshipAuthoringEntryPoints,
   type FoundryHeaderControlsLike,
   type FoundrySheetAppLike,
 } from './relationship-authoring-window.js';
 
+describe('buildEndpointFieldHTML', () => {
+  it('renders an empty field as a plain text input with a placeholder and a hidden clear button', () => {
+    const html = buildEndpointFieldHTML('origin', 'Origin');
+    expect(html).toContain('<input type="text" id="archivexus-relationship-origin" name="origin"');
+    expect(html).toContain('placeholder="Drop an Actor or Journal page here');
+    expect(html).toContain('data-action="clearOrigin"');
+    expect(html).toContain('data-action="clearOrigin" title="Clear" aria-label="Clear Origin" hidden');
+    expect(html).not.toContain('readonly');
+    expect(html).toContain('data-role="origin-uuid" hidden');
+  });
+
+  it('renders a resolved field with the title in the input (read-only), the UUID in title + a dim line, clear shown', () => {
+    const html = buildEndpointFieldHTML('target', 'Target', { title: 'Hodor', uuid: 'Actor.abc' });
+    expect(html).toContain('value="Hodor" readonly');
+    expect(html).toContain('title="Actor.abc"');
+    expect(html).toContain('<p class="archivexus-rel-endpoint-uuid" data-role="target-uuid">Actor.abc</p>');
+    expect(html).not.toContain('data-action="clearTarget" title="Clear" aria-label="Clear Target" hidden');
+  });
+
+  it('HTML-escapes the resolved title and uuid', () => {
+    const html = buildEndpointFieldHTML('origin', 'Origin', { title: '"<x>', uuid: 'Actor."1"' });
+    expect(html).toContain('value="&quot;&lt;x&gt;"');
+    expect(html).toContain('title="Actor.&quot;1&quot;"');
+    expect(html).not.toContain('<x>');
+  });
+});
+
 describe('buildRelationshipAuthoringContentHTML', () => {
-  it('renders both drop zones as document-tags single, with no type attribute', () => {
+  it('renders both endpoints as controlled inputs, no <document-tags>', () => {
     const html = buildRelationshipAuthoringContentHTML('Origin', 'Target');
-    expect(html).toContain('<document-tags single name="origin"');
-    expect(html).toContain('<document-tags single name="target"');
-    expect(html).not.toMatch(/document-tags[^>]*\btype=/);
+    expect(html).not.toContain('document-tags');
+    expect(html).toContain('name="origin"');
+    expect(html).toContain('name="target"');
+    expect(html).toContain('data-endpoint="origin"');
+    expect(html).toContain('data-endpoint="target"');
   });
 
   it('uses the given endpoint labels', () => {
@@ -25,26 +56,14 @@ describe('buildRelationshipAuthoringContentHTML', () => {
     expect(html).toContain('>Second entity</label>');
   });
 
-  it('pre-fills the Origin drop zone with the given uuid, and leaves Target empty', () => {
-    const html = buildRelationshipAuthoringContentHTML('Origin', 'Target', 'Actor.kharra');
-    expect(html).toContain(
-      'name="origin" id="archivexus-relationship-origin" value="Actor.kharra"',
-    );
-    expect(html).toContain(
-      '<document-tags single name="target" id="archivexus-relationship-target"></document-tags>',
-    );
-  });
-
-  it('omits the value attribute entirely when no prefill is given', () => {
-    const html = buildRelationshipAuthoringContentHTML('Origin', 'Target');
-    expect(html).toContain(
-      '<document-tags single name="origin" id="archivexus-relationship-origin"></document-tags>',
-    );
-  });
-
-  it('HTML-escapes the prefilled uuid', () => {
-    const html = buildRelationshipAuthoringContentHTML('Origin', 'Target', 'Actor."1"');
-    expect(html).toContain('value="Actor.&quot;1&quot;"');
+  it('pre-fills the Origin field and leaves Target empty', () => {
+    const html = buildRelationshipAuthoringContentHTML('Origin', 'Target', {
+      title: 'Kharra',
+      uuid: 'Actor.kharra',
+    });
+    expect(html).toContain('name="origin" data-role="origin-input" autocomplete="off" placeholder="Drop an Actor or Journal page here, or paste its UUID" value="Kharra" readonly');
+    expect(html).toContain('name="target" data-role="target-input"');
+    expect(html).toMatch(/name="target"[^>]*\/>\s*<button[^>]*data-action="clearTarget"[^>]*hidden/);
   });
 
   it('starts with the Definition select empty/disabled and the placeholder text (ADR-0010 point 4)', () => {
@@ -64,6 +83,24 @@ describe('buildRelationshipAuthoringContentHTML', () => {
     const html = buildRelationshipAuthoringContentHTML('Origin', 'Target');
     expect(html).toContain('data-role="summary" hidden');
     expect(html).toContain('data-role="warning" hidden');
+  });
+});
+
+describe('parseDropPayloadUuid', () => {
+  it('reads the uuid from a native Foundry drag payload', () => {
+    expect(parseDropPayloadUuid('{"type":"Actor","uuid":"Actor.abc"}')).toBe('Actor.abc');
+  });
+
+  it('accepts a bare UUID string', () => {
+    expect(parseDropPayloadUuid('  JournalEntry.a.JournalEntryPage.b  ')).toBe(
+      'JournalEntry.a.JournalEntryPage.b',
+    );
+  });
+
+  it('returns undefined for empty / non-UUID / payload-without-uuid input', () => {
+    expect(parseDropPayloadUuid('')).toBeUndefined();
+    expect(parseDropPayloadUuid('just some text')).toBeUndefined();
+    expect(parseDropPayloadUuid('{"type":"Actor"}')).toBeUndefined();
   });
 });
 
@@ -224,5 +261,77 @@ describe('getRelationshipAuthoringApplicationClass / the live window', () => {
     const first = getRelationshipAuthoringApplicationClass();
     const second = getRelationshipAuthoringApplicationClass();
     expect(first).toBe(second);
+  });
+
+  it('saves the Relationship in the orientation the Definition validates (ADAPT-015 swap)', async () => {
+    // A shared no-op DOM node: enough for _resolveEndpoint / #refreshDerivedUI
+    // / _onSave, none of which assert per-element state in this test.
+    const listeners: Record<string, (event: unknown) => void> = {};
+    const node = new Proxy(
+      {
+        value: '',
+        hidden: false,
+        disabled: false,
+        innerHTML: '',
+        textContent: '',
+        classList: { add() {}, remove() {} },
+        getAttribute: () => null,
+        setAttribute() {},
+        removeAttribute() {},
+        addEventListener(type: string, cb: (event: unknown) => void) {
+          listeners[type] = cb;
+        },
+        querySelector() {
+          return node;
+        },
+      },
+      {},
+    );
+
+    const party = { documentName: 'Actor', uuid: 'Actor.party', name: 'Party', flags: { archivexus: { nodeType: 'Organization' } } };
+    const hodor = { documentName: 'Actor', uuid: 'Actor.hodor', name: 'Hodor', flags: { archivexus: { nodeType: 'Character' } } };
+    (foundry as unknown as { utils: { fromUuid: ReturnType<typeof vi.fn> } }).utils.fromUuid = vi.fn(
+      async (uuid: string) => (uuid === 'Actor.party' ? party : uuid === 'Actor.hodor' ? hodor : null),
+    );
+
+    const memberOf = {
+      id: 'member-of',
+      name: 'member-of',
+      version: 1,
+      inverse: 'has-member',
+      cardinality: 'many-to-many' as const,
+      symmetry: false,
+      traversalCategory: 'affiliation' as const,
+      validation: { allowedOriginTypes: ['Character'], allowedTargetTypes: ['Organization'] },
+    };
+
+    const ApplicationClass = getRelationshipAuthoringApplicationClass();
+    const instance = new ApplicationClass({ storage, log, definitions: [memberOf] }) as unknown as {
+      element: unknown;
+      _onRender(): void;
+      _resolveEndpoint(side: 'origin' | 'target', value: string): Promise<void>;
+      _onSave(): Promise<void>;
+    };
+    instance.element = node;
+    instance._onRender();
+
+    // GM opens it from the Party's sheet (origin = Party/Org), then drops Hodor as the target.
+    await instance._resolveEndpoint('origin', 'Actor.party');
+    await instance._resolveEndpoint('target', 'Actor.hodor');
+    // pick "member-of" via the select's change listener
+    (node as { value: string }).value = 'member-of';
+    listeners['change']?.({});
+    await Promise.resolve();
+
+    await instance._onSave();
+
+    expect(savedRelationships).toHaveLength(1);
+    // stored member-of Party, NOT Party member-of Hodor
+    expect(savedRelationships[0]).toMatchObject({
+      origin: 'Actor.hodor',
+      target: 'Actor.party',
+      definitionId: 'member-of',
+    });
+    expect(savedRelationships[0]?.title).toBe('Hodor member-of Party');
   });
 });
