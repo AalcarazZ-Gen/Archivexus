@@ -32,6 +32,18 @@ The Core is now being implemented incrementally, starting with the `KnowledgeEle
 
 ---
 
+## Getting started (in Foundry)
+
+Once the module is installed and enabled, Archivexus imports your world's Actors and Journal pages automatically. The GM sees a one-time welcome dialog on first load; here are the same three steps to set up your world:
+
+1. **Type your key Nodes.** Open an Actor or Journal page, click the **⋯** menu in its window header, and choose *"Archivexus Node Type"* (Character, City, Faction, …). Only typed documents show up as Nodes.
+2. **Connect two Nodes.** From that same **⋯** menu choose *"New Relationship…"* to link them (resides-in, ally-of, member-of, …). *"Relationships…"* lists what a Node already has.
+3. **See the graph.** Open the **Codex** sidebar tab (the share-nodes icon) and click *"Open graph ⧉"*, or click any Node in the list to open the graph rooted on it.
+
+The Codex tab's **"Getting started"** button reopens this guidance any time. The relationship *types* available in step 2 can be extended from the browser console via `game.modules.get('archivexus').api.saveRelationshipDefinition(...)` (a dedicated editor UI is planned — ADAPT-014).
+
+---
+
 ## Goals
 
 - Transform isolated Foundry documents into interconnected knowledge.

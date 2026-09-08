@@ -72,6 +72,15 @@ declare const game: {
   // non-GM viewers (ADR-0003). Deliberately optional/loose: `game.user`
   // isn't populated until Foundry's setup phase.
   user?: { isGM?: boolean };
+  // `game.settings` — the first-run guidance's world-scoped dismissal flag
+  // (VIEW-001g, first `game.settings` use in the codebase). Loose, same
+  // tradeoff as the rest of this file; `first-run-guidance.ts` takes a
+  // narrow `FoundrySettingsLike` of its own so its logic stays testable.
+  settings: {
+    register(namespace: string, key: string, data: Record<string, unknown>): void;
+    get(namespace: string, key: string): unknown;
+    set(namespace: string, key: string, value: unknown): Promise<unknown>;
+  };
 };
 
 // Foundry's own client-side "download this data as a file" helper
@@ -89,4 +98,15 @@ declare const ui: {
   notifications: {
     warn(message: string): void;
   };
+  // `ui.sidebar` — module-entry.ts switches the sidebar to the Codex tab
+  // when the GM picks "Show me the Codex" in the welcome dialog (VIEW-001g).
+  // Both method names are declared because the v13 ApplicationV2 Sidebar
+  // renamed `activateTab` → `changeTab`; the caller tries whichever exists.
+  sidebar?: {
+    activateTab?(tabName: string): void;
+    changeTab?(tab: string, group?: string, options?: Record<string, unknown>): void;
+  };
 };
+
+// `Boolean` etc. are ES globals available without the DOM lib; no extra
+// declaration needed for `first-run-guidance.ts`'s `type: Boolean` setting.

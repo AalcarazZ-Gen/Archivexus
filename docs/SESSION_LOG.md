@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-09-08 (software-developer: VIEW-001g — first-run guidance)
+
+**Built:** VIEW-001g (#64), item 31 of the "Next batch" and the fast-follow to VIEW-001c. A visible pointer at the buried per-sheet setup entry points — no new plumbing. Branched `feat/view-001g-first-run-guidance` off `dev`.
+
+**Formalized:**
+- `src/adapters/foundry/first-run-guidance.ts` (new): `GUIDANCE_STEPS` (the 3 steps as one source of truth, shared by the dialog + the panel), `buildWelcomeDialogContent` / `buildGuidancePanelHTML` (pure markup), `registerOnboardingSetting` (world-scoped `config: false` boolean `onboardingDismissed` — **first `game.settings` use in the codebase**), `maybeShowWelcomeDialog` (GM-only, once-per-world `DialogV2.wait`; **any** close marks it dismissed — never nags; only "Show me the Codex" also switches tab).
+- `codex-sidebar-tab.ts`: inline guidance panel (GM-only) into a new `data-role="guidance-mount"`, rendered every load — expanded while `listRelationships()` is empty (the navigator's real empty state), collapsed to a "▸ Getting started" toggle once ≥1 exists; re-openable via the toggle or a new "Getting started" toolbar button. `buildNavigatorShellHTML` took a `{ withGuidance }` option (defaults true; `_renderHTML` passes `isViewerGM()`).
+- `module-entry.ts`: registers the setting at `init`; calls `maybeShowWelcomeDialog` at `ready` after backfill with a best-effort `activateCodexSidebarTab` (`ui.sidebar.changeTab` → `activateTab` fallback for the v13 rename). `foundry-globals.d.ts` gained `game.settings` + `ui.sidebar`.
+- `README.md` "Getting started (in Foundry)" section. CHANGELOG + PROJECT.md item 31.
+- +13 unit tests (436 total). `tsc`/`eslint`/`vitest`/`build:foundry-module` all clean (`archivexus.js` ~74KB).
+
+**Scoping calls made inline (proportionate to a personal project, no ADR):**
+- **The inline panel and the "Getting started" button are GM-only** — the guidance points at GM-only authoring surfaces. A player's navigator empty state stays the existing `buildNavigatorStateHTML('empty')`. Non-GM load also skips the `listRelationships()` count fetch.
+- **`DialogV2.wait` (not `prompt`/`confirm`)** — two non-destructive choices, `rejectClose: false`. The flag is set regardless of how the dialog resolves (button, close, or even a reject), so a dialog quirk can't cause the nag.
+- Out of scope per the ticket and untouched: coach-marks / tour library, progress tracking beyond the one flag, auto-typing Nodes.
+
+**Not yet live-verified (needs Alberto's v14 client):** the real `DialogV2.wait` render + button wiring, the `game.settings` register/get/set round-trip on a running world, and the `ui.sidebar` tab switch (the exact `changeTab`/`activateTab` name on v14). Not merged — Alberto merges.
+
+**Still queued:** ADAPT-014 (#66), VIEW-001i (#67), ADAPT-013 (#68), VIEW-001d/e/f (#69–71) per PROJECT.md items 32–35.
+
 ## 2026-09-08 (software-developer: VIEW-001c — Codex sidebar navigator)
 
 **Built:** VIEW-001c (#63), first item of the "Next batch". The Codex sidebar tab drops VIEW-001a's in-tab Cytoscape rendering and becomes a **node navigator** — a search box + a `node.type`-grouped list of every Node — per ADR-0014 Amendment A2. Row click → `openGraphPopout(getStorage, log, { rootNodeId })` (the VIEW-001b popout, re-rooted); an "Open graph ⧉" toolbar button opens the whole graph. Branched `feat/view-001c-navigator` off `dev` (it also carried the ARCH-002 resolution commit — ADR-0014 Amendment 2).

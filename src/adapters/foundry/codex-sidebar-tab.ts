@@ -3,6 +3,7 @@ import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import { isViewerGM } from './foundry-viewer.js';
 import { filterNodesForViewer } from './graph-view-elements.js';
 import { openGraphPopout } from './graph-popout-window.js';
+import { buildGuidancePanelHTML } from './first-run-guidance.js';
 import type { Logger } from './logger.js';
 import { groupNodesByType, type NavigatorGroup } from './node-navigator.js';
 
@@ -29,6 +30,11 @@ import { groupNodesByType, type NavigatorGroup } from './node-navigator.js';
  *
  * Non-GM viewers only see Nodes whose `visibility` isn't `hidden`
  * (ADR-0003) — `filterNodesForViewer`; the "N hidden" count is GM-only.
+ *
+ * The GM-only first-run guidance panel (VIEW-001g) renders into a
+ * `data-role="guidance-mount"` on every load — `buildGuidancePanelHTML`
+ * lives in `first-run-guidance.ts`; this file only mounts it and wires the
+ * expand/collapse toggle.
  *
  * What's pure and unit-tested: `node-navigator.ts` (grouping/filter),
  * `buildNavigatorShellHTML` / `buildNavigatorGroupsHTML` /
@@ -87,13 +93,24 @@ function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;');
 }
 
-/** The navigator's static shell — toolbar, search box, a `data-role="list"` region the group markup drops into, a `data-role="hint"` count line. */
-export function buildNavigatorShellHTML(): string {
+/**
+ * The navigator's static shell — toolbar, search box, a `data-role="list"`
+ * region the group markup drops into, a `data-role="hint"` count line, and
+ * (when `withGuidance`, i.e. GM only) a "Getting started" toolbar button and
+ * a `data-role="guidance-mount"` the first-run panel (VIEW-001g) renders
+ * into.
+ */
+export function buildNavigatorShellHTML(options: { withGuidance?: boolean } = {}): string {
+  const { withGuidance = true } = options;
   return (
     `<div class="archivexus-codex">` +
     `<div class="archivexus-codex-toolbar">` +
     `<button type="button" data-action="openWholeGraph" title="Open the campaign graph in a resizable window">Open graph ⧉</button>` +
+    (withGuidance
+      ? `<button type="button" data-action="showGuidance" title="Show the getting-started guidance">Getting started</button>`
+      : '') +
     `</div>` +
+    (withGuidance ? `<div class="archivexus-codex-guidance-mount" data-role="guidance-mount"></div>` : '') +
     `<input type="search" class="archivexus-codex-search" data-role="search" placeholder="Filter nodes…" autocomplete="off" />` +
     `<div class="archivexus-codex-list" data-role="list"></div>` +
     `<div class="archivexus-codex-hint" data-role="hint"></div>` +
@@ -168,6 +185,23 @@ const CODEX_CSS = `
   padding: 0.2rem 0.4rem; border-radius: 3px; cursor: pointer;
 }
 .archivexus-codex-rows button:hover { background: var(--color-hover-bg, rgba(0,0,0,0.06)); }
+.archivexus-codex-guidance {
+  border: 1px solid var(--color-border-light-primary, rgba(0,0,0,0.15));
+  border-radius: 4px; padding: 0.25rem 0.5rem; margin: 0.15rem 0;
+  background: var(--color-bg-option, rgba(0,0,0,0.03));
+}
+.archivexus-codex-guidance-toggle {
+  display: block; width: 100%; text-align: left; border: 0; background: transparent;
+  padding: 0.2rem 0; cursor: pointer; font-weight: bold;
+  font-size: var(--font-size-12, 12px); text-transform: uppercase; opacity: 0.8;
+}
+.archivexus-codex-guidance-caret { display: inline-block; width: 1em; }
+.archivexus-codex-guidance-body[hidden] { display: none; }
+.archivexus-codex-guidance-body .archivexus-guidance-steps {
+  margin: 0.25rem 0; padding-left: 1.2rem; font-size: var(--font-size-12, 12px);
+}
+.archivexus-codex-guidance-body .archivexus-guidance-steps li { margin-bottom: 0.35rem; }
+.archivexus-codex-guidance-count { font-size: var(--font-size-11, 11px); opacity: 0.7; margin: 0.25rem 0 0; }
 `;
 
 /**
@@ -230,13 +264,16 @@ export function getCodexSidebarTabClass(
             openGraphPopout(getStorage, log, { rootNodeId: id });
           }
         },
+        showGuidance(this: CodexSidebarTab): void {
+          this.#setGuidanceExpanded(true);
+        },
       },
     };
 
     #storageReadyHookBound = false;
 
     _renderHTML(): string {
-      return buildNavigatorShellHTML();
+      return buildNavigatorShellHTML({ withGuidance: isViewerGM() });
     }
 
     _replaceHTML(result: string, content: MinimalDomElementLike): void {
@@ -274,11 +311,41 @@ export function getCodexSidebarTabClass(
         const isGM = isViewerGM();
         const allNodes = await storage.listNodes();
         const visible = filterNodesForViewer(allNodes, { isGM });
+        // The first-run guidance panel is a GM concern (it points at
+        // GM-only authoring surfaces) — skip the relationship count for
+        // players, who never see it.
+        const relationshipCount = isGM ? (await storage.listRelationships()).length : 0;
         this.#renderNodes(visible, allNodes.length - visible.length, isGM);
+        if (isGM) {
+          this.#renderGuidance({ nodeCount: visible.length, relationshipCount });
+        }
       } catch (error) {
         log.error(`Codex: failed to load nodes: ${errorMessage(error)}`);
         if (listEl) listEl.innerHTML = buildNavigatorStateHTML('error');
       }
+    }
+
+    /**
+     * Renders the first-run guidance panel into its mount and re-binds the
+     * expand/collapse toggle (the mount's `innerHTML` is replaced on every
+     * load, so the listener can't be bound once).
+     */
+    #renderGuidance(state: { nodeCount: number; relationshipCount: number }): void {
+      const mount = this.element.querySelector('[data-role="guidance-mount"]');
+      if (!mount) return;
+      mount.innerHTML = buildGuidancePanelHTML(state);
+      const toggle = mount.querySelector('[data-role="guidance-toggle"]');
+      toggle?.addEventListener('click', () => {
+        const body = this.element.querySelector('[data-role="guidance-body"]');
+        this.#setGuidanceExpanded(body ? body.hidden : true);
+      });
+    }
+
+    #setGuidanceExpanded(expanded: boolean): void {
+      const body = this.element.querySelector('[data-role="guidance-body"]');
+      if (body) body.hidden = !expanded;
+      const caret = this.element.querySelector('.archivexus-codex-guidance-caret');
+      if (caret) caret.textContent = expanded ? '▾' : '▸';
     }
 
     #renderNodes(nodes: readonly Node[], hiddenCount: number, isGM: boolean): void {

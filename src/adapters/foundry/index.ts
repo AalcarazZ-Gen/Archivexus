@@ -87,6 +87,22 @@ export {
 } from './node-navigator.js';
 export type { NavigatorGroup } from './node-navigator.js';
 export {
+  buildGuidancePanelHTML,
+  buildWelcomeDialogContent,
+  GUIDANCE_STEPS,
+  maybeShowWelcomeDialog,
+  ONBOARDING_NAMESPACE,
+  ONBOARDING_SETTING_KEY,
+  registerOnboardingSetting,
+} from './first-run-guidance.js';
+export type {
+  FoundrySettingsLike,
+  GuidanceCounts,
+  GuidancePanelState,
+  MaybeShowWelcomeDialogDeps,
+  WelcomeDialogV2Like,
+} from './first-run-guidance.js';
+export {
   buildContextMenuHTML,
   buildGraphPopoutContentHTML,
   buildInspectorEmptyHTML,
