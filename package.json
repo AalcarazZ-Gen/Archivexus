@@ -27,6 +27,7 @@
     "vitest": "^3.0.4"
   },
   "dependencies": {
-    "@sqlite.org/sqlite-wasm": "^3.53.0-build1"
+    "@sqlite.org/sqlite-wasm": "^3.53.0-build1",
+    "cytoscape": "^3.34.3"
   }
 }

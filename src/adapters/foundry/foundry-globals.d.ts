@@ -7,6 +7,7 @@
 declare const Hooks: {
   once(hook: string, callback: () => void): void;
   on(hook: string, callback: (...args: never[]) => void): void;
+  callAll(hook: string, ...args: unknown[]): void;
 };
 
 // tsconfig omits the DOM lib (Core stays platform-agnostic), so `console`
@@ -31,10 +32,28 @@ declare const foundry: {
       DialogV2: unknown;
       ApplicationV2: unknown;
     };
+    // `foundry.applications.sidebar.AbstractSidebarTab` — the base class the
+    // Codex graph tab (codex-sidebar-tab.ts, VIEW-001a) subclasses; loose
+    // for the same cast-through-`unknown` reason as `api` above.
+    sidebar: {
+      AbstractSidebarTab: unknown;
+    };
   };
   utils: {
     fromUuid(uuid: string): Promise<unknown>;
     randomID(length?: number): string;
+  };
+};
+
+// `CONFIG.ui.sidebar.TABS` (the native sidebar-tab registry) and
+// `CONFIG.ui[tabName]` (where a tab's class is registered) — written by
+// codex-sidebar-tab.ts's `registerCodexSidebarTab`. Deliberately loose,
+// same tradeoff as `game`/`ui`; the registration function takes a narrow
+// structural type of its own so it stays unit-testable.
+declare const CONFIG: {
+  ui: {
+    sidebar: { TABS: Record<string, unknown> };
+    [key: string]: unknown;
   };
 };
 
@@ -49,6 +68,10 @@ declare const game: {
   actors?: { contents: readonly unknown[] };
   journal?: { contents: readonly { pages: { contents: readonly unknown[] } }[] };
   modules: { get(id: string): { api?: Record<string, unknown> } | undefined };
+  // `game.user.isGM` — the Codex (VIEW-001a) filters `hidden` Nodes out for
+  // non-GM viewers (ADR-0003). Deliberately optional/loose: `game.user`
+  // isn't populated until Foundry's setup phase.
+  user?: { isGM?: boolean };
 };
 
 // Foundry's own client-side "download this data as a file" helper
