@@ -392,11 +392,15 @@ A declarative spec on the View, expressed in Relationship Definition's `traversa
 
 Yes — `decisions/ADR-0012-node-connections-panel.md` (2026-09-06): a narrow, Foundry-Adapter-side "Connections" panel (`getHeaderControls*` entry point, same mechanism as ADR-0009/ADR-0010, plus a dedicated `ApplicationV2` window like ADR-0010's), showing only the "Direct only" preset grouped by `traversalCategory`, with no View persistence of its own — every open recomputes fresh from current storage. This is deliberately a separate, smaller ticket (proposed `ADAPT-011`) than VIEW-001, not a first slice of it: VIEW-001 still owns the real graph/canvas rendering, "Everything connected"'s mandated cluster grouping, "Curated by me," and any persisted View arrangement. ADR-0012 also gives the first concrete answer to this section's content-prominence Open Question below, scoped to this one panel.
 
+### What does the graph View actually render with, where does it live in Foundry's UI, and what does it show with no Node selected? (VIEW-001)
+
+`decisions/ADR-0014-graph-view-sidebar-tab.md` (2026-09-08): a first-level Foundry sidebar tab (not a per-sheet panel, not a floating window) registered via Foundry's own native `CONFIG.ui.sidebar.TABS`, rendering Cytoscape.js. With no Node selected it shows the whole current graph (every Node/Relationship in storage) rather than one of this section's three presets, since all three assume a queried root Node already exists — clicking any Node inside that overview then applies the existing presets, same as ADR-0012's panel does from a sheet. Also gives `View` its first real Core shape (new ticket, CORE-006, decoupled from VIEW-001's own Adapter/UI implementation): composed on `KnowledgeElement` like Node/Relationship, `format: 'graph'` (a plain closed-union of one value for now — same "don't build a registry for a single case" reasoning as `NodeType`'s own plain-string decision), and a declarative `spec` (preset + root Node id, plus a curated Relationship-id list and an optional saved node-position layout for "Curated by me" only) — satisfying the "always derivable" invariant above the same way this section's traversal-selection Decision already does.
+
 ---
 
 ## Open Questions
 
-Which attribute (if any) orders results within a large same-category cluster (e.g. which of 40 residents shows first, before a "+36 more")? Partially resolved for the interim Connections panel by `decisions/ADR-0012-node-connections-panel.md`: degree-descending (the connected Node's own total relationship count elsewhere in the graph), alphabetical tiebreak. Still open for VIEW-001's own fuller case: manual drag-to-reorder plus persisting that arrangement, which needs a real View instance to save into.
+Which attribute (if any) orders results within a large same-category cluster (e.g. which of 40 residents shows first, before a "+36 more")? Partially resolved for the interim Connections panel by `decisions/ADR-0012-node-connections-panel.md`: degree-descending (the connected Node's own total relationship count elsewhere in the graph), alphabetical tiebreak. Still open for VIEW-001's own fuller case: manual drag-to-reorder plus persisting that arrangement, which needs a real View instance to save into (`decisions/ADR-0014-graph-view-sidebar-tab.md`'s CORE-006/VIEW-001b split names where that lands).
 
 ---
 
