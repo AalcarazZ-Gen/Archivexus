@@ -7,7 +7,12 @@ import { openRelationshipDefinitionEditor } from './relationship-definition-edit
 import { openRelationshipConsole } from './relationship-console-window.js';
 import { buildGuidancePanelHTML } from './first-run-guidance.js';
 import type { Logger } from './logger.js';
-import { groupNodesByType, type NavigatorGroup } from './node-navigator.js';
+import {
+  FAVOURITES_GROUP_TYPE,
+  groupNodesWithFavourites,
+  normalizeFavouriteNodeIds,
+  type NavigatorGroup,
+} from './node-navigator.js';
 
 /**
  * The Codex: a first-level Foundry sidebar tab. Since the ADR-0014
@@ -48,6 +53,36 @@ import { groupNodesByType, type NavigatorGroup } from './node-navigator.js';
 const CODEX_TAB_NAME = 'codex';
 const CODEX_TAB_ICON = 'fa-solid fa-share-nodes';
 const CODEX_TAB_TOOLTIP = 'Codex';
+
+const MODULE_ID = 'archivexus';
+const FAVOURITE_NODE_IDS_FLAG = 'favouriteNodeIds';
+
+/**
+ * The navigator's per-user favourites (VIEW-001d) — Foundry `game.user`
+ * flags, deliberately NOT `StorageProvider` state / a `View` / in the
+ * portable snapshot (ADR-0014 Amendment A2b / A8: a personal navigation
+ * convenience, not campaign knowledge — `CONTRIBUTING_GUIDE.md` Rule 6).
+ * Read defensively (returns an empty set if `game.user` isn't ready or the
+ * flag is malformed); the write is fire-and-forget with the caller logging.
+ */
+function readFavouriteNodeIds(): ReadonlySet<string> {
+  try {
+    const raw = (globalThis as { game?: typeof game }).game?.user?.getFlag(
+      MODULE_ID,
+      FAVOURITE_NODE_IDS_FLAG,
+    );
+    return new Set(normalizeFavouriteNodeIds(raw));
+  } catch {
+    return new Set();
+  }
+}
+
+function writeFavouriteNodeIds(ids: readonly string[]): Promise<unknown> {
+  const user = (globalThis as { game?: typeof game }).game?.user;
+  return user
+    ? user.setFlag(MODULE_ID, FAVOURITE_NODE_IDS_FLAG, [...ids])
+    : Promise.resolve();
+}
 
 // ---------------------------------------------------------------------------
 // Minimal structural types — tsconfig omits the DOM lib, same
@@ -153,13 +188,16 @@ export function navigatorGroupsStartExpanded(groups: readonly NavigatorGroup[]):
  * The grouped node list (VIEW-001c). Each `<section>` is collapsible
  * (VIEW-001h): its header is a `data-action="toggleGroup"` button, and a
  * type in `collapsedTypes` renders with its rows `hidden` and a `▸` caret.
- * Each row carries `data-node-id` (the click handler) and `data-title`
+ * Each row carries `data-node-id` (the click handlers) and `data-title`
  * (lowercased, for client-side search filtering without a re-render — same
- * "pure builder, live class toggles DOM" split as `relationship-list-window.ts`).
+ * "pure builder, live class toggles DOM" split as `relationship-list-window.ts`),
+ * plus a `data-action="toggleFavourite"` ☆/★ button reflecting membership
+ * in `favouriteIds` (VIEW-001d).
  */
 export function buildNavigatorGroupsHTML(
   groups: readonly NavigatorGroup[],
   collapsedTypes: ReadonlySet<string> = new Set(),
+  favouriteIds: ReadonlySet<string> = new Set(),
 ): string {
   if (groups.length === 0) {
     return buildNavigatorStateHTML('empty');
@@ -168,12 +206,15 @@ export function buildNavigatorGroupsHTML(
     .map((group) => {
       const collapsed = collapsedTypes.has(group.type);
       const rows = group.nodes
-        .map(
-          (node) =>
+        .map((node) => {
+          const isFav = favouriteIds.has(node.id);
+          return (
             `<li data-node-id="${escapeHtml(node.id)}" data-title="${escapeHtml(node.title.toLowerCase())}">` +
-            `<button type="button" data-action="focusNode" data-node-id="${escapeHtml(node.id)}">${escapeHtml(node.title)}</button>` +
-            `</li>`,
-        )
+            `<button type="button" class="archivexus-codex-fav${isFav ? ' archivexus-codex-fav--on' : ''}" data-action="toggleFavourite" data-node-id="${escapeHtml(node.id)}" aria-pressed="${isFav ? 'true' : 'false'}" title="${isFav ? 'Remove from favourites' : 'Add to favourites'}">${isFav ? '★' : '☆'}</button>` +
+            `<button type="button" class="archivexus-codex-row-label" data-action="focusNode" data-node-id="${escapeHtml(node.id)}">${escapeHtml(node.title)}</button>` +
+            `</li>`
+          );
+        })
         .join('');
       return (
         `<section class="archivexus-codex-group" data-group="${escapeHtml(group.type)}">` +
@@ -212,12 +253,21 @@ const CODEX_CSS = `
 .archivexus-codex-group-count { opacity: 0.6; }
 .archivexus-codex-rows { list-style: none; margin: 0; padding: 0; }
 .archivexus-codex-rows[hidden] { display: none; }
+.archivexus-codex-rows li { display: flex; align-items: center; }
 .archivexus-codex-rows li[hidden] { display: none; }
-.archivexus-codex-rows button {
-  display: block; width: 100%; text-align: left; border: 0; background: transparent;
+.archivexus-codex-row-label {
+  flex: 1 1 auto; min-width: 0; text-align: left; border: 0; background: transparent;
   padding: 0.2rem 0.4rem; border-radius: 3px; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.archivexus-codex-rows button:hover { background: var(--color-hover-bg, rgba(0,0,0,0.06)); }
+.archivexus-codex-row-label:hover { background: var(--color-hover-bg, rgba(0,0,0,0.06)); }
+.archivexus-codex-fav {
+  flex: 0 0 auto; border: 0; background: transparent; cursor: pointer;
+  padding: 0.2rem 0.3rem; opacity: 0; transition: opacity 0.1s;
+}
+.archivexus-codex-rows li:hover .archivexus-codex-fav,
+.archivexus-codex-fav--on { opacity: 0.85; }
+.archivexus-codex-fav:hover { opacity: 1; }
 .archivexus-codex-guidance {
   border: 1px solid var(--color-border-light-primary, rgba(0,0,0,0.15));
   border-radius: 4px; padding: 0.25rem 0.5rem; margin: 0.15rem 0;
@@ -310,6 +360,14 @@ export function getCodexSidebarTabClass(
           const type = target.getAttribute('data-group');
           if (type) this.#toggleGroup(type);
         },
+        toggleFavourite(
+          this: CodexSidebarTab,
+          _event: unknown,
+          target: MinimalDomElementLike,
+        ): void {
+          const id = target.getAttribute('data-node-id');
+          if (id) void this.#toggleFavourite(id);
+        },
       },
     };
 
@@ -323,6 +381,11 @@ export function getCodexSidebarTabClass(
     #groupCollapsed = new Map<string, boolean>();
     #defaultCollapsed = false;
     #groupsSeeded = false;
+
+    /** Per-user favourites (VIEW-001d), refreshed from `game.user` flags on every load. */
+    #favouriteIds: ReadonlySet<string> = new Set();
+    /** Last render inputs, so a favourite toggle can re-render without a storage round-trip. */
+    #lastRender: { nodes: readonly Node[]; hiddenCount: number; isGM: boolean } | undefined;
 
     _renderHTML(): string {
       return buildNavigatorShellHTML({ isGM: isViewerGM() });
@@ -361,6 +424,7 @@ export function getCodexSidebarTabClass(
       }
       try {
         const isGM = isViewerGM();
+        this.#favouriteIds = readFavouriteNodeIds();
         const allNodes = await storage.listNodes();
         const visible = filterNodesForViewer(allNodes, { isGM });
         // The first-run guidance panel is a GM concern (it points at
@@ -401,7 +465,8 @@ export function getCodexSidebarTabClass(
     }
 
     #renderNodes(nodes: readonly Node[], hiddenCount: number, isGM: boolean): void {
-      const groups = groupNodesByType(nodes);
+      this.#lastRender = { nodes, hiddenCount, isGM };
+      const groups = groupNodesWithFavourites(nodes, this.#favouriteIds);
       if (!this.#groupsSeeded) {
         this.#defaultCollapsed = !navigatorGroupsStartExpanded(groups);
         this.#groupsSeeded = true;
@@ -410,7 +475,13 @@ export function getCodexSidebarTabClass(
       if (listEl) {
         listEl.innerHTML = buildNavigatorGroupsHTML(
           groups,
-          new Set(groups.map((g) => g.type).filter((type) => this.#collapsedFor(type))),
+          // The pinned favourites group is never auto-collapsed.
+          new Set(
+            groups
+              .map((g) => g.type)
+              .filter((type) => type !== FAVOURITES_GROUP_TYPE && this.#collapsedFor(type)),
+          ),
+          this.#favouriteIds,
         );
       }
       const hintEl = this.element.querySelector('[data-role="hint"]');
@@ -435,6 +506,33 @@ export function getCodexSidebarTabClass(
       this.#groupCollapsed.set(type, !this.#collapsedFor(type));
       const search = this.element.querySelector('[data-role="search"]');
       this.#applyFilter(search?.value ?? '');
+    }
+
+    /**
+     * VIEW-001d: flip one Node's favourite state, re-render the list from
+     * the cached nodes (so the pinned group and every star update at once),
+     * then persist the `game.user` flag.
+     */
+    async #toggleFavourite(id: string): Promise<void> {
+      const next = new Set(this.#favouriteIds);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      this.#favouriteIds = next;
+      if (this.#lastRender) {
+        this.#renderNodes(
+          this.#lastRender.nodes,
+          this.#lastRender.hiddenCount,
+          this.#lastRender.isGM,
+        );
+      }
+      try {
+        await writeFavouriteNodeIds([...next]);
+      } catch (error) {
+        log.error(`Codex: failed to persist favourites: ${errorMessage(error)}`);
+      }
     }
 
     /**

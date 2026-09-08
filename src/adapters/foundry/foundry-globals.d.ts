@@ -73,9 +73,16 @@ declare const game: {
   journal?: { contents: readonly { pages: { contents: readonly unknown[] } }[] };
   modules: { get(id: string): { api?: Record<string, unknown> } | undefined };
   // `game.user.isGM` — the Codex (VIEW-001a) filters `hidden` Nodes out for
-  // non-GM viewers (ADR-0003). Deliberately optional/loose: `game.user`
-  // isn't populated until Foundry's setup phase.
-  user?: { isGM?: boolean };
+  // non-GM viewers (ADR-0003). `getFlag`/`setFlag` — the navigator's
+  // per-user favourites (VIEW-001d, ADR-0014 Amendment A2b): explicitly
+  // Foundry user-flag state, not a Knowledge Element / `View` /
+  // `StorageProvider` row / in the portable snapshot. Deliberately
+  // optional/loose: `game.user` isn't populated until Foundry's setup phase.
+  user?: {
+    isGM?: boolean;
+    getFlag(scope: string, key: string): unknown;
+    setFlag(scope: string, key: string, value: unknown): Promise<unknown>;
+  };
   // `game.settings` — the first-run guidance's world-scoped dismissal flag
   // (VIEW-001g, first `game.settings` use in the codebase). Loose, same
   // tradeoff as the rest of this file; `first-run-guidance.ts` takes a

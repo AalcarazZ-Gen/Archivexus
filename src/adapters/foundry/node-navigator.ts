@@ -36,6 +36,43 @@ export interface NavigatorGroup {
   readonly nodes: readonly Node[];
 }
 
+/**
+ * The pinned favourites group's synthetic `type` key (VIEW-001d). Not a
+ * real `NodeType` — a Node it contains still also appears under its own
+ * type group. Chosen so it can't collide with a GM-invented type.
+ */
+export const FAVOURITES_GROUP_TYPE = '★ Favourites';
+
+/**
+ * `groupNodesByType`, with a pinned `★ Favourites` group prepended when any
+ * of `favouriteIds` is present among `nodes` (sorted by title). The
+ * favourite Nodes are NOT removed from their own type groups — the pin is
+ * an additional shortcut, not a move.
+ */
+export function groupNodesWithFavourites(
+  nodes: readonly Node[],
+  favouriteIds: ReadonlySet<string>,
+): readonly NavigatorGroup[] {
+  const typeGroups = groupNodesByType(nodes);
+  if (favouriteIds.size === 0) {
+    return typeGroups;
+  }
+  const favourites = nodes
+    .filter((node) => favouriteIds.has(node.id))
+    .sort((a, b) => a.title.localeCompare(b.title));
+  return favourites.length > 0
+    ? [{ type: FAVOURITES_GROUP_TYPE, nodes: favourites }, ...typeGroups]
+    : typeGroups;
+}
+
+/** Pure: a value is a valid persisted favourites list iff it's an array of non-empty strings. */
+export function normalizeFavouriteNodeIds(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+}
+
 /** Case-insensitive substring match on the title. An empty/whitespace query matches everything. */
 export function filterNodesByQuery(nodes: readonly Node[], query: string): readonly Node[] {
   const needle = query.trim().toLowerCase();
