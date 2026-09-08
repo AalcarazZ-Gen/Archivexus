@@ -80,7 +80,9 @@ From the ADR-0014 Amendment split, worked in the `feat/view-001-batch` branch (2
 38. **VIEW-001e — "Everything connected" collapsed clusters** (issue #70) — **deferred** (2026-09-08). Needs real authored Relationship data to be meaningful *or* verifiable; the campaign has 0. Pick up once relationships exist (author them via VIEW-001i's Console).
 39. **VIEW-001f — "Curated by me" + saved layout + saved-Views list** (issue #71) — **deferred**, same reason as VIEW-001e (and blocked on it). The bigger save/load/curate surface; not worth building blind.
 
-Not yet live-verified: the VIEW-001h collapse toggle + VIEW-001d favourites-star wiring on a real `AbstractSidebarTab` render, and the `game.user` flag round-trip.
+40. ~~**ADAPT-015 — relationship-authoring UX pass**~~ — done (issue #77, 2026-09-08, from a live bug report; on `feat/view-001-batch`). Three fixes to the "New Relationship…" window (`decisions/ADR-0010-relationship-authoring-ui.md` Amendment): (a) **direction-agnostic** — `resolveDefinitionOrientation` lets a Definition be offered if it validates in *either* endpoint orientation, and `_onSave` swaps origin/target when only the reversed order works (so "member-of" is authorable from the Organization's sheet, not only the member's — the reported bug); (b) the native `<document-tags>` chip-above-input replaced with a controlled `<input>` showing the resolved Node's title in-field (read-only, UUID beneath) + a ✕ clear button (`buildEndpointFieldHTML`, `parseDropPayloadUuid`); (c) stray drops that miss the box are `preventDefault`+`stopPropagation`'d so they can't pop a Foundry "Create Actor" dialog. No Core change. +10 tests (502 total). **Not yet live-verified:** the real drop payload + `fromUuid` + `data-action` wiring.
+
+Not yet live-verified: the VIEW-001h collapse toggle + VIEW-001d favourites-star wiring on a real `AbstractSidebarTab` render, the `game.user` flag round-trip, and all of ADAPT-015's live glue.
 
 ## Sensitive areas — don't touch or decide without asking first
 

@@ -8,7 +8,7 @@ Relationship-authoring UI for Foundry: a dedicated Application with native docum
 
 ## Status
 
-Accepted
+Accepted (amended 2026-09-08 — see Amendment below: direction-agnostic authoring, controlled endpoint `<input>`s replace `<document-tags>`, stray-drop fix)
 
 ---
 
@@ -97,3 +97,19 @@ This deliberately reaches a **different** answer than ADR-0007 point 8's "no cas
 - **Restricting each `<document-tags>` field with `type="Actor"` / `type="JournalEntryPage"` as two separate pairs of fields** (one Actor-only pair, one Page-only pair, GM uses whichever applies). Rejected — doubles the visible fields for a distinction (which document type) the GM shouldn't have to pre-declare before dragging; omitting `type` and validating after the drop is simpler and matches how the GM actually thinks ("I want to connect Kharra to this place," not "I want to connect an Actor to a JournalEntryPage").
 - **Hard-blocking a cardinality violation** (point 6). Rejected — see Decision point 6's reasoning: this project's own principles (History is Part of the World) name a legitimate case for a second Relationship under a one-to-one Definition; a hard block would need a resolution UI (edit or delete the existing one first) this project has no other use for yet, adding friction ADR-0007/Rule 9 both push against.
 - **Silently allowing a cardinality violation with no feedback at all.** Rejected — cheap to check (a single existing 1-hop lookup), and a GM who didn't intend the duplicate deserves to know before it's saved, not after, when finding it again means re-deriving the same 1-hop lookup manually via a future View/Table.
+
+---
+
+## Amendment (2026-09-08, ADAPT-015 — issue #77): direction-agnostic authoring + controlled endpoint fields
+
+A live bug report (Alberto) exposed three problems, fixed together:
+
+**1. A relationship could only be authored from one end.** `Relationship` is stored directionally (`origin → target`) and `RelationshipDefinition.validation` constrains which Node types may be origin vs. target. The window prefills the current sheet's Node as **Origin** and the Definition picker (point 4) disabled any Definition that did not fit *that exact orientation*. Concretely: `member-of` (`allowedOriginTypes: [Character, Creature, Organization]`, `allowedTargetTypes: [Organization]`) could be recorded from a member's sheet (origin = member ✓) but **not from the organization's sheet** — there was no way to add a member from the org's page at all.
+
+   Resolution: the picker now offers a Definition if its `validation` passes in **either** orientation (`resolveDefinitionOrientation` → `forward` / `reversed` / `either` / `none`; disabled only for `none`). On Save, when only the reversed order validates, the window swaps origin/target before `createRelationship`. Point 5's summary line already shows both directional phrasings, so the GM sees exactly what gets stored ("Hodor member-of Party — Party has-member Hodor"). Symmetric Definitions are unaffected; an unrestricted Definition keeps the dropped order. This does **not** touch the Core — `createRelationship` still takes `origin`/`target` as given; the Adapter decides which is which.
+
+**2. The endpoint widget was confusing.** Foundry's native `<document-tags>` (Decision point 3) renders a resolved entity as a tag **chip above the input**, which reads oddly next to a still-empty second field. Replaced with a controlled `<input>` per endpoint: empty shows the placeholder; resolved shows the Node's **title** in the field itself (read-only, UUID in the `title` attribute + a dim line beneath), with a ✕ clear button. This also retires the "does `<document-tags>` dispatch `change` on drop" assumption point 3's Disadvantages flagged as unverified — the module now owns its own drop/paste handling (`parseDropPayloadUuid` + the existing `resolveDroppedDocumentNode`). The point-4 "no type-to-search" limitation is unchanged (still drag or paste a UUID).
+
+**3. Stray drops escaped the window.** A drag that landed just outside the drop box bubbled out and popped a Foundry "Create Actor" dialog / switched the sidebar to Actors. Every endpoint drop now `preventDefault`s + `stopPropagation`s, and the `<form>` has a catch-all that swallows any drop that is not on an endpoint field.
+
+Decision points 1, 2, 5, 6 stand. Point 3's "native `<document-tags>` drag-and-drop" is narrowed to "native HTML5 drag-and-drop, handled by this module" — the mechanism (drag an Actor/page onto a target) is unchanged; only the widget rendering it is now ours.
