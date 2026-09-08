@@ -21,7 +21,9 @@
 - `index.ts` swaps `buildCodexContentHTML` for the new builders, re-exports `node-navigator`. CHANGELOG + PROJECT.md item 30 updated.
 - +11 unit tests (423 total). `tsc`/`eslint`/`vitest`/`build:foundry-module` all clean.
 
-**Still informal / not yet done:** not live-verified on a running Foundry client (needs a redeploy). VIEW-001g/i/d/e/f and ADAPT-014/013 still queued per PROJECT.md items 30–35.
+**Deployed + live-verified (v14.367, GM):** built `dist/foundry/`, rsynced into `~/Library/Application Support/FoundryVTT/Data/modules/archivexus/` (a real copy, not a symlink — that's the deploy step), reloaded. Navigator renders (Character 41 / Lore 61, "102 nodes"), group order correct, live search filters + keeps input focus, row click → popout re-rooted on that Node, "Whole graph" → 102 nodes, zero console errors. Also the **first live run of migration 2→3 + `bootstrapRelationshipDefinitions`** — "Seeded 17 default Relationship Definitions." clean on the real OPFS DB (RelationshipDefinition persistence had never been live-verified either). Not merged — Alberto merges.
+
+**Still queued:** VIEW-001g/i/d/e/f and ADAPT-014/013 per PROJECT.md items 30–35.
 
 ## 2026-09-08 (product-owner + ux-ui-designer consult: UI look / onboarding / relationship-management console)
 
