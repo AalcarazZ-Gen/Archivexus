@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { createNode } from '../../core/domain/node.js';
 import { createRelationship } from '../../core/domain/relationship.js';
+import { createRelationshipDefinition } from '../../core/domain/relationship-definition.js';
 import { createView } from '../../core/domain/view.js';
 import {
   nodeToRow,
+  relationshipDefinitionToRow,
   relationshipToRow,
   rowToNode,
   rowToRelationship,
+  rowToRelationshipDefinition,
   rowToView,
   viewToRow,
 } from './row-mapping.js';
@@ -102,5 +105,44 @@ describe('view row round-trip', () => {
       layout: { 'Node.a': { x: 10, y: -20.5 } },
     });
     expect(rowToView(row)).toEqual(view);
+  });
+});
+
+describe('relationship definition row round-trip', () => {
+  it('round-trips a definition with no validation (validation column is null)', () => {
+    const definition = createRelationshipDefinition({
+      id: 'ally-of',
+      name: 'ally-of',
+      inverse: 'ally-of',
+      cardinality: 'many-to-many',
+      symmetry: true,
+      traversalCategory: 'affiliation',
+    });
+    const row = relationshipDefinitionToRow(definition);
+    expect(row.validation).toBeNull();
+    expect(row.symmetry).toBe(1);
+    expect(rowToRelationshipDefinition(row)).toEqual(definition);
+  });
+
+  it('round-trips a definition with a validation allow-list (JSON-encoded), and asymmetric symmetry as 0', () => {
+    const definition = createRelationshipDefinition({
+      id: 'resides-in',
+      name: 'resides-in',
+      inverse: 'resident-of',
+      cardinality: 'one-to-many',
+      symmetry: false,
+      traversalCategory: 'location',
+      validation: {
+        allowedOriginTypes: ['Character', 'Organization'],
+        allowedTargetTypes: ['City'],
+      },
+    });
+    const row = relationshipDefinitionToRow(definition);
+    expect(row.symmetry).toBe(0);
+    expect(JSON.parse(row.validation as string)).toEqual({
+      allowedOriginTypes: ['Character', 'Organization'],
+      allowedTargetTypes: ['City'],
+    });
+    expect(rowToRelationshipDefinition(row)).toEqual(definition);
   });
 });

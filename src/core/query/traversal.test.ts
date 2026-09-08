@@ -32,6 +32,10 @@ function createFakeStorage(nodes: readonly Node[], relationships: readonly Relat
     listRelationships: async () => relationships,
     getRelationshipsForNode: async (nodeId: string) =>
       relationships.filter((relationship) => relationship.origin === nodeId || relationship.target === nodeId),
+    saveRelationshipDefinition: async () => undefined,
+    getRelationshipDefinition: async () => undefined,
+    deleteRelationshipDefinition: async () => undefined,
+    listRelationshipDefinitions: async () => [],
     saveView: async () => undefined,
     getView: async () => undefined,
     deleteView: async () => undefined,

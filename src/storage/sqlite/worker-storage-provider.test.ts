@@ -189,6 +189,18 @@ describe('WorkerStorageProvider', () => {
     void provider.deleteRelationship('r');
     void provider.listRelationships();
     void provider.getRelationshipsForNode('n');
+    void provider.saveRelationshipDefinition({
+      id: 'd',
+      name: 'd',
+      version: 1,
+      inverse: 'd-inv',
+      cardinality: 'many-to-many',
+      symmetry: false,
+      traversalCategory: 'affiliation',
+    });
+    void provider.getRelationshipDefinition('d');
+    void provider.deleteRelationshipDefinition('d');
+    void provider.listRelationshipDefinitions();
     void provider.saveView({
       id: 'v',
       kind: 'view',
@@ -218,6 +230,10 @@ describe('WorkerStorageProvider', () => {
       'deleteRelationship',
       'listRelationships',
       'getRelationshipsForNode',
+      'saveRelationshipDefinition',
+      'getRelationshipDefinition',
+      'deleteRelationshipDefinition',
+      'listRelationshipDefinitions',
       'saveView',
       'getView',
       'deleteView',

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createNode, type Node } from '../../core/domain/node.js';
 import { createRelationship, type Relationship } from '../../core/domain/relationship.js';
+import { DEFAULT_RELATIONSHIP_DEFINITIONS } from '../../core/domain/relationship-definitions-default.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import { createLogger } from './logger.js';
 import {
@@ -34,6 +35,11 @@ function fakeStorage(
     listRelationships: async () => [...relMap.values()],
     getRelationshipsForNode: async (nodeId: string) =>
       [...relMap.values()].filter((r) => r.origin === nodeId || r.target === nodeId),
+    saveRelationshipDefinition: async () => undefined,
+    getRelationshipDefinition: async (id: string) =>
+      DEFAULT_RELATIONSHIP_DEFINITIONS.find((d) => d.id === id),
+    deleteRelationshipDefinition: async () => undefined,
+    listRelationshipDefinitions: async () => DEFAULT_RELATIONSHIP_DEFINITIONS,
     saveView: async () => undefined,
     getView: async () => undefined,
     deleteView: async () => undefined,

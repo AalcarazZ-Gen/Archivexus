@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createNode } from '../../core/domain/node.js';
 import { createRelationship } from '../../core/domain/relationship.js';
+import { createRelationshipDefinition } from '../../core/domain/relationship-definition.js';
+import { DEFAULT_RELATIONSHIP_DEFINITIONS } from '../../core/domain/relationship-definitions-default.js';
 import { createView } from '../../core/domain/view.js';
 import { SqliteStorageProvider } from './sqlite-storage-provider.js';
 import { createInMemorySqliteExecutor } from './test-helpers/in-memory-sqlite.js';
@@ -284,6 +286,99 @@ describe('SqliteStorageProvider', () => {
       expect(await provider.getNode('Node.city')).toBeUndefined();
       expect(await provider.getView('View.1')).toEqual(view);
     });
+  });
+
+  describe('RelationshipDefinition CRUD (CORE-004 persistence fast-follow / migration 3)', () => {
+    it('round-trips a definition with no validation', async () => {
+      const definition = createRelationshipDefinition({
+        id: 'ally-of',
+        name: 'ally-of',
+        inverse: 'ally-of',
+        cardinality: 'many-to-many',
+        symmetry: true,
+        traversalCategory: 'affiliation',
+      });
+      await provider.saveRelationshipDefinition(definition);
+      expect(await provider.getRelationshipDefinition('ally-of')).toEqual(definition);
+    });
+
+    it('round-trips a definition with a validation allow-list and version', async () => {
+      const definition = createRelationshipDefinition({
+        id: 'resides-in',
+        name: 'resides-in',
+        version: 2,
+        inverse: 'resident-of',
+        cardinality: 'one-to-many',
+        symmetry: false,
+        traversalCategory: 'location',
+        validation: { allowedOriginTypes: ['Character'], allowedTargetTypes: ['City', 'Kingdom'] },
+      });
+      await provider.saveRelationshipDefinition(definition);
+      const fetched = await provider.getRelationshipDefinition('resides-in');
+      expect(fetched).toEqual(definition);
+      expect(fetched?.version).toBe(2);
+    });
+
+    it('getRelationshipDefinition returns undefined for an unknown id', async () => {
+      await expect(provider.getRelationshipDefinition('nope')).resolves.toBeUndefined();
+    });
+
+    it('saveRelationshipDefinition upserts by id (a later edit bumps the row in place)', async () => {
+      const v1 = createRelationshipDefinition({
+        id: 'knows',
+        name: 'knows',
+        inverse: 'known-by',
+        cardinality: 'many-to-many',
+        symmetry: false,
+        traversalCategory: 'narrative',
+      });
+      await provider.saveRelationshipDefinition(v1);
+      await provider.saveRelationshipDefinition({ ...v1, version: 2, inverse: 'is-known-by' });
+      const all = await provider.listRelationshipDefinitions();
+      expect(all).toHaveLength(1);
+      expect(all[0]?.version).toBe(2);
+      expect(all[0]?.inverse).toBe('is-known-by');
+    });
+
+    it('deleteRelationshipDefinition removes it, and does not touch a Relationship referencing it (no cascade)', async () => {
+      await provider.saveRelationshipDefinition(
+        createRelationshipDefinition({
+          id: 'member-of',
+          name: 'member-of',
+          inverse: 'has-member',
+          cardinality: 'many-to-many',
+          symmetry: false,
+          traversalCategory: 'affiliation',
+        }),
+      );
+      const relationship = createRelationship({
+        id: 'Rel.1',
+        origin: 'Node.a',
+        target: 'Node.b',
+        definitionId: 'member-of',
+        title: 'A is a member of B',
+      });
+      await provider.saveRelationship(relationship);
+
+      await provider.deleteRelationshipDefinition('member-of');
+
+      expect(await provider.getRelationshipDefinition('member-of')).toBeUndefined();
+      expect(await provider.getRelationship('Rel.1')).toEqual(relationship);
+    });
+
+    it('persists the full DEFAULT_RELATIONSHIP_DEFINITIONS set through a save/list round-trip', async () => {
+      for (const definition of DEFAULT_RELATIONSHIP_DEFINITIONS) {
+        await provider.saveRelationshipDefinition(definition);
+      }
+      const stored = await provider.listRelationshipDefinitions();
+      expect(stored).toHaveLength(DEFAULT_RELATIONSHIP_DEFINITIONS.length);
+      // Every default survives the real SQLite CHECK constraints + round-trip unchanged.
+      for (const definition of DEFAULT_RELATIONSHIP_DEFINITIONS) {
+        expect(stored.find((d) => d.id === definition.id)).toEqual(definition);
+      }
+    });
+    // The traversal_category / symmetry / cardinality CHECK constraints
+    // themselves are exercised at the SQL layer in `migration.test.ts`.
   });
 
   it('close() resolves without throwing', async () => {

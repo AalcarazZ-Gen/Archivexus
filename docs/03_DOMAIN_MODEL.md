@@ -335,11 +335,19 @@ Yes, two — reversible instance-level constraints, not ADR-level calls, same tr
 - A symmetric Definition (forward and inverse describe the same fact, e.g. `ally-of`) must use the same label for both directions — `inverse` must equal `name`. A non-symmetric Definition must use a distinct `inverse` label, or it couldn't actually express asymmetry.
 - A symmetric Definition cannot use an asymmetric cardinality (`one-to-many`/`many-to-one`): those shapes distinguish an origin-side count from a target-side count, which only makes sense when origin and target aren't interchangeable.
 
+### Where do Relationship Definitions live, and how does a fresh world get a usable set? (CORE-004's deferred persistence fast-follow, 2026-09-08)
+
+Real `StorageProvider` state, not a hardcoded list. CORE-004 implemented `RelationshipDefinition` as Core domain state but deliberately deferred persisting it (`resolveRelationshipDefinition` stayed a pure in-memory lookup, and the Foundry Adapter carried a temporary `SEEDED_RELATIONSHIP_DEFINITIONS` array). This ticket makes them persisted, editable state:
+
+- `StorageProvider` gains `saveRelationshipDefinition` / `getRelationshipDefinition` / `deleteRelationshipDefinition` / `listRelationshipDefinitions`, backed by SQLite **migration 3**'s `relationship_definitions` table (every field a real column except the optional `validation` allow-list, which is a JSON column; PK is `id` alone, `version` a plain column; no FK from `relationships.definition_id` — same no-cascade reasoning as every other cross-table reference, ADR-0007 point 8: a Relationship with a since-deleted Definition still exists, it just renders uncategorized).
+- The default vocabulary — a starter set covering all 8 `traversalCategory` values — lives in **Core** (`src/core/domain/relationship-definitions-default.ts`, `DEFAULT_RELATIONSHIP_DEFINITIONS`), because relationship vocabulary is domain content, not a platform concern. The Foundry Adapter seeds it into an **empty** store on the `ready` hook (`bootstrapRelationshipDefinitions`) — idempotent by "is the store empty", so a GM's customized set is never re-clobbered. The exact default list, its labels and every cardinality/validation choice are flagged judgment calls to be adjusted in place, not a contract.
+- **Deliberately still open** (not this ticket): a Foundry UI for a GM to author/edit Definitions — the data layer supports it (`save`/`delete` CRUD, and a console escape hatch on the module `api`), but there's no screen; and Definition **version migration** (see this section's Open Question) — since an existing store is never re-seeded, a later module release adding defaults won't reach an existing world.
+
 ---
 
 ## Open Questions
 
-How should Definition version migration be handled?
+How should Definition version migration be handled? (Unchanged by CORE-004's persistence fast-follow — the `version` field is now persisted, but a store that already has definitions is never re-seeded, so migrating an existing world's definitions when a module release changes the defaults is still unsolved.)
 
 ---
 

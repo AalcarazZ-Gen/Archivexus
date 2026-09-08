@@ -27,8 +27,8 @@ import type { RelationshipDefinition } from '../../core/domain/relationship-defi
  * "Kharra already has a resides-in relationship to Villa Alta" is a
  * same-*origin* conflict (Kharra, the origin, already has one), which only
  * makes sense if `resides-in`'s cardinality constrains the origin side —
- * i.e. `one-to-many` under this reading (see `relationship-definitions-
- * seed.ts`'s comment on the seeded `resides-in` entry).
+ * i.e. `one-to-many` under this reading (see
+ * `core/domain/relationship-definitions-default.ts`'s `resides-in` entry).
  */
 
 export type CardinalitySide = 'origin' | 'target';

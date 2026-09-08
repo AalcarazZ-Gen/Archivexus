@@ -39,6 +39,7 @@ export type {
   RelationshipDefinitionValidation,
   RelationshipTraversalCategory,
 } from './relationship-definition.js';
+export { DEFAULT_RELATIONSHIP_DEFINITIONS } from './relationship-definitions-default.js';
 export type { Tag } from './tag.js';
 export {
   createView,

@@ -1,5 +1,6 @@
 import type { Node } from '../domain/node.js';
 import type { Relationship } from '../domain/relationship.js';
+import type { RelationshipDefinition } from '../domain/relationship-definition.js';
 import type { View } from '../domain/view.js';
 
 /**
@@ -69,6 +70,28 @@ export interface StorageProvider {
    * context of its own without a second lookup the caller may not need.
    */
   getRelationshipsForNode(nodeId: string): Promise<readonly Relationship[]>;
+
+  /**
+   * Inserts or fully overwrites the Relationship Definition with this id
+   * (upsert by id). The CORE-004 deferred fast-follow: Definitions are real,
+   * editable state now, not the hardcoded `SEEDED_RELATIONSHIP_DEFINITIONS`
+   * list. A fresh store is bootstrapped from `DEFAULT_RELATIONSHIP_DEFINITIONS`
+   * by the Adapter (only when empty — an existing store is never re-seeded).
+   */
+  saveRelationshipDefinition(definition: RelationshipDefinition): Promise<void>;
+  /** Looks up a Relationship Definition by id, or `undefined` if none exists. */
+  getRelationshipDefinition(id: string): Promise<RelationshipDefinition | undefined>;
+  /**
+   * Deletes a Relationship Definition by id. Deliberately does **not**
+   * cascade to Relationships whose `definitionId` references it — same
+   * "no cascade" reasoning as Node/Relationship endpoints (ADR-0007 point
+   * 8): a Relationship with a since-deleted Definition still exists as a
+   * historical fact; it just renders uncategorized (`node-connections.ts`'s
+   * "Other" group) until re-pointed at a live Definition.
+   */
+  deleteRelationshipDefinition(id: string): Promise<void>;
+  /** All Relationship Definitions currently stored, in an unspecified but stable order. */
+  listRelationshipDefinitions(): Promise<readonly RelationshipDefinition[]>;
 
   /** Inserts or fully overwrites the View with this id (upsert by id). */
   saveView(view: View): Promise<void>;

@@ -7,6 +7,7 @@ import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import { registerActorNodeTypeTag } from './actor-node-type-tag.js';
 import { registerCodexSidebarTab } from './codex-sidebar-tab.js';
 import { registerJournalEntryPageNodeTag } from './journal-entry-page-node-tag.js';
+import { bootstrapRelationshipDefinitions } from './relationship-definitions-bootstrap.js';
 import { registerRelationshipAuthoringEntryPoints } from './relationship-authoring-window.js';
 import { registerRelationshipListEntryPoints } from './relationship-list-window.js';
 import { createSqliteStorageProvider } from '../../storage/sqlite/create-sqlite-storage-provider.js';
@@ -68,6 +69,12 @@ Hooks.once('ready', () => {
     log.info('Opening storage (SQLite / opfs-sahpool)');
     storage = await createSqliteStorageProvider();
 
+    // Seed the default Relationship Definition vocabulary on a fresh store
+    // (only when empty — a customized set is never re-clobbered). CORE-004's
+    // deferred persistence fast-follow: Definitions are real editable state
+    // now, not a hardcoded list.
+    await bootstrapRelationshipDefinitions(storage, log);
+
     log.info('Backfilling existing Actors/Journal pages into storage');
     const actors = (game.actors?.contents ?? []) as FoundryActorLike[];
     const journalPages = (game.journal?.contents ?? []).flatMap(
@@ -80,13 +87,19 @@ Hooks.once('ready', () => {
     // before `ready` — that storage is now up and can be queried.
     Hooks.callAll('archivexus.ready', storage);
 
-    // No export UI yet (View/graph UI is out of scope for STORE-003) - a
-    // GM can trigger the full, unredacted snapshot export from Foundry's
-    // own console today: game.modules.get('archivexus').api.exportSnapshot().
+    // No export/Definition-editing UI yet — a GM can drive both from the
+    // console: game.modules.get('archivexus').api.exportSnapshot(),
+    // .listRelationshipDefinitions(), .saveRelationshipDefinition(def).
     const moduleRecord = game.modules.get(MODULE_ID);
     if (moduleRecord) {
       moduleRecord.api = {
         exportSnapshot: () => downloadPortableSnapshot(storage as StorageProvider),
+        listRelationshipDefinitions: () =>
+          (storage as StorageProvider).listRelationshipDefinitions(),
+        saveRelationshipDefinition: (definition: unknown) =>
+          (storage as StorageProvider).saveRelationshipDefinition(
+            definition as Parameters<StorageProvider['saveRelationshipDefinition']>[0],
+          ),
       };
     }
   })().catch((error: unknown) => {

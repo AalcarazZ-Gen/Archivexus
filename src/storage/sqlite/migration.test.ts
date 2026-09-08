@@ -20,12 +20,12 @@ describe('runMigrations', () => {
     expect(executor.scalar('PRAGMA user_version')).toBe(latestVersion);
   });
 
-  it('creates the nodes, relationships and views tables with the expected indexes', () => {
+  it('creates the nodes, relationships, views and relationship_definitions tables with the expected indexes', () => {
     runMigrations(executor, MIGRATIONS);
     const tables = executor
       .all("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
       .map((row) => row.name);
-    expect(tables).toEqual(['nodes', 'relationships', 'views']);
+    expect(tables).toEqual(['nodes', 'relationship_definitions', 'relationships', 'views']);
 
     const indexes = executor
       .all("SELECT name FROM sqlite_master WHERE type = 'index' ORDER BY name")
@@ -35,6 +35,7 @@ describe('runMigrations', () => {
         'idx_nodes_type',
         'idx_relationships_origin',
         'idx_relationships_target',
+        'idx_relationship_definitions_category',
       ]),
     );
   });
@@ -136,6 +137,43 @@ describe('runMigrations', () => {
            VALUES ('v1', 'graph', 'Kingdom overview', 'hidden', '{"preset":"direct-only","rootNodeId":"Node.gone"}')`,
         ),
       ).not.toThrow();
+    });
+  });
+
+  describe('migration 3 — the relationship_definitions table (CORE-004 fast-follow)', () => {
+    it('creates relationship_definitions with no FOREIGN KEY clause', () => {
+      runMigrations(executor, MIGRATIONS);
+      const sql = executor.scalar(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'relationship_definitions'",
+      ) as string;
+      expect(sql.replace(/--.*$/gm, '').toUpperCase()).not.toContain('FOREIGN KEY');
+    });
+
+    it('constrains traversal_category to the closed taxonomy and symmetry to 0/1', () => {
+      runMigrations(executor, MIGRATIONS);
+      expect(() =>
+        executor.run(
+          `INSERT INTO relationship_definitions (id, name, inverse, cardinality, symmetry, traversal_category)
+           VALUES ('d1', 'd', 'd-inv', 'many-to-many', 0, 'not-a-category')`,
+        ),
+      ).toThrow();
+      expect(() =>
+        executor.run(
+          `INSERT INTO relationship_definitions (id, name, inverse, cardinality, symmetry, traversal_category)
+           VALUES ('d2', 'd', 'd-inv', 'many-to-many', 2, 'affiliation')`,
+        ),
+      ).toThrow();
+    });
+
+    it('accepts a valid row with a null validation and defaults version to 1', () => {
+      runMigrations(executor, MIGRATIONS);
+      executor.run(
+        `INSERT INTO relationship_definitions (id, name, inverse, cardinality, symmetry, traversal_category)
+         VALUES ('ally-of', 'ally-of', 'ally-of', 'many-to-many', 1, 'affiliation')`,
+      );
+      const row = executor.all("SELECT * FROM relationship_definitions WHERE id = 'ally-of'")[0];
+      expect(row?.version).toBe(1);
+      expect(row?.validation).toBeNull();
     });
   });
 });

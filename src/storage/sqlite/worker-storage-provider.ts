@@ -1,5 +1,6 @@
 import type { Node } from '../../core/domain/node.js';
 import type { Relationship } from '../../core/domain/relationship.js';
+import type { RelationshipDefinition } from '../../core/domain/relationship-definition.js';
 import type { View } from '../../core/domain/view.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import type { StorageRpcMethod, StorageRpcRequest, StorageRpcResponse } from './worker/protocol.js';
@@ -126,6 +127,22 @@ export class WorkerStorageProvider implements StorageProvider {
 
   getRelationshipsForNode(nodeId: string): Promise<readonly Relationship[]> {
     return this.#call('getRelationshipsForNode', nodeId);
+  }
+
+  saveRelationshipDefinition(definition: RelationshipDefinition): Promise<void> {
+    return this.#call('saveRelationshipDefinition', definition);
+  }
+
+  getRelationshipDefinition(id: string): Promise<RelationshipDefinition | undefined> {
+    return this.#call('getRelationshipDefinition', id);
+  }
+
+  deleteRelationshipDefinition(id: string): Promise<void> {
+    return this.#call('deleteRelationshipDefinition', id);
+  }
+
+  listRelationshipDefinitions(): Promise<readonly RelationshipDefinition[]> {
+    return this.#call('listRelationshipDefinitions');
   }
 
   saveView(view: View): Promise<void> {

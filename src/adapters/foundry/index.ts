@@ -26,7 +26,7 @@ export {
   registerRelationshipAuthoringEntryPoints,
 } from './relationship-authoring-window.js';
 export type { FoundrySheetAppLike } from './relationship-authoring-window.js';
-export { SEEDED_RELATIONSHIP_DEFINITIONS } from './relationship-definitions-seed.js';
+export { bootstrapRelationshipDefinitions } from './relationship-definitions-bootstrap.js';
 export { resolveDroppedDocumentNode } from './relationship-node-resolution.js';
 export type {
   ResolvedDroppedNode,

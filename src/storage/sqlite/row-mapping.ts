@@ -3,6 +3,13 @@ import type { HistoryEntry } from '../../core/domain/history.js';
 import { createNode, type Node } from '../../core/domain/node.js';
 import type { KnowledgeElementReference } from '../../core/domain/reference.js';
 import { createRelationship, type Relationship } from '../../core/domain/relationship.js';
+import {
+  createRelationshipDefinition,
+  type RelationshipCardinality,
+  type RelationshipDefinition,
+  type RelationshipDefinitionValidation,
+  type RelationshipTraversalCategory,
+} from '../../core/domain/relationship-definition.js';
 import type { Tag } from '../../core/domain/tag.js';
 import {
   createView,
@@ -49,6 +56,19 @@ export interface ViewRow extends CommonRow {
   readonly format: string;
   /** JSON-encoded `GraphViewSpec` — see migration.ts's `views` table comment. */
   readonly spec: string;
+}
+
+export interface RelationshipDefinitionRow {
+  readonly id: string;
+  readonly name: string;
+  readonly version: number;
+  readonly inverse: string;
+  readonly cardinality: string;
+  /** SQLite has no boolean — stored as 0 / 1. */
+  readonly symmetry: number;
+  readonly traversal_category: string;
+  /** JSON-encoded `RelationshipDefinitionValidation`, or `null` when absent. */
+  readonly validation: string | null;
 }
 
 function serializeHistory(history: readonly HistoryEntry[]): string {
@@ -165,5 +185,39 @@ export function rowToView(row: ViewRow): View {
     history: deserializeHistory(row.history),
     blocks: JSON.parse(row.blocks) as Block[],
     references: JSON.parse(row.references) as KnowledgeElementReference[],
+  });
+}
+
+export function relationshipDefinitionToRow(
+  definition: RelationshipDefinition,
+): RelationshipDefinitionRow {
+  return {
+    id: definition.id,
+    name: definition.name,
+    version: definition.version,
+    inverse: definition.inverse,
+    cardinality: definition.cardinality,
+    symmetry: definition.symmetry ? 1 : 0,
+    traversal_category: definition.traversalCategory,
+    validation: definition.validation ? JSON.stringify(definition.validation) : null,
+  };
+}
+
+export function rowToRelationshipDefinition(
+  row: RelationshipDefinitionRow,
+): RelationshipDefinition {
+  const validation =
+    row.validation === null
+      ? undefined
+      : (JSON.parse(row.validation) as RelationshipDefinitionValidation);
+  return createRelationshipDefinition({
+    id: row.id,
+    name: row.name,
+    version: row.version,
+    inverse: row.inverse,
+    cardinality: row.cardinality as RelationshipCardinality,
+    symmetry: row.symmetry === 1,
+    traversalCategory: row.traversal_category as RelationshipTraversalCategory,
+    ...(validation !== undefined ? { validation } : {}),
   });
 }

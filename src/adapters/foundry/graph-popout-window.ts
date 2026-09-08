@@ -18,7 +18,6 @@ import {
 } from './graph-view-elements.js';
 import type { Logger } from './logger.js';
 import { buildNodeConnections, type NodeConnectionGroup } from './node-connections.js';
-import { SEEDED_RELATIONSHIP_DEFINITIONS } from './relationship-definitions-seed.js';
 
 /**
  * The graph popout — a standalone, resizable, **singleton** `ApplicationV2`
@@ -62,10 +61,6 @@ const LAYOUT_OPTIONS: readonly { readonly value: string; readonly label: string 
   { value: 'concentric', label: 'Concentric' },
   { value: 'breadthfirst', label: 'Tree' },
 ];
-
-const definitionsById = new Map(
-  SEEDED_RELATIONSHIP_DEFINITIONS.map((definition) => [definition.id, definition]),
-);
 
 // ---------------------------------------------------------------------------
 // Pure markup builders
@@ -249,8 +244,12 @@ export async function gatherNodeConnections(
   storage: StorageProvider,
   nodeId: string,
 ): Promise<readonly NodeConnectionGroup[]> {
-  const result = await resolveTraversal(storage, { preset: 'direct-only', nodeId });
+  const [result, definitions] = await Promise.all([
+    resolveTraversal(storage, { preset: 'direct-only', nodeId }),
+    storage.listRelationshipDefinitions(),
+  ]);
   const connectedNodesById = new Map(result.nodes.map((node) => [node.id, node]));
+  const definitionsById = new Map(definitions.map((definition) => [definition.id, definition]));
   const degreeByNodeId = new Map<string, number>();
   for (const node of result.nodes) {
     degreeByNodeId.set(node.id, (await storage.getRelationshipsForNode(node.id)).length);
