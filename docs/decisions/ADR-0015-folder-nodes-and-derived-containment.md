@@ -8,7 +8,7 @@ Foundry Folders become a third Node source, and containment (member-of / located
 
 ## Status
 
-Proposed
+Accepted (2026-09-08 — Alberto ratified; the "Open questions" below are resolved inline: folder-Node visibility defaults to `hidden` with an explicit show-to-players flag; v1 ships folder-level type override only; a generic `part-of` Definition is added; issue #23 is closed by this ADR's Scene→Block path).
 
 ---
 
@@ -153,17 +153,24 @@ The supported override is a **folder-level flag**, `flags.archivexus.containment
 
 ---
 
-## Open questions / under-specified — resolve before or during implementation
+## Open questions
 
-1. **Per-edge type override (point 16).** Ship v1 with folder-level override only and accept the revert-on-re-derive limitation, or build the marker-stored per-edge override now? Recommendation: ship folder-level only, revisit on real friction.
-2. **Default definition for a container that is neither org-like nor place-like** (e.g. a "Pantheon" folder of deities, a "Ships" folder). `member-of` needs the target typed exactly `Organization`; `located-in` is spatially named. Recommendation: engine default falls back to `located-in` (its inverse `contains` is generic enough), and the default Relationship-Definition set gains a dedicated generic `part-of` / `contained-in` (category `narrative` or `governance`) — a small `DEFAULT_RELATIONSHIP_DEFINITIONS` addition, and a Definition-version-migration concern for existing worlds (an already-seeded store is never re-seeded — `03_DOMAIN_MODEL.md`'s standing open question).
-3. **Exact Foundry v14 Hook names / signatures** — `getFolderContextOptions` (confirmed to exist v13+; receives the directory Application and the mutable menu-item array), and whether folder tagging should reuse ADR-0009's `DialogV2` control or a lighter context-menu action. To be verified live, same discipline as every prior `getHeaderControls*` addition in this repo.
-4. **`FoundryJournalEntryPageLike` needs `parent.folder`** (currently only `parent.name`), and new `FoundryFolderLike` / `FoundrySceneLike` structural interfaces. Minor but real.
-5. **`resolveDroppedDocumentNode`'s `Folder` branch is shared** with ADR-0011's page-attach `<document-tags>` field, which must *reject* a Folder target. Needs a caller-side opt-out or an attach-orchestration guard.
-6. **Deleting a derived edge from the Relationship UI** (ADR-0013 / VIEW-001i): it reappears on next re-derive. The UI should either disable delete for marked edges or explain why it came back. Not this ADR's to design, but it must be flagged to whoever owns those surfaces.
-7. **Group Actor member-list shape** across dnd5e versions (`system.members` entries have changed representation between dnd5e releases) — the reader needs to be defensive.
-8. **Batch `StorageProvider` writes** — decide whether to add `saveRelationships` / `deleteRelationships` up front or wait for measured slowness.
-9. **Confirm #23 disposition** (point 19): close it, or keep it open scoped to the residual explicit-Scene-link case.
+**Resolved on ratification (2026-09-08, Alberto):**
+
+1. **Per-edge type override (point 16).** → **v1 ships folder-level override only** (`flags.archivexus.containmentRelationship`). Hand-editing one derived edge's definition reverts on re-derive; the folder-level flag is the durable override. Revisit only on real friction (then: store the override in the marker, key the diff on `(origin,target)`).
+2. **Default definition for a container that is neither org-like nor place-like.** → **`DEFAULT_RELATIONSHIP_DEFINITIONS` gains a generic `part-of` / `contained-in`** (proposed category `governance`; CORE-007 fixes the exact shape). The engine's default map: Organization → `member-of`, place-like (`City`/`Kingdom`/`Region`/…) → `located-in`, everything else → `part-of`. This is a `DEFAULT_RELATIONSHIP_DEFINITIONS` addition and therefore a Definition-version-migration concern for already-seeded worlds (`03_DOMAIN_MODEL.md`'s standing open question — an existing store is never re-seeded; Alberto's world would pick it up via `bootstrapRelationshipDefinitions` only if empty, or the GM adds it via the ADAPT-014 editor).
+9. **#23 disposition (point 19).** → **Close issue #23.** This ADR's folder-derived Scene→Block path is the answer to "how do Scenes map." The residual "link one arbitrary Scene to one arbitrary non-location Node" case is deferred, revive-on-demand.
+
+**Also decided:** folder-Node **visibility defaults to `hidden`** (point 3, section A) — a world-structure folder routinely encodes spoilers; a GM raises it via an explicit `flags.archivexus.visibility` override read by `mapFolderToNode`.
+
+**Still to pin down during implementation (Adapter-glue details, not decisions):**
+
+3. **Exact Foundry v14 Hook names / signatures** — `getFolderContextOptions` (confirmed v13+; receives the directory Application and the mutable menu-item array), and whether folder tagging reuses ADR-0009's `DialogV2` or a lighter context-menu action. Verify live, same discipline as every prior `getHeaderControls*` addition.
+4. **`FoundryJournalEntryPageLike` needs `parent.folder`** (currently only `parent.name`); new `FoundryFolderLike` / `FoundrySceneLike` structural interfaces.
+5. **`resolveDroppedDocumentNode`'s `Folder` branch is shared** with ADR-0011's page-attach `<document-tags>` field, which must *reject* a Folder target — needs a caller-side opt-out or an attach-orchestration guard.
+6. **Deleting a derived edge from the Relationship UI** (ADR-0013 / VIEW-001i): it reappears on next re-derive. ADAPT-017 owns the Console "derived" badge + filter + explaining/disabling delete for marked edges.
+7. **Group Actor member-list shape** across dnd5e versions — deferred with the group-actor path (ADAPT-020); read defensively when built.
+8. **Batch `StorageProvider` writes** (`saveRelationships` / `deleteRelationships`) — add up front in CORE-007 or wait for measured slowness; ADAPT-017 decides based on the first-tag-of-a-large-tree timing.
 
 ---
 

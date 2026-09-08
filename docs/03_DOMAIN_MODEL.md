@@ -83,11 +83,21 @@ Per this section's Domain Invariants, every Knowledge Element may exist without 
 
 ### What does a Block actually contain?
 
-A Block is a typed reference to a Foundry element, not free-form data: `{ type, uuid, title? }` — `type` names what kind of Foundry document it points to (e.g. `scene`, `JournalEntry`), `uuid` is that document's real Foundry UUID (per `decisions/ADR-0001-use-foundry-UUID.md`), and an optional `title` lets a consumer display it without re-fetching. This replaces `Block.data: unknown`'s placeholder shape (`src/core/domain/block.ts`) with a concrete one — implementing the change is separate, future work, not part of this Decision. **First real concrete producer decided by ADR-0011 (2026-09-06): a `JournalEntryPage` the GM explicitly attaches to another Node becomes a `{ type: 'JournalEntryPage', uuid, title }` Block on that Node — see Node's Decisions below.** ADAPT-005's Scene→Block mapping remains decided but not yet implemented.
+A Block is a typed reference to a Foundry element, not free-form data: `{ type, uuid, title? }` — `type` names what kind of Foundry document it points to (e.g. `scene`, `JournalEntry`), `uuid` is that document's real Foundry UUID (per `decisions/ADR-0001-use-foundry-UUID.md`), and an optional `title` lets a consumer display it without re-fetching. This replaces `Block.data: unknown`'s placeholder shape (`src/core/domain/block.ts`) with a concrete one — implementing the change is separate, future work, not part of this Decision. **First real concrete producer decided by ADR-0011 (2026-09-06): a `JournalEntryPage` the GM explicitly attaches to another Node becomes a `{ type: 'JournalEntryPage', uuid, title }` Block on that Node — see Node's Decisions below.** The Scene→Block mapping (originally ADAPT-005) is now decided by ADR-0015 (2026-09-08): a Scene inside a GM-tagged location folder auto-becomes a `{ type: 'scene', uuid, title }` Block on that folder's Node — the second concrete producer, still not yet implemented (ADAPT-018).
 
 **Idempotent upsert-by-uuid (DBA resolution, ADR-0011's Amendment, 2026-09-06):** adding/replacing a Block on repeated sync (e.g. `updateJournalEntryPage` firing on every edit) is a Core-owned operation on `Node` (`upsertBlockByUuid`/`removeBlockByUuid`, `src/core/domain/node.ts`), not Foundry-Adapter logic — it's general Node/Block manipulation with no Foundry-specific behavior, and will be reused by ADAPT-005's Scene→Block mapping once that's implemented. This still assumes `Block`'s real `{ type, uuid, title? }` shape actually exists in code, which it doesn't yet — see the Amendment for why that's a named, currently-unscoped prerequisite for implementing ADR-0011, not something ADR-0011 or ADAPT-005 alone already covers.
 
 This is deliberately uniform, not a discriminated union: every Block a GM would want — a Scene, a Journal page the GM writes their own notes into, anything else — is, by design, always a reference to some real Foundry element, never Archivexus-native freeform content (a GM's personal notes still go through a Foundry `JournalEntry`, referenced the same way). Revisit this if that assumption stops holding — e.g. if Archivexus ever wants to own content that has no Foundry-side counterpart at all.
+
+### Is there a reserved shape inside `metadata` for Adapter-set provenance? (ADR-0015, 2026-09-08)
+
+Yes — **`metadata.archivexus`** is a documented, reserved namespace for Foundry-Adapter bookkeeping that isn't a domain concept but must round-trip through storage and the export. Its first use (ADR-0015): a Relationship the folder-containment engine derived (rather than a GM hand-authoring it) carries
+
+```
+metadata.archivexus = { derived: true, source: 'folder-containment' | 'group-membership', container: '<ancestor Node id>', derivedAt: '<ISO-8601>' }
+```
+
+so the engine's reconciliation can safely delete only its own rows (a hand-authored Relationship has no marker and is structurally unreachable from the delete path), and the portable export is self-describing about which edges are inferred vs. asserted. This needs **no schema or domain-shape change** — `metadata` is already `Record<string, unknown>`, already a JSON `TEXT` column, already carried verbatim in the snapshot. `metadata.archivexus` is not first-class because provenance is a mechanism, not a domain concept anything else needs; promote it only if a second, unrelated deriver ever appears.
 
 ### Does the portable export (ADR-0008) include Blocks/History/References, or just titles/tags?
 
@@ -168,13 +178,25 @@ No — not as a single unit.
 
 A Foundry `JournalEntry` is a Foundry-native container of `JournalEntryPage` documents; the container itself is a storage detail, not an Archivexus domain concept (see `01_ARCHITECTURE.md`'s "Knowledge over Documents" principle). The Foundry Adapter maps each page with distinct semantic content to its own Node, using that page's own Foundry UUID per ADR-0001 — **unless the GM has explicitly tagged the page as attached to another Node (`flags.archivexus.attachedToNodeId`), in which case it becomes a Block on that Node instead of a Node of its own; see `decisions/ADR-0011-journal-entry-page-node-attachment.md` for the full mechanism, storage shape and migration behavior. Amended by ADR-0011, 2026-09-06 — everything else in this paragraph (default behavior when no attachment is set) is unchanged.** The Node's type comes from an explicit GM-set flag naming what the page represents, not from inferring it out of the page's content — Adapters carry no business logic (`01_ARCHITECTURE.md`'s Adapters section). Pages without an explicit type become a generic `Lore` Node.
 
-### Does a Foundry `Scene` map to its own Node? (ADAPT-005)
+### Is a Foundry `Folder` a Node? (ADR-0015, 2026-09-08)
+
+Only when the GM explicitly tags it.
+
+Alberto's world is already organised in Foundry's folder tree, and that tree already encodes the containment structure Archivexus wants (an organization's folder holds its members; an area's folder holds its sub-areas and locations). A `Folder` is a first-class Foundry world Document with a stable UUID (`Folder.<id>`), so making it a Node fits ADR-0001 as-is — **no amendment to ADR-0001**. The rules (`decisions/ADR-0015-folder-nodes-and-derived-containment.md`):
+
+- A Folder becomes a Node **only** on an explicit GM tag (`flags.archivexus.nodeType`, set via a folder context-menu action) — no inference from folder name or contents, the same no-inference rule as `Actor`/`JournalEntryPage`/`Scene` mapping.
+- Its `type` is that flag; its `id` is `folder.uuid`; its `title` is `folder.name`. A Folder has no `ownership`, so its Visibility defaults to `hidden` (fail-closed — a world-structure folder routinely encodes spoilers), raised by an explicit `flags.archivexus.visibility` override.
+- It never derives its identity from another Node (it derives from a Folder, which is not a Node), so the "A Node never derives its identity from another Node" invariant holds.
+- The containment it introduces is expressed **purely as Relationships** — a tagged Node inside a tagged folder's subtree gets a Relationship to its nearest tagged folder ancestor (`member-of` for an Organization folder, `located-in` for a place-like folder, `part-of` otherwise). This *satisfies* the "Can Nodes be nested? No — hierarchy is always Relationships" Decision above, it does not violate it. Those derived Relationships carry a provenance marker (`metadata.archivexus`, see Knowledge Element's Decisions) and are reconciled automatically; a hand-authored Relationship is never touched by that reconciliation.
+- Item folders are out of scope (Items have no Node mapping yet).
+
+### Does a Foundry `Scene` map to its own Node? (ADAPT-005 — closed by ADR-0015, 2026-09-08)
 
 No.
 
-Same reasoning as a `JournalEntry`: a Scene has no semantic meaning of its own — it's the tactical/visual representation of a place (or whatever other Node a GM's world already tracks), not a standalone concept in the sense this section's Domain Invariants require. When a GM explicitly links a Scene to a Node — an explicit flag, never inferred from the Scene's name or content, same no-inference rule as `JournalEntry`/`Actor` mapping — the Foundry Adapter represents it as a `scene`-type Block on that Node (see Knowledge Element's Decisions for Block's shape), not as a Node of its own.
+Same reasoning as a `JournalEntry`: a Scene has no semantic meaning of its own — it's the tactical/visual representation of a place (or whatever other Node a GM's world already tracks), not a standalone concept in the sense this section's Domain Invariants require. **How the link is made is settled by `decisions/ADR-0015-folder-nodes-and-derived-containment.md` (which closes the open ADAPT-005 ticket / issue #23):** a Scene that sits inside a GM-tagged location folder auto-becomes a `scene`-type Block on that folder's Node (see Knowledge Element's Decisions for Block's shape) — the folder tag *is* the explicit, never-inferred link. The residual case ADAPT-005 also named — linking one arbitrary Scene to one arbitrary non-location Node (a throne-room Scene as a Block on a King Actor-Node) — is deferred, revive-on-demand.
 
-A Scene with no explicit link stays unmapped. The Adapter never force-creates a placeholder Node for it: a GM may have Scenes that are still being built, or maps they saved because they liked them with no plan yet for where they fit — those aren't part of the knowledge graph until the GM says they are.
+A Scene not inside any tagged location folder stays unmapped. The Adapter never force-creates a placeholder Node for it: a GM may have Scenes that are still being built, or maps they saved because they liked them with no plan yet for where they fit — those aren't part of the knowledge graph until the GM says they are.
 
 There's no fixed set of "place" Node types this is restricted to. `KNOWN_NODE_TYPES` already has `City` and `Kingdom`, but nothing requires a Scene's target Node to be one of those (a tavern, a single room, a region with no real-world equivalent) — `NodeType` is intentionally an open string, not a closed enum (`01_ARCHITECTURE.md`'s "Extensible" principle), because no fixed list could cover every world a GM invents. The known-types list stays a set of suggestions, never a restriction.
 

@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-09-08 (product-owner + architect consult: Folders as a Node source → ADR-0015)
+
+**Triggered:** after merging the VIEW-001 batch + ADAPT-015, Alberto tested against his real world and raised 4 issues. #2 (couldn't create a standalone concept like "Red Cuervo de Hierro" to hang journals/actors off) grew, in conversation, into a much bigger idea: **his world is already organised in Foundry's folder tree**, and that tree already encodes the containment Archivexus wants. He designed the model with me over several turns, then asked to run it by product + architect agents.
+
+**Consult (both agents, parallel, each briefed on the full model + the other's remit):**
+- **product-owner** — verdict: build it **next**, ahead of ADAPT-013 and the deferred VIEW-001e/f (it unblocks them by producing real edges). Thin MVP; defer scenes-as-Blocks to a fast-follow, defer group-actors, **drop the "New Node" button** (a folder-Node is useless until it has tagged contents). The scary part is auto-deletion → the provenance marker must be airtight + marker-gated. Fold the parent choice into the one tag dialog.
+- **architect** — wrote `decisions/ADR-0015-folder-nodes-and-derived-containment.md`. Key positions: `Folder.<id>` fits ADR-0001 as-is (no amendment, just a domain-model Decision); the derivation engine is Adapter code (pure resolver + orchestration, `storage-sync.ts` untouched); **full re-derive on debounced hooks, not incremental** (a missed hook = permanent silent drift); provenance in `metadata.archivexus = {derived, source, container, derivedAt}` (no schema change); deletion safety = one predicate ("has our marker"), hand-authored edges structurally unreachable; folder-Scene→Block **supersedes ADAPT-005 and closes #23**.
+
+**Alberto ratified** (all recommended answers): folder-Node visibility defaults `hidden` + explicit show-to-players flag; v1 ships folder-level type override only; add a generic `part-of` Definition; close #23.
+
+**Formalized:** ADR-0015 → Accepted (open questions resolved inline). `03_DOMAIN_MODEL.md` — new Node Decision ("Is a Foundry Folder a Node?"), the Scene Decision rewritten (closed by ADR-0015), new KE Decision (`metadata.archivexus` reserved namespace), the Block Decision updated (scene = 2nd concrete producer). `ADR-0014` Amendment 2 surface table gains a folder-tagging row. `PROJECT.md` "Next batch" — items 41–46 (CORE-007 → ADAPT-016 → ADAPT-017 → ADAPT-018; ADAPT-019/020 deferred), VIEW-001e/f now move ahead of ADAPT-013. Issue #23 to be closed; new issues to be filed. No code yet.
+
 ## 2026-09-08 (software-developer: ADAPT-015 — relationship-authoring UX pass, from a live bug report)
 
 **Triggered:** Alberto hit a wall trying to record "Hodor is a member of the party" from the **party's** (Organization) sheet — `member-of` was disabled because its `validation` expects `target` to be an Organization, and the window always prefills the current sheet's Node as `origin`. Live-diagnosed via Claude in Chrome (the deployed `feat/view-001-batch` build): the Console / sheet "New Relationship…" paths and the auto-refresh all work cold; the gap is real (authoring is only reachable from the "member" side), plus two smaller issues Alberto flagged — the `<document-tags>` chip-above-input is confusing, and a stray drag can escape the window and pop a Foundry "Create Actor" dialog.

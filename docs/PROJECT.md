@@ -84,6 +84,21 @@ From the ADR-0014 Amendment split, worked in the `feat/view-001-batch` branch (2
 
 Not yet live-verified: the VIEW-001h collapse toggle + VIEW-001d favourites-star wiring on a real `AbstractSidebarTab` render, the `game.user` flag round-trip, and all of ADAPT-015's live glue.
 
+### Next batch — Folders as a Node source (`decisions/ADR-0015-folder-nodes-and-derived-containment.md`, Accepted 2026-09-08)
+
+From a live-testing session: Alberto's world is already organised in Foundry's folder tree; re-authoring that containment by hand is redundant. A product-owner + architect consult produced ADR-0015. **This batch runs next — ahead of VIEW-001e/f (which it unblocks by producing real edges) and ahead of ADAPT-013.** Priority order:
+
+41. **CORE-007** — `Relationship.metadata.archivexus` provenance marker; the pure `deriveContainment(...)` resolver (participating entities + folder ancestry + tagged-folder set → desired `{origin,target,definitionId}` edges + per-location-folder scene Blocks); the default node-type → RelationshipDefinition map (Organization → `member-of`, place-like → `located-in`, else `part-of`); add a generic **`part-of`** to `DEFAULT_RELATIONSHIP_DEFINITIONS`; decide on `saveRelationships`/`deleteRelationships` batch `StorageProvider` methods. No Foundry code. — *next*
+42. **ADAPT-016** — `getFolderContextOptions` → "Archivexus Node Type" folder dialog (type field + resolved-parent line + relationship dropdown + "new root"); `folder-to-node.ts` (`mapFolderToNode`, pure); `syncFolder` create/update/delete of the `Folder.<id>` Node; `resolveDroppedDocumentNode` gains a `Folder` branch (tagged folders only; the ADR-0011 attach field must reject Folder targets). Depends on CORE-007.
+43. **ADAPT-017** — the containment engine: `folder-containment-sync.ts` — full re-derive on debounced (~500ms) Foundry hooks (`create/update/deleteFolder`, doc `folder` changes, page create/update), diff against the stored marked set, marker-gated reconcile (never touch an unmarked Relationship), parent-tagged-after-children sweep, non-blocking change notifications; a "derived" badge + filter in the Relationship Console + "this reappears on re-derive" handling for a delete on a marked edge. Depends on ADAPT-016.
+44. **ADAPT-018** (fast-follow, parallel to ADAPT-017) — Scene → `scene` Block on a tagged location folder-Node (`mapSceneToBlock`, `create/update/deleteScene` hooks, `upsertBlockByUuid`). **Closes issue #23 / ADAPT-005.** Depends on ADAPT-016.
+45. **ADAPT-019** (deferred) — tag a folder as *attached to an existing Node* (reuse ADR-0011 `attachedToNodeId`) so its contents derive edges to that Node instead of a new folder-Node (the Journal-folder-+-Actor-folder Organization case). Revisit on confirmed friction.
+46. **ADAPT-020** (deferred, maybe never) — dnd5e group/encounter Actor member list → derived `member-of` (`group-membership` provenance, opt-in, kept in sync). Build only on a concrete request — Alberto doesn't model orgs as group actors.
+
+The **"New Node" button** Alberto asked for is **dropped** — a folder-Node is useless until it has tagged contents; "make a JournalEntry" stays the answer for a homeless concept (product-owner call, no ticket).
+
+After this batch: **VIEW-001e / VIEW-001f** move ahead of **ADAPT-013** (unblocked once ADAPT-017 produces real edges). ADAPT-013 stays last.
+
 ## Sensitive areas — don't touch or decide without asking first
 
 - The Core's platform independence (`01_ARCHITECTURE.md`'s "Domain Ownership" section): don't let Foundry-specific concepts leak into the Core without an explicit ADR.

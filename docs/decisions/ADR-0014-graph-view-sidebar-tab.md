@@ -233,6 +233,7 @@ A product-owner + ux-ui-designer consult on three of Alberto's asks (a UI-polish
 | Codex sidebar navigator | every Node grouped by `type`; search; favourites | launches popout / Console | first-level sidebar tab | VIEW-001c (#63) |
 | Relationship Console | every Relationship campaign-wide; search / filter / create / delete | read + create + delete | "Relationships" button in the Codex sidebar toolbar | shipped (VIEW-001i #67) — subsumes ADAPT-011 as its "involves node X" filter; no instance-editing v1 |
 | Definition editor | the default Relationship Definitions | list / add / edit / delete | Codex toolbar · the Console's "+ New type" | ADAPT-014 (#66) |
+| "Archivexus Node Type" — folder | tag a Folder as a Node + set how its contents relate to it | write (Node + a batch of derived Relationships) | folder context-menu (`getFolderContextOptions`) | ADR-0015 / ADAPT-016–017 — folder becomes a `Folder.<id>` Node; derived containment edges carry `metadata.archivexus` and are engine-reconciled, distinct from hand-authored |
 | saved-Views list | named `View` instances | read (open in the popout) | Codex sidebar | VIEW-001f (#71) |
 | ~~ADAPT-011 standalone panel~~ | — | — | — | **retired unbuilt** |
 
