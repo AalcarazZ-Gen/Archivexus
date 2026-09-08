@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createNode } from '../../core/domain/node.js';
 import { createRelationship } from '../../core/domain/relationship.js';
+import { createView } from '../../core/domain/view.js';
 import { SqliteStorageProvider } from './sqlite-storage-provider.js';
 import { createInMemorySqliteExecutor } from './test-helpers/in-memory-sqlite.js';
 
@@ -181,6 +182,107 @@ describe('SqliteStorageProvider', () => {
       // itself still surfaces (ADR-0007 point 8: dangling refs are valid data).
       const neighbors = await provider.getRelationshipsForNode('Node.city');
       expect(neighbors).toEqual([relationship]);
+    });
+  });
+
+  describe('View CRUD (CORE-006 / ADR-0014 points 6-7)', () => {
+    it('round-trips a derived-preset View through getView', async () => {
+      const view = createView({
+        id: 'View.1',
+        title: 'Puerto Umbral — direct',
+        spec: { preset: 'direct-only', rootNodeId: 'Node.city' },
+      });
+      await provider.saveView(view);
+      expect(await provider.getView('View.1')).toEqual(view);
+    });
+
+    it('round-trips a curated-by-me View, preserving its relationshipIds and layout', async () => {
+      const view = createView({
+        id: 'View.2',
+        title: 'Curated map',
+        visibility: 'visible',
+        spec: {
+          preset: 'curated-by-me',
+          rootNodeId: 'Node.city',
+          relationshipIds: ['Rel.1', 'Rel.2'],
+          layout: { 'Node.a': { x: 10, y: -20.5 } },
+        },
+      });
+      await provider.saveView(view);
+      expect(await provider.getView('View.2')).toEqual(view);
+    });
+
+    it('getView returns undefined for an id that was never saved', async () => {
+      await expect(provider.getView('View.missing')).resolves.toBeUndefined();
+    });
+
+    it('saveView upserts by id', async () => {
+      await provider.saveView(
+        createView({
+          id: 'View.1',
+          title: 'first',
+          spec: { preset: 'direct-only', rootNodeId: 'Node.city' },
+        }),
+      );
+      await provider.saveView(
+        createView({
+          id: 'View.1',
+          title: 'renamed',
+          spec: { preset: 'everything-connected', rootNodeId: 'Node.city' },
+        }),
+      );
+      const fetched = await provider.getView('View.1');
+      expect(fetched?.title).toBe('renamed');
+      expect(fetched?.spec.preset).toBe('everything-connected');
+      expect(await provider.listViews()).toHaveLength(1);
+    });
+
+    it('listViews returns every saved View', async () => {
+      await provider.saveView(
+        createView({
+          id: 'View.1',
+          title: 'A',
+          spec: { preset: 'direct-only', rootNodeId: 'Node.1' },
+        }),
+      );
+      await provider.saveView(
+        createView({
+          id: 'View.2',
+          title: 'B',
+          spec: { preset: 'direct-only', rootNodeId: 'Node.2' },
+        }),
+      );
+      const all = await provider.listViews();
+      expect(all.map((v) => v.id).sort()).toEqual(['View.1', 'View.2']);
+    });
+
+    it('deleteView removes the View', async () => {
+      await provider.saveView(
+        createView({
+          id: 'View.1',
+          title: 'A',
+          spec: { preset: 'direct-only', rootNodeId: 'Node.1' },
+        }),
+      );
+      await provider.deleteView('View.1');
+      expect(await provider.getView('View.1')).toBeUndefined();
+    });
+
+    it('a View can be saved referencing a Node id that has no row, and deleting that Node never touches the View (ADR-0014 point 7)', async () => {
+      await provider.saveNode(
+        createNode({ id: 'Node.city', type: 'City', title: 'Puerto Umbral' }),
+      );
+      const view = createView({
+        id: 'View.1',
+        title: 'city map',
+        spec: { preset: 'direct-only', rootNodeId: 'Node.city' },
+      });
+      await provider.saveView(view);
+
+      await provider.deleteNode('Node.city');
+
+      expect(await provider.getNode('Node.city')).toBeUndefined();
+      expect(await provider.getView('View.1')).toEqual(view);
     });
   });
 

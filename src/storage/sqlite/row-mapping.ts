@@ -4,15 +4,22 @@ import { createNode, type Node } from '../../core/domain/node.js';
 import type { KnowledgeElementReference } from '../../core/domain/reference.js';
 import { createRelationship, type Relationship } from '../../core/domain/relationship.js';
 import type { Tag } from '../../core/domain/tag.js';
+import {
+  createView,
+  type GraphViewSpec,
+  type View,
+  type ViewFormat,
+} from '../../core/domain/view.js';
 import type { Visibility } from '../../core/domain/visibility.js';
 
 /**
- * Node/Relationship <-> SQL row conversion (migration.ts's schema). Pure —
- * no I/O — so it's unit-testable on its own, independent of whether a real
- * or fake `SqliteExecutor` is wired up. Reconstructs domain objects via
- * `createNode`/`createRelationship` on read rather than casting stored
- * data directly, so every Domain Invariant is re-validated exactly like a
- * freshly-created instance would be, and the returned object is frozen.
+ * Node/Relationship/View <-> SQL row conversion (migration.ts's schema).
+ * Pure — no I/O — so it's unit-testable on its own, independent of whether
+ * a real or fake `SqliteExecutor` is wired up. Reconstructs domain objects
+ * via `createNode`/`createRelationship`/`createView` on read rather than
+ * casting stored data directly, so every Domain Invariant is re-validated
+ * exactly like a freshly-created instance would be, and the returned object
+ * is frozen.
  */
 
 interface CommonRow {
@@ -35,6 +42,13 @@ export interface RelationshipRow extends CommonRow {
   readonly origin: string;
   readonly target: string;
   readonly definition_id: string;
+}
+
+export interface ViewRow extends CommonRow {
+  readonly id: string;
+  readonly format: string;
+  /** JSON-encoded `GraphViewSpec` — see migration.ts's `views` table comment. */
+  readonly spec: string;
 }
 
 function serializeHistory(history: readonly HistoryEntry[]): string {
@@ -119,6 +133,32 @@ export function rowToRelationship(row: RelationshipRow): Relationship {
     target: row.target,
     definitionId: row.definition_id,
     title: row.title,
+    visibility: row.visibility as Visibility,
+    metadata: JSON.parse(row.metadata) as Record<string, unknown>,
+    tags: JSON.parse(row.tags) as Tag[],
+    history: deserializeHistory(row.history),
+    blocks: JSON.parse(row.blocks) as Block[],
+    references: JSON.parse(row.references) as KnowledgeElementReference[],
+  });
+}
+
+export function viewToRow(view: View): ViewRow {
+  return {
+    id: view.id,
+    format: view.format,
+    title: view.title,
+    visibility: view.visibility,
+    spec: JSON.stringify(view.spec),
+    ...serializeCommon(view),
+  };
+}
+
+export function rowToView(row: ViewRow): View {
+  return createView({
+    id: row.id,
+    format: row.format as ViewFormat,
+    title: row.title,
+    spec: JSON.parse(row.spec) as GraphViewSpec,
     visibility: row.visibility as Visibility,
     metadata: JSON.parse(row.metadata) as Record<string, unknown>,
     tags: JSON.parse(row.tags) as Tag[],

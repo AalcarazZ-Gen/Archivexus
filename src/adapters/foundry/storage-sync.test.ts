@@ -20,6 +20,10 @@ function fakeStorage(): StorageProvider & { saved: Node[] } {
     deleteRelationship: async () => undefined,
     listRelationships: async () => [],
     getRelationshipsForNode: async () => [],
+    saveView: async () => undefined,
+    getView: async () => undefined,
+    deleteView: async () => undefined,
+    listViews: async () => [],
     close: async () => undefined,
   };
 }
@@ -57,6 +61,10 @@ function fakeStatefulStorage(
     listRelationships: async () => [],
     getRelationshipsForNode: async (nodeId: string) =>
       initialRelationships.filter((r) => r.origin === nodeId || r.target === nodeId),
+    saveView: async () => undefined,
+    getView: async () => undefined,
+    deleteView: async () => undefined,
+    listViews: async () => [],
     close: async () => undefined,
   };
 }

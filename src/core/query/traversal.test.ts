@@ -32,6 +32,10 @@ function createFakeStorage(nodes: readonly Node[], relationships: readonly Relat
     listRelationships: async () => relationships,
     getRelationshipsForNode: async (nodeId: string) =>
       relationships.filter((relationship) => relationship.origin === nodeId || relationship.target === nodeId),
+    saveView: async () => undefined,
+    getView: async () => undefined,
+    deleteView: async () => undefined,
+    listViews: async () => [],
     close: async () => undefined,
   };
 }

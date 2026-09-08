@@ -15,6 +15,10 @@ function fakeStorage(overrides: Partial<StorageProvider> = {}): StorageProvider 
     deleteRelationship: async () => undefined,
     listRelationships: async () => [],
     getRelationshipsForNode: async () => [],
+    saveView: async () => undefined,
+    getView: async () => undefined,
+    deleteView: async () => undefined,
+    listViews: async () => [],
     close: async () => undefined,
     ...overrides,
   };
