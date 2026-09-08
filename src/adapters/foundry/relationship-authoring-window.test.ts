@@ -74,9 +74,12 @@ describe('buildRelationshipAuthoringContentHTML', () => {
     expect(html).toContain('Drop both entities first');
   });
 
-  it('starts with the Save button disabled and labeled "Save"', () => {
+  it('starts with both Save buttons disabled', () => {
     const html = buildRelationshipAuthoringContentHTML('Origin', 'Target');
     expect(html).toContain('<button type="button" data-action="save" disabled>Save</button>');
+    expect(html).toContain(
+      '<button type="button" data-action="saveAndNew" disabled>Save &amp; add another</button>',
+    );
   });
 
   it('starts with the summary and warning regions hidden', () => {
@@ -244,10 +247,13 @@ describe('getRelationshipAuthoringApplicationClass / the live window', () => {
         randomID: vi.fn(() => 'generated-id'),
       },
     };
+
+    (globalThis as { Hooks?: unknown }).Hooks = { on: vi.fn(), once: vi.fn(), callAll: vi.fn() };
   });
 
   afterEach(() => {
     delete (globalThis as { foundry?: unknown }).foundry;
+    delete (globalThis as { Hooks?: unknown }).Hooks;
   });
 
   it('is a constructor that can be instantiated with storage/log and calls through to render(true)', () => {
@@ -263,9 +269,34 @@ describe('getRelationshipAuthoringApplicationClass / the live window', () => {
     expect(first).toBe(second);
   });
 
-  it('saves the Relationship in the orientation the Definition validates (ADAPT-015 swap)', async () => {
-    // A shared no-op DOM node: enough for _resolveEndpoint / #refreshDerivedUI
-    // / _onSave, none of which assert per-element state in this test.
+  const memberOf = {
+    id: 'member-of',
+    name: 'member-of',
+    version: 1,
+    inverse: 'has-member',
+    cardinality: 'many-to-many' as const,
+    symmetry: false,
+    traversalCategory: 'affiliation' as const,
+    validation: { allowedOriginTypes: ['Character'], allowedTargetTypes: ['Organization'] },
+  };
+
+  interface FakeWindow {
+    element: unknown;
+    _onRender(): void;
+    _resolveEndpoint(side: 'origin' | 'target', value: string): Promise<void>;
+    _onSave(options?: { keepOpen?: boolean }): Promise<void>;
+  }
+
+  /**
+   * A shared no-op DOM node — enough for `_resolveEndpoint` /
+   * `#refreshDerivedUI` / `_onSave`, none of which assert per-element state.
+   * `docs` maps a UUID to a fake Foundry document.
+   */
+  function setupFakeWindow(docs: Record<string, { name: string; nodeType: string }>): {
+    instance: FakeWindow;
+    node: { value: string };
+    pickDefinition(id: string): void;
+  } {
     const listeners: Record<string, (event: unknown) => void> = {};
     const node = new Proxy(
       {
@@ -287,51 +318,83 @@ describe('getRelationshipAuthoringApplicationClass / the live window', () => {
       },
       {},
     );
-
-    const party = { documentName: 'Actor', uuid: 'Actor.party', name: 'Party', flags: { archivexus: { nodeType: 'Organization' } } };
-    const hodor = { documentName: 'Actor', uuid: 'Actor.hodor', name: 'Hodor', flags: { archivexus: { nodeType: 'Character' } } };
     (foundry as unknown as { utils: { fromUuid: ReturnType<typeof vi.fn> } }).utils.fromUuid = vi.fn(
-      async (uuid: string) => (uuid === 'Actor.party' ? party : uuid === 'Actor.hodor' ? hodor : null),
+      async (uuid: string) => {
+        const d = docs[uuid];
+        return d
+          ? { documentName: 'Actor', uuid, name: d.name, flags: { archivexus: { nodeType: d.nodeType } } }
+          : null;
+      },
     );
-
-    const memberOf = {
-      id: 'member-of',
-      name: 'member-of',
-      version: 1,
-      inverse: 'has-member',
-      cardinality: 'many-to-many' as const,
-      symmetry: false,
-      traversalCategory: 'affiliation' as const,
-      validation: { allowedOriginTypes: ['Character'], allowedTargetTypes: ['Organization'] },
-    };
-
     const ApplicationClass = getRelationshipAuthoringApplicationClass();
-    const instance = new ApplicationClass({ storage, log, definitions: [memberOf] }) as unknown as {
-      element: unknown;
-      _onRender(): void;
-      _resolveEndpoint(side: 'origin' | 'target', value: string): Promise<void>;
-      _onSave(): Promise<void>;
-    };
+    const instance = new ApplicationClass({
+      storage,
+      log,
+      definitions: [memberOf],
+    }) as unknown as FakeWindow;
     instance.element = node;
     instance._onRender();
+    return {
+      instance,
+      node: node as { value: string },
+      pickDefinition(id: string) {
+        (node as { value: string }).value = id;
+        listeners['change']?.({});
+      },
+    };
+  }
+
+  it('saves the Relationship in the orientation the Definition validates (ADAPT-015 swap)', async () => {
+    const { instance, pickDefinition } = setupFakeWindow({
+      'Actor.party': { name: 'Party', nodeType: 'Organization' },
+      'Actor.hodor': { name: 'Hodor', nodeType: 'Character' },
+    });
 
     // GM opens it from the Party's sheet (origin = Party/Org), then drops Hodor as the target.
     await instance._resolveEndpoint('origin', 'Actor.party');
     await instance._resolveEndpoint('target', 'Actor.hodor');
-    // pick "member-of" via the select's change listener
-    (node as { value: string }).value = 'member-of';
-    listeners['change']?.({});
+    pickDefinition('member-of');
     await Promise.resolve();
 
     await instance._onSave();
 
     expect(savedRelationships).toHaveLength(1);
-    // stored member-of Party, NOT Party member-of Hodor
+    // stored Hodor member-of Party, NOT Party member-of Hodor
     expect(savedRelationships[0]).toMatchObject({
       origin: 'Actor.hodor',
       target: 'Actor.party',
       definitionId: 'member-of',
     });
     expect(savedRelationships[0]?.title).toBe('Hodor member-of Party');
+    expect(closeMock).toHaveBeenCalled();
+  });
+
+  it('"Save & add another" saves, keeps the window open, and clears only Target (ADAPT-015 follow-up)', async () => {
+    const { instance, pickDefinition } = setupFakeWindow({
+      'Actor.party': { name: 'Party', nodeType: 'Organization' },
+      'Actor.hodor': { name: 'Hodor', nodeType: 'Character' },
+      'Actor.kharra': { name: 'Kharra', nodeType: 'Character' },
+    });
+
+    await instance._resolveEndpoint('origin', 'Actor.party');
+    await instance._resolveEndpoint('target', 'Actor.hodor');
+    pickDefinition('member-of');
+    await Promise.resolve();
+    await instance._onSave({ keepOpen: true });
+
+    expect(savedRelationships).toHaveLength(1);
+    expect(savedRelationships[0]?.title).toBe('Hodor member-of Party');
+    expect(closeMock).not.toHaveBeenCalled();
+
+    // Origin still pinned; just drop the next member + re-pick the definition.
+    await instance._resolveEndpoint('target', 'Actor.kharra');
+    pickDefinition('member-of');
+    await Promise.resolve();
+    await instance._onSave();
+
+    expect(savedRelationships).toHaveLength(2);
+    expect(savedRelationships[1]?.title).toBe('Kharra member-of Party');
+    expect(savedRelationships[1]).toMatchObject({ origin: 'Actor.kharra', target: 'Actor.party' });
+    expect(closeMock).toHaveBeenCalledTimes(1);
   });
 });

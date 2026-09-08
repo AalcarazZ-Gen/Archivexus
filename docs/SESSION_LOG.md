@@ -21,6 +21,8 @@
 
 **Scoping calls made inline:** symmetric / unrestricted Definitions keep the dropped order (only `reversed` swaps). The picker still shows the disable-reason against the *dropped* order when neither orientation works. The point-4 "no type-to-search" limitation is unchanged.
 
+**Follow-up, same session — "Save & add another":** Alberto flagged that wiring several members to one Organization meant reopening the window after every Save. Added a second footer button that saves, keeps the window open, and clears only Target + the Definition (Origin stays pinned), with a transient "Saved: …" notice. `_onSave` gained `{ keepOpen? }`; `#setSaveEnabled` toggles both buttons. +2 tests (503 total). Recorded in the ADR-0010 Amendment.
+
 **Not yet live-verified:** the real drop-event payload shape, `foundry.utils.fromUuid` resolution, the `data-action`/`actions` wiring, and the readonly-input + ✕-clear UX feel — needs Alberto's v14 client. **Also created one test relationship** ("Aethran Voss knows Cassandra Vell") while probing — flagged for Alberto to keep (unblocks VIEW-001e/f) or delete.
 
 ## 2026-09-08 (software-developer: the VIEW-001 view batch — VIEW-001h + VIEW-001d done, VIEW-001e/f deferred)

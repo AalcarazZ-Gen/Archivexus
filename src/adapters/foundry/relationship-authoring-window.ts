@@ -134,9 +134,11 @@ export function buildRelationshipAuthoringContentHTML(
     `<option value="" selected disabled>Drop both entities first</option>` +
     `</select>` +
     `</div>` +
+    `<p class="notification success" data-role="saved-notice" hidden></p>` +
     `<p class="notification info" data-role="summary" hidden></p>` +
     `<p class="notification warning" data-role="warning" hidden></p>` +
     `<footer class="form-footer">` +
+    `<button type="button" data-action="saveAndNew" disabled>Save &amp; add another</button>` +
     `<button type="button" data-action="save" disabled>Save</button>` +
     `</footer>` +
     `</form>`
@@ -178,6 +180,11 @@ const CSS = `
   margin: 0.1rem 0 0; font-size: var(--font-size-11, 11px); font-family: var(--font-mono, monospace); opacity: 0.55;
 }
 .archivexus-rel-endpoint-control.archivexus-rel-drop-active input { outline: 1px dashed var(--color-border-highlight, #ff9); }
+.archivexus-relationship-authoring .form-footer { display: flex; gap: 0.5rem; }
+p.notification[data-role="saved-notice"] {
+  background: var(--color-level-success-bg, rgba(0,140,0,0.15));
+  border: 1px solid var(--color-level-success-border, rgba(0,140,0,0.4));
+}
 `;
 
 export function ensureRelationshipAuthoringStyles(): void {
@@ -309,6 +316,9 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
         save(this: RelationshipAuthoringApplication): void {
           void this._onSave();
         },
+        saveAndNew(this: RelationshipAuthoringApplication): void {
+          void this._onSave({ keepOpen: true });
+        },
         clearOrigin(this: RelationshipAuthoringApplication): void {
           void this._resolveEndpoint('origin', '');
         },
@@ -410,6 +420,11 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
      */
     async _resolveEndpoint(side: 'origin' | 'target', rawValue: string): Promise<void> {
       const value = rawValue.trim();
+      if (value.length > 0) {
+        // The GM is picking the next entity — the "Saved: …" notice from a
+        // prior "Save & add another" has served its purpose.
+        this.#setHiddenText(this.element, '[data-role="saved-notice"]', undefined);
+      }
       if (value.length === 0) {
         this.#setEndpoint(side, EMPTY_ENDPOINT);
         this.#renderEndpointField(side);
@@ -508,7 +523,6 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
         selectEl.innerHTML = buildDefinitionSelectOptionsHTML(options, this.#selectedDefinitionId);
       }
 
-      const saveButton = root.querySelector('[data-action="save"]');
       const bothEndpointsResolved =
         this.#origin.node !== undefined && this.#target.node !== undefined;
       const sameNode =
@@ -522,20 +536,14 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
           '[data-role="warning"]',
           'Origin and Target must be two different Nodes.',
         );
-        if (saveButton) {
-          saveButton.disabled = true;
-          saveButton.textContent = 'Save';
-        }
+        this.#setSaveEnabled(false);
         return;
       }
 
       if (!bothEndpointsResolved || !definition || !this.#origin.node || !this.#target.node) {
         this.#setHiddenText(root, '[data-role="summary"]', undefined);
         this.#setHiddenText(root, '[data-role="warning"]', undefined);
-        if (saveButton) {
-          saveButton.disabled = true;
-          saveButton.textContent = 'Save';
-        }
+        this.#setSaveEnabled(false);
         return;
       }
 
@@ -555,9 +563,21 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
       const warning = await this.#checkCardinality(definition, originNode, targetNode);
       this.#setHiddenText(root, '[data-role="warning"]', warning);
 
-      if (saveButton) {
-        saveButton.disabled = false;
-        saveButton.textContent = warning ? 'Save anyway' : 'Save';
+      this.#setSaveEnabled(true, warning ? 'Save anyway' : 'Save');
+    }
+
+    /** Enables/disables both Save buttons together; `label` (default "Save") is the primary button's text. */
+    #setSaveEnabled(enabled: boolean, label = 'Save'): void {
+      const root = this.element;
+      const save = root.querySelector('[data-action="save"]');
+      if (save) {
+        save.disabled = !enabled;
+        save.textContent = label;
+      }
+      const saveAndNew = root.querySelector('[data-action="saveAndNew"]');
+      if (saveAndNew) {
+        saveAndNew.disabled = !enabled;
+        saveAndNew.textContent = label === 'Save' ? 'Save & add another' : 'Save anyway & add another';
       }
     }
 
@@ -618,7 +638,13 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
 
     // -- Save --
 
-    async _onSave(): Promise<void> {
+    /**
+     * `keepOpen` (the "Save & add another" button, ADAPT-015 follow-up):
+     * after saving, keep the Origin field pinned and clear only Target + the
+     * Definition, so the GM can wire several members to one Organization
+     * without reopening the window each time.
+     */
+    async _onSave(options: { keepOpen?: boolean } = {}): Promise<void> {
       const definition = this.selectedDefinition;
       const droppedOrigin = this.#origin.node;
       const droppedTarget = this.#target.node;
@@ -634,24 +660,38 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
       // ADAPT-015: swap to the orientation the Definition's validation
       // accepts (e.g. authoring "member-of" from the Organization's sheet).
       const { origin, target } = this.#orientedEndpoints(definition, droppedOrigin, droppedTarget);
+      const title = buildRelationshipTitle(definition, origin.title, target.title);
 
       try {
-        const relationship = createRelationship({
-          id: foundry.utils.randomID(),
-          origin: origin.nodeId,
-          target: target.nodeId,
-          definitionId: definition.id,
-          title: buildRelationshipTitle(definition, origin.title, target.title),
-        });
-        await this.#storage.saveRelationship(relationship);
+        await this.#storage.saveRelationship(
+          createRelationship({
+            id: foundry.utils.randomID(),
+            origin: origin.nodeId,
+            target: target.nodeId,
+            definitionId: definition.id,
+            title,
+          }),
+        );
         // Lets any open Relationship Console (VIEW-001i) refresh its list.
         Hooks.callAll('archivexus.relationshipsChanged');
-        await this.close();
       } catch (error) {
         this.#log.error(
           `Failed to save Relationship: ${error instanceof Error ? error.message : String(error)}`,
         );
+        return;
       }
+
+      if (options.keepOpen) {
+        this.#selectedDefinitionId = undefined;
+        await this._resolveEndpoint('target', ''); // clears Target field + re-derives the UI
+        this.#setSavedNotice(`Saved: ${title}. Drop the next entity to add another.`);
+        return;
+      }
+      await this.close();
+    }
+
+    #setSavedNotice(message: string): void {
+      this.#setHiddenText(this.element, '[data-role="saved-notice"]', message);
     }
 
     // -- Small DOM helpers --
