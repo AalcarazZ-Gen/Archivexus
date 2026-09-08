@@ -62,6 +62,7 @@ interface MinimalDomElementLike {
   querySelector(selector: string): MinimalDomElementLike | null;
   querySelectorAll(selector: string): Iterable<MinimalDomElementLike>;
   getAttribute(name: string): string | null;
+  setAttribute(name: string, value: string): void;
   addEventListener(type: string, listener: (event: unknown) => void): void;
 }
 
@@ -137,17 +138,35 @@ export function buildNavigatorStateHTML(
 }
 
 /**
- * The grouped node list. Each row carries `data-node-id` (for the click
- * handler) and `data-title` (lowercased, for client-side search filtering
- * without a re-render — same "pure builder, live class toggles DOM"
- * split as `relationship-list-window.ts`).
+ * The auto-expand rule (VIEW-001h): a single group, or a short total list,
+ * starts expanded — collapsing that just adds a click. Anything bigger
+ * starts collapsed so the navigator is a compact index.
  */
-export function buildNavigatorGroupsHTML(groups: readonly NavigatorGroup[]): string {
+export const NAVIGATOR_AUTO_EXPAND_MAX_NODES = 15;
+
+export function navigatorGroupsStartExpanded(groups: readonly NavigatorGroup[]): boolean {
+  const total = groups.reduce((sum, group) => sum + group.nodes.length, 0);
+  return groups.length <= 1 || total <= NAVIGATOR_AUTO_EXPAND_MAX_NODES;
+}
+
+/**
+ * The grouped node list (VIEW-001c). Each `<section>` is collapsible
+ * (VIEW-001h): its header is a `data-action="toggleGroup"` button, and a
+ * type in `collapsedTypes` renders with its rows `hidden` and a `▸` caret.
+ * Each row carries `data-node-id` (the click handler) and `data-title`
+ * (lowercased, for client-side search filtering without a re-render — same
+ * "pure builder, live class toggles DOM" split as `relationship-list-window.ts`).
+ */
+export function buildNavigatorGroupsHTML(
+  groups: readonly NavigatorGroup[],
+  collapsedTypes: ReadonlySet<string> = new Set(),
+): string {
   if (groups.length === 0) {
     return buildNavigatorStateHTML('empty');
   }
   return groups
     .map((group) => {
+      const collapsed = collapsedTypes.has(group.type);
       const rows = group.nodes
         .map(
           (node) =>
@@ -158,8 +177,10 @@ export function buildNavigatorGroupsHTML(groups: readonly NavigatorGroup[]): str
         .join('');
       return (
         `<section class="archivexus-codex-group" data-group="${escapeHtml(group.type)}">` +
-        `<h4 class="archivexus-codex-group-header">${escapeHtml(group.type)} <span class="archivexus-codex-group-count">${group.nodes.length}</span></h4>` +
-        `<ul class="archivexus-codex-rows">${rows}</ul>` +
+        `<button type="button" class="archivexus-codex-group-header" data-action="toggleGroup" data-group="${escapeHtml(group.type)}" aria-expanded="${collapsed ? 'false' : 'true'}">` +
+        `<span class="archivexus-codex-group-caret">${collapsed ? '▸' : '▾'}</span> ${escapeHtml(group.type)} <span class="archivexus-codex-group-count">${group.nodes.length}</span>` +
+        `</button>` +
+        `<ul class="archivexus-codex-rows"${collapsed ? ' hidden' : ''}>${rows}</ul>` +
         `</section>`
       );
     })
@@ -181,9 +202,16 @@ const CODEX_CSS = `
 .archivexus-codex-state { opacity: 0.6; font-style: italic; padding: 0.5rem 0; }
 .archivexus-codex-group { margin-bottom: 0.35rem; }
 .archivexus-codex-group[hidden] { display: none; }
-.archivexus-codex-group-header { margin: 0.35rem 0 0.15rem; font-size: var(--font-size-11, 11px); text-transform: uppercase; opacity: 0.7; }
+.archivexus-codex-group-header {
+  display: block; width: 100%; text-align: left; border: 0; background: transparent; cursor: pointer;
+  margin: 0.35rem 0 0.15rem; padding: 0.1rem 0; font-size: var(--font-size-11, 11px);
+  text-transform: uppercase; opacity: 0.7;
+}
+.archivexus-codex-group-header:hover { opacity: 1; }
+.archivexus-codex-group-caret { display: inline-block; width: 1em; }
 .archivexus-codex-group-count { opacity: 0.6; }
 .archivexus-codex-rows { list-style: none; margin: 0; padding: 0; }
+.archivexus-codex-rows[hidden] { display: none; }
 .archivexus-codex-rows li[hidden] { display: none; }
 .archivexus-codex-rows button {
   display: block; width: 100%; text-align: left; border: 0; background: transparent;
@@ -278,10 +306,23 @@ export function getCodexSidebarTabClass(
         openConsole(): void {
           openRelationshipConsole(getStorage, log);
         },
+        toggleGroup(this: CodexSidebarTab, _event: unknown, target: MinimalDomElementLike): void {
+          const type = target.getAttribute('data-group');
+          if (type) this.#toggleGroup(type);
+        },
       },
     };
 
     #storageReadyHookBound = false;
+
+    /**
+     * Per-`node.type` collapsed state (VIEW-001h) — session-only, kept on
+     * the singleton tab instance across re-renders. Seeded once from
+     * `navigatorGroupsStartExpanded`; a user toggle then overrides per type.
+     */
+    #groupCollapsed = new Map<string, boolean>();
+    #defaultCollapsed = false;
+    #groupsSeeded = false;
 
     _renderHTML(): string {
       return buildNavigatorShellHTML({ isGM: isViewerGM() });
@@ -360,9 +401,17 @@ export function getCodexSidebarTabClass(
     }
 
     #renderNodes(nodes: readonly Node[], hiddenCount: number, isGM: boolean): void {
+      const groups = groupNodesByType(nodes);
+      if (!this.#groupsSeeded) {
+        this.#defaultCollapsed = !navigatorGroupsStartExpanded(groups);
+        this.#groupsSeeded = true;
+      }
       const listEl = this.element.querySelector('[data-role="list"]');
       if (listEl) {
-        listEl.innerHTML = buildNavigatorGroupsHTML(groupNodesByType(nodes));
+        listEl.innerHTML = buildNavigatorGroupsHTML(
+          groups,
+          new Set(groups.map((g) => g.type).filter((type) => this.#collapsedFor(type))),
+        );
       }
       const hintEl = this.element.querySelector('[data-role="hint"]');
       if (hintEl) {
@@ -377,17 +426,43 @@ export function getCodexSidebarTabClass(
       }
     }
 
-    /** Client-side filter — toggles row/group visibility by the lowercased `data-title`, no re-render (keeps search-input focus). */
+    #collapsedFor(type: string): boolean {
+      return this.#groupCollapsed.get(type) ?? this.#defaultCollapsed;
+    }
+
+    /** VIEW-001h: flip one group's collapsed state and reflect it in the DOM (no re-render). */
+    #toggleGroup(type: string): void {
+      this.#groupCollapsed.set(type, !this.#collapsedFor(type));
+      const search = this.element.querySelector('[data-role="search"]');
+      this.#applyFilter(search?.value ?? '');
+    }
+
+    /**
+     * Client-side filter (no re-render — keeps search-input focus). Toggles
+     * row visibility by the lowercased `data-title`; while a search is
+     * active every matching group is force-expanded so results always show,
+     * and the per-group collapsed state is restored once the query clears.
+     */
     #applyFilter(query: string): void {
       const needle = query.trim().toLowerCase();
+      const searching = needle.length > 0;
       for (const group of this.element.querySelectorAll('.archivexus-codex-group')) {
+        const type = group.getAttribute('data-group') ?? '';
         let anyVisible = false;
         for (const row of group.querySelectorAll('li[data-title]')) {
-          const match = needle.length === 0 || (row.getAttribute('data-title') ?? '').includes(needle);
+          const match = !searching || (row.getAttribute('data-title') ?? '').includes(needle);
           row.hidden = !match;
           if (match) anyVisible = true;
         }
         group.hidden = !anyVisible;
+
+        const collapsed = !searching && this.#collapsedFor(type);
+        const rows = group.querySelector('.archivexus-codex-rows');
+        if (rows) rows.hidden = collapsed;
+        const caret = group.querySelector('.archivexus-codex-group-caret');
+        if (caret) caret.textContent = collapsed ? '▸' : '▾';
+        const header = group.querySelector('.archivexus-codex-group-header');
+        header?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
       }
     }
   }

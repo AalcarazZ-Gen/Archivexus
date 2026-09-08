@@ -79,6 +79,8 @@ export {
   buildNavigatorStateHTML,
   ensureCodexStyles,
   getCodexSidebarTabClass,
+  NAVIGATOR_AUTO_EXPAND_MAX_NODES,
+  navigatorGroupsStartExpanded,
   registerCodexSidebarTab,
 } from './codex-sidebar-tab.js';
 export type { FoundryUiConfigLike } from './codex-sidebar-tab.js';

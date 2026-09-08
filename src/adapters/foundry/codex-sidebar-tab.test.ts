@@ -7,6 +7,7 @@ import {
   buildNavigatorStateHTML,
   ensureCodexStyles,
   getCodexSidebarTabClass,
+  navigatorGroupsStartExpanded,
   registerCodexSidebarTab,
   type FoundryUiConfigLike,
 } from './codex-sidebar-tab.js';
@@ -99,6 +100,49 @@ describe('buildNavigatorGroupsHTML', () => {
     );
     expect(html).toContain('&lt;script&gt;');
     expect(html).not.toContain('<script>');
+  });
+
+  it('renders each group header as a toggleGroup button, expanded by default', () => {
+    const html = buildNavigatorGroupsHTML(
+      groupNodesByType([
+        createNode({ id: 'City.1', type: 'City', title: 'Waterdeep' }),
+        createNode({ id: 'Character.1', type: 'Character', title: 'Volo' }),
+      ]),
+    );
+    expect(html).toContain('data-action="toggleGroup"');
+    expect(html).toContain('aria-expanded="true"');
+    expect(html).toContain('▾');
+    expect(html).not.toContain('class="archivexus-codex-rows" hidden');
+  });
+
+  it('hides rows and flips the caret for a collapsed type (VIEW-001h)', () => {
+    const html = buildNavigatorGroupsHTML(
+      groupNodesByType([createNode({ id: 'City.1', type: 'City', title: 'Waterdeep' })]),
+      new Set(['City']),
+    );
+    expect(html).toContain('class="archivexus-codex-rows" hidden');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('▸');
+  });
+});
+
+describe('navigatorGroupsStartExpanded', () => {
+  const groupOf = (type: string, n: number) => ({
+    type,
+    nodes: Array.from({ length: n }, (_, i) =>
+      createNode({ id: `${type}.${i}`, type, title: `${type} ${i}` }),
+    ),
+  });
+
+  it('starts expanded for a single group or a short total list', () => {
+    expect(navigatorGroupsStartExpanded([groupOf('City', 40)])).toBe(true);
+    expect(navigatorGroupsStartExpanded([groupOf('City', 8), groupOf('Character', 5)])).toBe(true);
+  });
+
+  it('starts collapsed for several groups with a long total list', () => {
+    expect(
+      navigatorGroupsStartExpanded([groupOf('City', 20), groupOf('Character', 41)]),
+    ).toBe(false);
   });
 });
 
