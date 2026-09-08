@@ -98,7 +98,7 @@ describe('getHeaderControlsJournalEntryPageSheet — cross-module coexistence (A
     const labels = controls.map((entry) => entry.label);
     expect(labels).toContain('Archivexus Node Type');
     expect(labels).toContain('New Relationship…');
-    expect(labels).toContain('Relationships…');
+    expect(labels).toContain('Connections');
   });
 });
 
@@ -167,6 +167,6 @@ describe('getHeaderControlsActorSheetV2 — cross-module coexistence (ADAPT-012,
     const labels = controls.map((entry) => entry.label);
     expect(labels).toContain('Archivexus Node Type');
     expect(labels).toContain('New Relationship…');
-    expect(labels).toContain('Relationships…');
+    expect(labels).toContain('Connections');
   });
 });

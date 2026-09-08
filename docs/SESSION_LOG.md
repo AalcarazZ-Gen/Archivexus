@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-09-08 (software-developer: VIEW-001i — Relationship Console)
+
+**Built:** VIEW-001i (#67), item 34 of the "Next batch" — the world-level "wire the campaign" surface Alberto asked for. ARCH-002 (its blocker) was already resolved as ADR-0014 Amendment 2. Branched `feat/view-001i-relationship-console` off `dev`.
+
+**Formalized:**
+- `src/adapters/foundry/relationship-console-window.ts` (new): a singleton `ApplicationV2` ("Codex — Relationships") from a new GM-only **"Relationships"** Codex-toolbar button. Pure transforms `buildConsoleRows` / `filterConsoleRows` (query, category, definition, involves-node, dangling-only) / `groupConsoleRows` (category taxonomy / flat), all unit-tested. Text search = client-side `hidden` toggle (keeps focus); other filters + group toggle re-render off a cache. `[+ New]` → the canonical ADAPT-007 window; per-row "See in graph" → popout; Delete → ADR-0013 `DialogV2.confirm`.
+- **`openRelationshipAuthoringWindow` exported** (was private) taking `{ prefillOrigin? }`; the sheet path is now `openRelationshipAuthoringWindowFromSheet`. New `archivexus.relationshipsChanged` hook (fired on save + delete) that an open Console reloads on.
+- **Subsumes ADAPT-011**: "involves node X" is that view. `node-connections.ts` gained a shared `categoryLabel` export (Rule 4).
+- **Per-sheet "Relationships…" button renamed "Connections"** (ADR-0014 Amendment 2 decision 2). README + `GUIDANCE_STEPS` step 2 + the coexistence/list tests updated.
+- ADR-0014 Amendment 2's surface table row for the Console marked shipped. +19 unit tests (483 total). `tsc`/`eslint`/`vitest`/`build:foundry-module` all clean (`archivexus.js` ~86KB → ~100KB).
+
+**Scoping calls made inline (no ADR — small Adapter surface):**
+- **Search is client-side, other filters re-render.** Same split as the navigator. Re-render reuses a cache (`#dataLoaded`), so no storage round-trip per filter change; only create/delete/`relationshipsChanged` invalidate it.
+- **"See in graph" roots the popout on the row's `origin`.** A Relationship has two endpoints and no inherent "primary" — origin is the arbitrary-but-consistent pick; when the Console is node-scoped that filter node would arguably be better, deferred as noise.
+- Out of scope per the ticket and untouched: relationship-instance editing (swap-direction / change-Definition), bulk / multi-select, endpoint re-pointing.
+
+**Not yet live-verified (needs Alberto's v14 client):** the `ApplicationV2` render + `actions` wiring, `DialogV2.confirm`, the filter-control `[name=…]` reads, the `relationshipsChanged` refresh, and the renamed "Connections" button on both sheet families. Not merged — Alberto merges.
+
+**Still queued:** ADAPT-013 (#68, the style-baseline pass — **last**), VIEW-001d/e/f (#69–71), VIEW-001h (#75, small) per PROJECT.md item 35 + the follow-up notes.
+
 ## 2026-09-08 (software-developer: live verification of VIEW-001g + ADAPT-014, one fix)
 
 **Tested on Foundry v14.367 (GM), after Alberto deployed VIEW-001g (merged) + ADAPT-014 (branch).** Claude in Chrome, GM session.

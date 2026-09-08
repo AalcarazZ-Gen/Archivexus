@@ -44,6 +44,16 @@ const CATEGORY_LABELS: Readonly<Record<RelationshipTraversalCategory, string>> =
 export const UNCATEGORIZED_KEY = 'other';
 const UNCATEGORIZED_LABEL = 'Other';
 
+/**
+ * The display label for a `traversalCategory` (or `UNCATEGORIZED_KEY`) —
+ * the single source of truth for category labelling, shared with the
+ * Relationship Console (VIEW-001i) so its group headers and chips match the
+ * Inspector's exactly (Rule 4).
+ */
+export function categoryLabel(category: RelationshipTraversalCategory | typeof UNCATEGORIZED_KEY): string {
+  return category === UNCATEGORIZED_KEY ? UNCATEGORIZED_LABEL : CATEGORY_LABELS[category];
+}
+
 export interface NodeConnectionRow {
   readonly relationshipId: string;
   readonly connectedNode: Node;

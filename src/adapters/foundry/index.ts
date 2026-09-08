@@ -23,6 +23,7 @@ export type {
 
 export {
   buildRelationshipAuthoringContentHTML,
+  openRelationshipAuthoringWindow,
   registerRelationshipAuthoringEntryPoints,
 } from './relationship-authoring-window.js';
 export type { FoundrySheetAppLike } from './relationship-authoring-window.js';
@@ -66,7 +67,7 @@ export type {
   GraphViewElement,
   GraphViewNodeElement,
 } from './graph-view-elements.js';
-export { buildNodeConnections, UNCATEGORIZED_KEY } from './node-connections.js';
+export { buildNodeConnections, categoryLabel, UNCATEGORIZED_KEY } from './node-connections.js';
 export type {
   BuildNodeConnectionsInput,
   NodeConnectionGroup,
@@ -121,6 +122,25 @@ export type {
   EditorApplicationOptions,
   ValidateDefinitionResult,
 } from './relationship-definition-editor-window.js';
+export {
+  buildConsoleContentHTML,
+  buildConsoleFiltersHTML,
+  buildConsoleRows,
+  buildConsoleRowsHTML,
+  EMPTY_CONSOLE_FILTERS,
+  ensureConsoleStyles,
+  filterConsoleRows,
+  getRelationshipConsoleClass,
+  groupConsoleRows,
+  openRelationshipConsole,
+} from './relationship-console-window.js';
+export type {
+  ConsoleApplicationOptions,
+  ConsoleCategory,
+  ConsoleFilters,
+  ConsoleGroup,
+  ConsoleRow,
+} from './relationship-console-window.js';
 export {
   buildContextMenuHTML,
   buildGraphPopoutContentHTML,

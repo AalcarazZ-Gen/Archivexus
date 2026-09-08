@@ -381,11 +381,16 @@ function openRelationshipListWindow(
 /**
  * Registers both entry points, once at module init (same call-once
  * contract as `registerRelationshipAuthoringEntryPoints`): a
- * "Relationships…" header-control button on Actor sheets AND on
+ * "Connections" header-control button on Actor sheets AND on
  * JournalEntryPage sheets, a third listener alongside the existing
  * "Archivexus Node Type" and "New Relationship…" buttons (ADR-0013 point 1
  * / Disadvantages — coexistence at n=3, extended from
  * `header-controls-coexistence.test.ts`'s own n=2 assertion).
+ *
+ * The button is **"Connections"**, not "Relationships…", so it reads as the
+ * zero-context in-flow view ("what's this sheet connected to") distinct
+ * from the world-level **Relationship Console** (VIEW-001i) — ADR-0014
+ * Amendment 2 decision 2.
  */
 export function registerRelationshipListEntryPoints(
   getStorage: () => StorageProvider | undefined,
@@ -394,7 +399,7 @@ export function registerRelationshipListEntryPoints(
   const handler = (app: FoundrySheetAppLike, controls: FoundryHeaderControlsLike): void => {
     controls.push({
       icon: 'fa-solid fa-list',
-      label: 'Relationships…',
+      label: 'Connections',
       onClick: () => openRelationshipListWindow(app, getStorage(), log),
     });
   };

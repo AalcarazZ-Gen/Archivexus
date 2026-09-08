@@ -111,14 +111,14 @@ describe('registerRelationshipListEntryPoints', () => {
     );
   });
 
-  it('pushes a "Relationships…" control on the Actor sheet hook', () => {
+  it('pushes a "Connections" control on the Actor sheet hook', () => {
     registerRelationshipListEntryPoints(() => undefined, log);
     const controls = makeControls();
     hookHandlers['getHeaderControlsActorSheetV2']?.(makeApp('Actor'), controls);
 
     expect(controls.push).toHaveBeenCalledTimes(1);
     const [entry] = controls.push.mock.calls[0] as [{ icon: string; label: string }];
-    expect(entry.label).toBe('Relationships…');
+    expect(entry.label).toBe('Connections');
     expect(entry.icon).toBe('fa-solid fa-list');
   });
 
