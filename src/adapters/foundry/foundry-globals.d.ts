@@ -99,12 +99,15 @@ declare const ui: {
     warn(message: string): void;
   };
   // `ui.sidebar` — module-entry.ts switches the sidebar to the Codex tab
-  // when the GM picks "Show me the Codex" in the welcome dialog (VIEW-001g).
-  // Both method names are declared because the v13 ApplicationV2 Sidebar
-  // renamed `activateTab` → `changeTab`; the caller tries whichever exists.
+  // (and expands it) when the GM picks "Show me the Codex" in the welcome
+  // dialog (VIEW-001g). Both tab-switch method names are declared because
+  // the v13 ApplicationV2 Sidebar renamed `activateTab` → `changeTab`; the
+  // caller tries whichever exists. `expand()` is needed because switching
+  // the active tab is invisible while the sidebar is collapsed.
   sidebar?: {
     activateTab?(tabName: string): void;
     changeTab?(tab: string, group?: string, options?: Record<string, unknown>): void;
+    expand?(): void;
   };
 };
 
