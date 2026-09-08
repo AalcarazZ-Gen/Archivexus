@@ -6,6 +6,29 @@
 
 ---
 
+## 2026-09-08 (product-owner + ux-ui-designer consult: UI look / onboarding / relationship-management console)
+
+**Discussed:** Alberto asked for three things "after a proper discussion between agents": (1) a UI-polish ticket, (2) onboarding for first setup "so the user can setup relations as expected", (3) a relationship-management console — "I'm not seeing one, maybe in the codex sidebar". Ran a **parallel consult** — product-owner (scope / priority / success criteria) and ux-ui-designer (design substance / flows / where things live), each briefed on the other's remit.
+
+**Live diagnosis (Claude in Chrome, GM session):** the per-sheet entry points — "Archivexus Node Type", "New Relationship…", "Relationships…" — **aren't broken**. The `getHeaderControls*` hooks fire (up the whole class chain, on both Actor and JournalEntryPage sheets); the archivexus handlers push their buttons correctly. But `_getHeaderControls()` reads a stale copy, so the buttons only render **inside the sheet's "⋯ Toggle Controls" header dropdown** — two clicks deep, in a menu most GMs don't know exists. That is why Alberto has *"no clear way to setup the whole world"*. The fix is a **visible world-level surface + onboarding that points at what exists**, not new plumbing.
+
+**Alberto's steer on the consult questions:** module may be shared/published later (→ onboarding gets a welcome dialog, not just an empty-state panel); the relationship console **is** the priority (he's been heads-down on features, hasn't hit the authoring pain yet, but the need is real); by "editing" he means **adding new relationship *types*** (Definitions), not editing relationship instances.
+
+**Formalized — `docs/PROJECT.md` "Next batch" (items 30–35) + GitHub issues created:**
+- **VIEW-001c — Codex sidebar navigator** (#63): strip Cytoscape from the tab, rebuild as search + `node.type`-grouped node list launching the popout; fix the stuck "Storage not ready" state; fold in an `ensureArchivexusStyles()` extraction + node-type graph coloring. **Next.**
+- **VIEW-001g — first-run guidance** (#64): a one-time welcome `DialogV2` (GM-only, `game.settings` world-flag) naming where the buried buttons are; the navigator's inline empty-state guidance panel; a docs "Getting started" section. No wizard.
+- **ARCH-002 — relationship-surface inventory** (#65): light ½-page architect decision — where each {Node, Relationship, Definition} surface lives, ADAPT-011's fate (fold into the console), per-sheet-list vs console naming, the ADR-0006 shared-style-location question. Prereq to VIEW-001i.
+- **ADAPT-014 — Definition editor** (#66): small `ApplicationV2` to list / add / edit / delete Relationship Definitions (Alberto's "adding new relation types"). Closes the "review the 17 defaults" flag; unblocks VIEW-001e.
+- **VIEW-001i — Relationship Console** (#67, blocked on ARCH-002): singleton `ApplicationV2` from a visible Codex toolbar button — world-wide list / search / filter / create (→ ADAPT-007 window) / delete (→ ADAPT-013 confirm). Subsumes ADAPT-011. No instance-editing v1.
+- **ADAPT-013 — shared style baseline + rough-edge fixes** (#68): one ticket, **last**, after VIEW-001c–f stabilize the surfaces. Defect-driven, not a reskin.
+- Plus the ADR-0014 Amendment split got its own issues: **VIEW-001d** (#69), **VIEW-001e** (#70), **VIEW-001f** (#71).
+
+**Issue bookkeeping done directly (Alberto's explicit request — memory `manage-github-issues-directly`, and `.claude/agents/product-owner.md` updated):** closed #55 (CORE-006, done `15a6c8e`), #56 (VIEW-001a, done `6fc19c1`), #53 (ADAPT-012, done `bd07ed1`), #44 (VIEW-001 decide, done via ADR-0014), #32 (STORE-001 decide, done via ADR-0008); closed #57 (old VIEW-001b scope) and #52 (ADAPT-011) as superseded with pointers; filed + closed #72 (RelationshipDefinition persistence) retroactively; left a status note on #23 (ADAPT-005, decided-not-implemented). Also corrected the stale "not merged/not pushed" wording on `PROJECT.md` items 25–29.
+
+**Where the two consult agents' instincts collide — flagged for Alberto (not yet adjudicated where he didn't already steer):** how much polish a single-user tool justifies (designer: proper token layer; PO: minimal + defect-fixes only); onboarding depth (both lean minimal, Alberto tipped it up slightly with "may be shared"); whether re-pointing a relationship's endpoint ever gets a UI (both: deferred). Both agents independently said an architect pass on surface-proliferation is needed → ARCH-002.
+
+**Still informal / not yet formalized:** ARCH-002 not started (its decision will amend ADR-0014 or add a `03_DOMAIN_MODEL.md` surface table). The `PROJECT.md` Stage paragraph is still a historical wall of text drifting from a snapshot into a changelog — a full refresh is overdue but out of scope for this pass.
+
 ## 2026-09-08 (software-developer: Relationship Definition persistence — CORE-004's deferred fast-follow)
 
 **Discussed:** After VIEW-001b merged, Alberto picked this over VIEW-001c: right now the graph is a field of disconnected dots and the authoring UI only offers 3 hardcoded definition types (`resides-in`/`ally-of`/`member-of`), so persisting Definitions + a bigger default set is what actually makes the graph feature come alive. Branched `feat/relationship-definition-persistence` off `dev`. Read `03_DOMAIN_MODEL.md`'s Definitions section (Decisions + the "how is Definition version migration handled" Open Question), ADR-0007's Definition/traversalCategory decisions, `relationship-definition.ts` (CORE-004), `relationship-definitions-seed.ts` (the temp hack), `relationship-definition-options.ts` / `relationship-authoring-window.ts` (consumer), the SQLite layer (migration/row-mapping/provider/worker), and `node-connections.ts` / `graph-popout-window.ts` (the other consumer, from VIEW-001b).
