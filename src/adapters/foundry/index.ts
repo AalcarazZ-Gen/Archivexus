@@ -34,6 +34,23 @@ export type {
   ResolvedEndpointDisplay,
 } from './relationship-authoring-window.js';
 export { bootstrapRelationshipDefinitions } from './relationship-definitions-bootstrap.js';
+export {
+  FOLDER_NODE_TYPE_FLAG_KEY,
+  isTaggedFolder,
+  mapFolderToNode,
+} from './folder-to-node.js';
+export type { FoundryFolderLike } from './folder-to-node.js';
+export {
+  buildFolderNodeTypeDialogContent,
+  parseFolderNodeTypeDialogResult,
+  registerFolderNodeTypeTag,
+  resolveNearestTaggedAncestor,
+} from './folder-node-type-tag.js';
+export type {
+  FolderNodeTypeDialogResult,
+  FoundryFolderContextOptionsLike,
+} from './folder-node-type-tag.js';
+export { deleteFolderNode, syncAllFolders, syncFolder } from './folder-sync.js';
 export { resolveDroppedDocumentNode } from './relationship-node-resolution.js';
 export type {
   ResolvedDroppedNode,

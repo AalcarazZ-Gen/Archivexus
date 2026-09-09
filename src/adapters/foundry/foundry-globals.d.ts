@@ -71,6 +71,10 @@ declare const CONFIG: {
 declare const game: {
   actors?: { contents: readonly unknown[] };
   journal?: { contents: readonly { pages: { contents: readonly unknown[] } }[] };
+  // `game.folders` — the world's Folder collection (ADAPT-016). Loose, same
+  // no-real-Foundry-types tradeoff: `folder-node-type-tag.ts` /
+  // `folder-to-node.ts` cast to their own narrow `FoundryFolderLike`.
+  folders?: { contents: readonly unknown[]; get(id: string): unknown };
   modules: { get(id: string): { api?: Record<string, unknown> } | undefined };
   // `game.user.isGM` — the Codex (VIEW-001a) filters `hidden` Nodes out for
   // non-GM viewers (ADR-0003). `getFlag`/`setFlag` — the navigator's

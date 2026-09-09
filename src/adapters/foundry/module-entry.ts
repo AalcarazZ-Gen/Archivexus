@@ -20,6 +20,9 @@ import { downloadPortableSnapshot } from './export-snapshot.js';
 import { createLogger } from './logger.js';
 import type { FoundryActorLike } from './actor-to-node.js';
 import type { FoundryJournalEntryPageLike } from './journal-entry-page-to-node.js';
+import type { FoundryFolderLike } from './folder-to-node.js';
+import { registerFolderNodeTypeTag } from './folder-node-type-tag.js';
+import { deleteFolderNode, syncAllFolders, syncFolder } from './folder-sync.js';
 import { syncActor, syncAllActorsAndPages, syncJournalEntryPage } from './storage-sync.js';
 
 const MODULE_ID = 'archivexus';
@@ -77,6 +80,7 @@ Hooks.once('init', () => {
   registerRelationshipListEntryPoints(() => storage, log);
   registerCodexSidebarTab(CONFIG.ui, () => storage, log);
   registerOnboardingSetting(game.settings);
+  registerFolderNodeTypeTag((id) => game.folders?.get(id), log);
 
   // Registered at init, but each callback lazily resolves `storage` at
   // call time (see withStorage) - it isn't created until `ready`.
@@ -92,6 +96,20 @@ Hooks.once('init', () => {
   Hooks.on('updateJournalEntryPage', (page: FoundryJournalEntryPageLike) => {
     withStorage((s) => syncJournalEntryPage(page, s));
   });
+
+  // Folder-Nodes (ADAPT-016). syncFolder upserts a tagged folder's Node and
+  // removes a stale one when the GM clears the tag; deleteFolderNode mirrors
+  // a Foundry folder delete (ADR-0015 point 10's scoped delete exception).
+  // The derived containment edges are ADAPT-017's engine, wired separately.
+  Hooks.on('createFolder', (folder: FoundryFolderLike) => {
+    withStorage((s) => syncFolder(folder, s));
+  });
+  Hooks.on('updateFolder', (folder: FoundryFolderLike) => {
+    withStorage((s) => syncFolder(folder, s));
+  });
+  Hooks.on('deleteFolder', (folder: FoundryFolderLike) => {
+    withStorage((s) => deleteFolderNode(folder.uuid, s));
+  });
 });
 
 Hooks.once('ready', () => {
@@ -105,13 +123,17 @@ Hooks.once('ready', () => {
     // now, not a hardcoded list.
     await bootstrapRelationshipDefinitions(storage, log);
 
-    log.info('Backfilling existing Actors/Journal pages into storage');
+    log.info('Backfilling existing Actors/Journal pages/Folders into storage');
     const actors = (game.actors?.contents ?? []) as FoundryActorLike[];
     const journalPages = (game.journal?.contents ?? []).flatMap(
       (entry) => entry.pages.contents as FoundryJournalEntryPageLike[],
     );
+    const folders = (game.folders?.contents ?? []) as FoundryFolderLike[];
     await syncAllActorsAndPages({ actors, journalPages }, storage);
-    log.info(`Backfill complete: ${actors.length} actors, ${journalPages.length} pages.`);
+    await syncAllFolders(folders, storage);
+    log.info(
+      `Backfill complete: ${actors.length} actors, ${journalPages.length} pages, ${folders.length} folders scanned.`,
+    );
 
     // Signals the Codex sidebar tab (VIEW-001a) — which may have rendered
     // before `ready` — that storage is now up and can be queried.
