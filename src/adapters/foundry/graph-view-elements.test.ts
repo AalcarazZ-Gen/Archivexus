@@ -7,6 +7,7 @@ import {
   buildGraphViewElementsFromTraversal,
   collectTraversalNodes,
   filterNodesForViewer,
+  filterTraversalForViewer,
   type GraphViewEdgeElement,
   type GraphViewNodeElement,
 } from './graph-view-elements.js';
@@ -192,5 +193,54 @@ describe('filterNodesForViewer (ADR-0003 visibility)', () => {
 
   it('returns an empty list when a non-GM can see nothing', () => {
     expect(filterNodesForViewer([hiddenNote], { isGM: false })).toEqual([]);
+  });
+});
+
+describe('filterTraversalForViewer', () => {
+  const secret = createNode({
+    id: 'Actor.secret',
+    type: 'Character',
+    title: 'Hidden NPC',
+    visibility: 'hidden',
+  });
+  const seen = createNode({
+    id: 'Actor.seen',
+    type: 'Character',
+    title: 'Seen',
+    visibility: 'visible',
+  });
+  const relToSecret = createRelationship({
+    id: 'Rel.root-secret',
+    origin: 'Actor.kael',
+    target: 'Actor.secret',
+    definitionId: 'knows',
+    title: 'root knows the hidden one',
+  });
+  const relToSeen = createRelationship({
+    id: 'Rel.root-seen',
+    origin: 'Actor.kael',
+    target: 'Actor.seen',
+    definitionId: 'knows',
+    title: 'root knows the seen one',
+  });
+  const traversal: TraversalResult = {
+    nodeId: 'Actor.kael',
+    preset: 'everything-connected',
+    rootNode: kael,
+    nodes: [secret, seen],
+    relationships: [relToSecret, relToSeen],
+  };
+
+  it('returns the traversal untouched for a GM', () => {
+    expect(filterTraversalForViewer(traversal, { isGM: true })).toBe(traversal);
+  });
+
+  it('drops hidden nodes and any relationship that then dangles, for a non-GM', () => {
+    const filtered = filterTraversalForViewer(traversal, { isGM: false });
+    expect(filtered.nodes.map((node) => node.id)).toEqual(['Actor.seen']);
+    expect(filtered.relationships.map((relationship) => relationship.id)).toEqual([
+      'Rel.root-seen',
+    ]);
+    expect(filtered.rootNode).toBe(kael);
   });
 });

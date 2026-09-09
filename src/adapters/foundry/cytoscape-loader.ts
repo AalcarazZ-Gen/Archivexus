@@ -175,4 +175,43 @@ export const CYTOSCAPE_STYLE: readonly Record<string, unknown>[] = [
       'border-color': '#f5d089',
     },
   },
+  // VIEW-001e — a synthetic cluster node. `[?isCluster]` matches truthy.
+  // When expanded it's a compound parent (translucent box holding members);
+  // when collapsed (`[?collapsed]`) it's a solid pill you tap to open.
+  {
+    selector: 'node[?isCluster]',
+    style: {
+      shape: 'round-rectangle',
+      'background-color': '#3a3f52',
+      'background-opacity': 0.22,
+      'border-width': 2,
+      'border-style': 'dashed',
+      'border-color': '#8a93c0',
+      color: '#d7dbf0',
+      'font-size': 11,
+      'font-weight': 'bold',
+      'text-valign': 'top',
+      'text-halign': 'center',
+      padding: 14,
+    },
+  },
+  {
+    selector: 'node[?collapsed]',
+    style: {
+      shape: 'round-rectangle',
+      'background-opacity': 0.9,
+      'background-color': '#4a5170',
+      'text-valign': 'center',
+      padding: 8,
+    },
+  },
+  {
+    selector: 'edge[source *= "ax-cluster:"], edge[target *= "ax-cluster:"]',
+    style: {
+      'line-style': 'dashed',
+      'line-color': '#8a93c0',
+      'target-arrow-shape': 'none',
+      width: 1,
+    },
+  },
 ];

@@ -14,8 +14,14 @@ import {
   buildGraphViewElements,
   collectTraversalNodes,
   filterNodesForViewer,
+  filterTraversalForViewer,
   type GraphViewElement,
 } from './graph-view-elements.js';
+import {
+  buildClusteredGraphElements,
+  buildClusteredTraversal,
+  isClusterNodeId,
+} from './graph-clusters.js';
 import type { Logger } from './logger.js';
 import { buildNodeConnections, type NodeConnectionGroup } from './node-connections.js';
 
@@ -34,17 +40,27 @@ import { buildNodeConnections, type NodeConnectionGroup } from './node-connectio
  *
  * **What's pure and unit-tested:** `buildGraphPopoutContentHTML`,
  * `buildInspectorHTML`, `buildInspectorEmptyHTML`, `buildContextMenuHTML`,
- * `node-connections.ts`, `graph-view-elements.ts`, `resolveTraversal`
- * (CORE-005). **Still glue, flagged for live verification:** the
- * `ApplicationV2` window lifecycle, Cytoscape mounting/gestures inside it,
- * `foundry.utils.fromUuid` + `sheet.render(true)` sheet-opening, and the
- * right-click context menu's positioning/dismissal.
+ * `node-connections.ts`, `graph-view-elements.ts`, `graph-clusters.ts`,
+ * `resolveTraversal` (CORE-005). **Still glue, flagged for live
+ * verification:** the `ApplicationV2` window lifecycle, Cytoscape
+ * mounting/gestures inside it (including VIEW-001e's tap-to-expand on a
+ * compound cluster node), `foundry.utils.fromUuid` + `sheet.render(true)`
+ * sheet-opening, and the right-click context menu's positioning/dismissal.
  *
  * Non-GM viewers (and a GM with "Preview as player" on) only see Nodes
  * whose `visibility` isn't `hidden` (ADR-0003 / Amendment A4) —
- * `filterNodesForViewer`, applied to every render path. The preview toggle
- * is labelled "approximate": it reads `Node.visibility` (default document
- * ownership), not per-user grants.
+ * `filterNodesForViewer` / `filterTraversalForViewer`, applied on every
+ * render path *before* clustering (a collapsed cluster's count must never
+ * leak how many hidden Nodes it holds). The preview toggle is labelled
+ * "approximate": it reads `Node.visibility` (default document ownership),
+ * not per-user grants.
+ *
+ * VIEW-001e / ADR-0007 point 6 (mandatory) + ADR-0014 A5: the "Everything
+ * connected" preset renders its depth-2 ring as collapsed,
+ * category-labelled clusters by default (`graph-clusters.ts`), each a
+ * Cytoscape compound node — tap to expand in place, "Collapse clusters" to
+ * reset. Switching preset / re-rooting / "Whole graph" clears the expansion
+ * state.
  */
 
 type Preset = 'direct-only' | 'everything-connected';
@@ -93,6 +109,7 @@ export function buildGraphPopoutContentHTML(options: { readonly isGM: boolean })
     `<button type="button" data-action="preset" data-preset="everything-connected" aria-pressed="false">Everything</button>` +
     `<button type="button" disabled title="Saved curated views — VIEW-001f">Curated</button>` +
     `</span>` +
+    `<button type="button" data-action="collapseClusters" data-role="collapse-clusters" hidden>Collapse clusters</button>` +
     `<label class="ax-gp-layout">Layout <select data-action="changeLayout" data-role="layout">${layoutOptions}</select></label>` +
     previewControl +
     `</div>` +
@@ -335,15 +352,24 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       actions: {
         wholeGraph(this: GraphPopoutApplication): void {
           this.#rootNodeId = undefined;
+          this.#expandedClusters.clear();
           void this._renderGraph();
         },
         preset(this: GraphPopoutApplication, _event: unknown, target: MinimalElementLike): void {
           const value = target.getAttribute('data-preset');
           if (value === 'direct-only' || value === 'everything-connected') {
             this.#preset = value;
+            this.#expandedClusters.clear();
             this.#syncPresetButtons();
             void this._renderGraph();
           }
+        },
+        collapseClusters(this: GraphPopoutApplication): void {
+          if (this.#expandedClusters.size === 0) {
+            return;
+          }
+          this.#expandedClusters.clear();
+          void this._renderGraph();
         },
         changeLayout(
           this: GraphPopoutApplication,
@@ -397,6 +423,9 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
     #cy: CytoscapeCoreLike | undefined;
     #selectedNodeId: string | undefined;
     #contextMenu: MinimalElementLike | undefined;
+    /** VIEW-001e — cluster node ids the GM has expanded in the "Everything connected" view. */
+    readonly #expandedClusters = new Set<string>();
+    #clusterCount = 0;
 
     constructor(options: GraphPopoutOptions) {
       super(options as unknown as Record<string, unknown>);
@@ -408,6 +437,7 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
     /** Public — `openGraphPopout` re-points an already-open window at a new root without spawning a duplicate. */
     setRoot(rootNodeId: string | undefined): void {
       this.#rootNodeId = rootNodeId;
+      this.#expandedClusters.clear();
       void this._renderGraph();
     }
 
@@ -439,13 +469,26 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       });
 
       // Gestures (Amendment A3): single-tap = select + Inspector; double-tap
-      // = open sheet; right-click = context menu.
-      this.#cy.on('tap', 'node', (event) => void this._selectNode(event.target.id()));
-      this.#cy.on('dbltap', 'node', (event) => void openSheetFor(event.target.id(), this.#log));
+      // = open sheet; right-click = context menu. A synthetic cluster node
+      // (VIEW-001e) has none of those — a tap toggles its expansion instead.
+      this.#cy.on('tap', 'node', (event) => {
+        const id = event.target.id();
+        if (isClusterNodeId(id)) {
+          this.#toggleCluster(id);
+        } else {
+          void this._selectNode(id);
+        }
+      });
+      this.#cy.on('dbltap', 'node', (event) => {
+        const id = event.target.id();
+        if (!isClusterNodeId(id)) void openSheetFor(id, this.#log);
+      });
       this.#cy.on('cxttap', 'node', (event) => {
+        const id = event.target.id();
+        if (isClusterNodeId(id)) return;
         event.originalEvent?.preventDefault?.();
         this.#showContextMenu(
-          event.target.id(),
+          id,
           event.originalEvent?.clientX ?? 0,
           event.originalEvent?.clientY ?? 0,
         );
@@ -493,21 +536,47 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
             nodeId: this.#rootNodeId,
           });
           const allReached = collectTraversalNodes(traversal);
-          const nodes = filterNodesForViewer(allReached, { isGM });
-          elements = buildGraphViewElements(nodes, traversal.relationships);
-          visibleCount = nodes.length;
-          hiddenCount = allReached.length - nodes.length;
-          relationshipCount = traversal.relationships.length;
+          const visibleTraversal = filterTraversalForViewer(traversal, { isGM });
+          const visibleReached = collectTraversalNodes(visibleTraversal);
+          hiddenCount = allReached.length - visibleReached.length;
+          relationshipCount = visibleTraversal.relationships.length;
+          visibleCount = visibleReached.length;
+
+          if (this.#preset === 'everything-connected') {
+            // VIEW-001e / ADR-0007 point 6: the depth-2 ring renders as
+            // collapsed, category-labelled clusters by default.
+            const definitions = await storage.listRelationshipDefinitions();
+            const definitionsById = new Map(definitions.map((d) => [d.id, d]));
+            const clustered = buildClusteredTraversal(visibleTraversal, definitionsById);
+            const liveClusterIds = new Set(clustered.clusters.map((c) => c.id));
+            for (const id of [...this.#expandedClusters]) {
+              if (!liveClusterIds.has(id)) this.#expandedClusters.delete(id);
+            }
+            elements = buildClusteredGraphElements(
+              visibleTraversal,
+              clustered,
+              this.#expandedClusters,
+            );
+            this.#clusterCount = clustered.clusters.length;
+          } else {
+            elements = buildGraphViewElements(visibleReached, visibleTraversal.relationships);
+            this.#clusterCount = 0;
+          }
         }
 
         this.#applyElements(elements);
         this.#updatePreviewBanner(hiddenCount);
+        this.#updateCollapseButton();
         const rootLabel = this.#rootNodeId
           ? ` · rooted (${this.#preset === 'direct-only' ? 'direct' : 'everything'})`
           : '';
         const hiddenLabel = isViewerGM() && hiddenCount > 0 ? ` · ${hiddenCount} hidden` : '';
+        const clusterLabel =
+          this.#clusterCount > 0
+            ? ` · ${this.#expandedClusters.size}/${this.#clusterCount} clusters expanded`
+            : '';
         this.#setStatus(
-          `${visibleCount} nodes · ${relationshipCount} relationships${rootLabel}${hiddenLabel}`,
+          `${visibleCount} nodes · ${relationshipCount} relationships${rootLabel}${clusterLabel}${hiddenLabel}`,
         );
         if (this.#selectedNodeId) {
           this.#cy?.getElementById(this.#selectedNodeId).addClass(SELECTED_CLASS);
@@ -572,6 +641,22 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       }
     }
 
+    #toggleCluster(clusterId: string): void {
+      if (this.#expandedClusters.has(clusterId)) {
+        this.#expandedClusters.delete(clusterId);
+      } else {
+        this.#expandedClusters.add(clusterId);
+      }
+      void this._renderGraph();
+    }
+
+    #updateCollapseButton(): void {
+      const button = this.element.querySelector('[data-role="collapse-clusters"]');
+      if (button) {
+        button.hidden = this.#expandedClusters.size === 0;
+      }
+    }
+
     #updatePreviewBanner(hiddenCount: number): void {
       const banner = this.element.querySelector('[data-role="preview-banner"]');
       if (!banner) {
@@ -632,11 +717,13 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
           break;
         case 'menuReRoot':
           this.#rootNodeId = nodeId;
+          this.#expandedClusters.clear();
           void this._renderGraph().then(() => this._selectNode(nodeId));
           break;
         case 'menuEverything':
           this.#rootNodeId = nodeId;
           this.#preset = 'everything-connected';
+          this.#expandedClusters.clear();
           this.#syncPresetButtons();
           void this._renderGraph().then(() => this._selectNode(nodeId));
           break;

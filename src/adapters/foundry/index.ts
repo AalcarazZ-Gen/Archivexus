@@ -141,12 +141,20 @@ export {
   buildGraphViewElementsFromTraversal,
   collectTraversalNodes,
   filterNodesForViewer,
+  filterTraversalForViewer,
 } from './graph-view-elements.js';
 export type {
   GraphViewEdgeElement,
   GraphViewElement,
   GraphViewNodeElement,
 } from './graph-view-elements.js';
+export {
+  buildClusteredGraphElements,
+  buildClusteredTraversal,
+  CLUSTER_ID_PREFIX,
+  isClusterNodeId,
+} from './graph-clusters.js';
+export type { ClusteredTraversal, ClusterCategoryKey, GraphCluster } from './graph-clusters.js';
 export { buildNodeConnections, categoryLabel, UNCATEGORIZED_KEY } from './node-connections.js';
 export type {
   BuildNodeConnectionsInput,

@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-09-08 (software-developer: VIEW-001e — "Everything connected" clusters)
+
+**Un-deferred:** VIEW-001e/f were parked for lack of real Relationship data; ADAPT-015/017/021 now produce ~14 authored + folder-containment edges, and ADAPT-018 was live-verified against Alberto's world (Neverwinter → City-Node with 6 scene Blocks; branches reconciled — `dev` had a half-applied ADR-0015 batch, cherry-picked the missing fix/017/021 and force-forwarded + pushed). Started `feat/view-001ef-graph-views` off `dev` for VIEW-001e **and** VIEW-001f (one PR).
+
+**Built:** VIEW-001e (#70) — ADR-0007 point 6 (mandatory) + ADR-0014 A5.
+
+- `graph-clusters.ts` (new, pure) — `buildClusteredTraversal(traversal, definitionsById)`: direct ring (depth 1, always expanded) + depth-2 clusters keyed by the linking edge's `traversalCategory` (fixed taxonomy order, `Other` last, one cluster per node — first linking edge wins). `buildClusteredGraphElements(traversal, clustered, expandedIds)` → Cytoscape elements: collapsed cluster = 1 node + aggregate edges from anchors; expanded = compound parent box + members (`data.parent`), emitted parent-before-child for `cy.add()`.
+- `graph-view-elements.ts` — `GraphViewNodeElement.data` gains optional `parent`/`isCluster`/`collapsed`/`clusterCount`/`clusterCategory`; new `filterTraversalForViewer` applies the ADR-0003 filter to a whole `TraversalResult` **before** clustering (a collapsed cluster's count must not leak hidden-node counts).
+- `graph-popout-window.ts` — clusters when preset === everything-connected AND rooted; `#expandedClusters` state; tap a cluster node to expand in place; "Collapse clusters" toolbar button (shown only while something's expanded); state cleared on preset switch / re-root / "Whole graph" / context-menu re-root; status line `· N/M clusters expanded`. Cluster node styling in `cytoscape-loader.ts` (dashed box / solid pill).
+- +11 tests (589). `tsc`/`eslint`/`vitest`/`build:foundry-module` clean (`archivexus.js` ~131 → ~137KB).
+
+**Not yet live-verified:** the Cytoscape compound-node render + tap-to-expand + "Collapse clusters" toggle. Next: VIEW-001f on the same branch.
+
 ## 2026-09-08 (software-developer: ADAPT-018 — Scene → Block + branch cleanup)
 
 **Branch fix first:** the ADR-0015 batch had landed on `dev` only as CORE-007 + ADAPT-016 (base) — the ADAPT-016 context-menu fix (`5a5b1b9`), ADAPT-017 and ADAPT-021 were on `feat/adr-0015-containers` but never PR'd. Cherry-picked those 3 onto a branch off `dev` (`feat/adapt-017-021-followup`), verified (570 tests), fast-forwarded `dev`, pushed, deleted the redundant `feat/adr-0015-containers` (local + remote). `dev` now at the full batch.
