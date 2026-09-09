@@ -18,7 +18,15 @@
 
 **Scoping calls:** trimmed the tag dialog's relationship-type-override dropdown — the type default (`member-of` / `located-in` / `part-of` from CORE-007's `containmentDefinitionFor`) + a per-folder `containmentRelationship` flag (settable later, e.g. from the console) covers v1; the dialog just needs node type + the root opt-out. "Open sheet" for a folder-Node is degraded (a Folder has a config dialog, not a content sheet) — left as the ADR flagged it.
 
-**Not yet live-verified:** the exact `getFolderContextOptions` hook name / callback-target shape on v14.367. Next: ADAPT-017 (#81) — the derivation engine. Not merged — Alberto merges.
+**Live-verified on v14.367 (GM, 2026-09-08)** — Alberto deployed, I tested via Claude in Chrome against his real folder tree (NPC > Horda del Estandarte Carmesí > Legión Carmesí / Lobos Grises / Los Vasallos; Red Cuervo de Hierro; etc.):
+- The **"Archivexus Node Type"** context-menu entry appears on folders (`getFolderContextOptions` fires on v14).
+- **One fix, same session:** v14 binds the folder context menu to `.folder .folder-header`, so the callback target is the `<header>` — `data-folder-id` is on its enclosing `<li class="directory-item folder">`. `folderIdFromContextTarget` now walks up with `closest()` (found via `DocumentDirectory#_createContextMenus` source). Before: the menu entry showed but clicking did nothing. +3 tests (540 total). Fix committed on this branch.
+- Tag ("Red Cuervo" → Organization via `setFlag`) → `updateFolder` → `syncFolder` → the `Folder.96Drtpo17y8lGqHU` Node appears in the navigator's Organization group (102 → 103 nodes). Untag → deleted (back to 102).
+- A tagged folder resolves as an endpoint in "New Relationship…" (name in-field, UUID beneath, `member-of` eligible). An untagged folder → "That folder isn't an Archivexus Node yet — right-click it and pick 'Archivexus Node Type' first."
+- Zero console errors throughout.
+- **Noted for ADAPT-017:** the navigator doesn't auto-refresh on a Node change (had to re-activate the tab) — the engine should emit a "nodes changed" signal the navigator/console listen for.
+
+Next: ADAPT-017 (#81) — the derivation engine. Branch not merged — Alberto merges + redeploys for the context-menu fix.
 
 ## 2026-09-08 (software-developer: CORE-007 — folder-containment foundation)
 

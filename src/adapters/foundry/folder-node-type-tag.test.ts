@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FoundryFolderLike } from './folder-to-node.js';
 import {
   buildFolderNodeTypeDialogContent,
+  folderIdFromContextTarget,
   parseFolderNodeTypeDialogResult,
   resolveNearestTaggedAncestor,
 } from './folder-node-type-tag.js';
@@ -47,6 +48,26 @@ describe('buildFolderNodeTypeDialogContent', () => {
     expect(html).toContain('&lt;b&gt;&quot;x&quot;&lt;/b&gt;');
     expect(html).not.toContain('<b>"x"</b>');
     expect(html).toContain('name="containmentRoot" />');
+  });
+});
+
+describe('folderIdFromContextTarget', () => {
+  it('reads data-folder-id off the target', () => {
+    expect(folderIdFromContextTarget({ dataset: { folderId: 'abc' } })).toBe('abc');
+    expect(
+      folderIdFromContextTarget({ getAttribute: (n: string) => (n === 'data-folder-id' ? 'xyz' : null) }),
+    ).toBe('xyz');
+  });
+
+  it('walks up with closest() when the target is the .folder-header (v14, confirmed live)', () => {
+    const li = { dataset: { folderId: 'parent-id' } };
+    const header = { dataset: {}, closest: (sel: string) => (sel === '[data-folder-id]' ? li : null) };
+    expect(folderIdFromContextTarget(header)).toBe('parent-id');
+  });
+
+  it('returns undefined for a null target or one with no folder id anywhere', () => {
+    expect(folderIdFromContextTarget(null)).toBeUndefined();
+    expect(folderIdFromContextTarget({ dataset: {}, closest: () => null })).toBeUndefined();
   });
 });
 

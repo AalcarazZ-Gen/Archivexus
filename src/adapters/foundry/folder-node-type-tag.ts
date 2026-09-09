@@ -10,12 +10,16 @@ import type { Logger } from './logger.js';
  * `updateFolder` Hook then re-syncs (`folder-sync.ts` for the Node,
  * ADAPT-017's engine for the derived containment).
  *
- * **Foundry glue, flagged for live verification:** the exact v14 hook name
- * / callback-target shape for a folder context menu. `getFolderContextOptions`
- * is confirmed to exist v13+ (it receives the directory Application and the
- * mutable menu-item array; the callback gets the folder's directory
- * `[data-folder-id]` element). Verify against v14.367 the same way every
- * prior `getHeaderControls*` addition in this repo was.
+ * **Verified live on v14.367 (2026-09-08):** `getFolderContextOptions` fires
+ * (the "Archivexus Node Type" entry appears in a folder's directory context
+ * menu), the callback receives a plain `HTMLElement`, and — the one gotcha —
+ * v14 binds the folder context menu to `.folder .folder-header`, so the
+ * callback target is the `<header class="folder-header">`; `data-folder-id`
+ * lives on its enclosing `<li class="directory-item folder">`, so
+ * `folderIdFromContextTarget` walks up with `closest()`. Tagging
+ * (`setFlag` → `updateFolder` → `folder-sync.ts`) creates the `Folder.<id>`
+ * Node; clearing the flag deletes it; a tagged folder resolves as an
+ * endpoint in the authoring window, an untagged one gives a clear error.
  *
  * What's pure and unit-tested: `resolveNearestTaggedAncestor`,
  * `buildFolderNodeTypeDialogContent`, `parseFolderNodeTypeDialogResult`.
@@ -111,13 +115,25 @@ export interface FoundryFolderContextOptionsLike {
   }): void;
 }
 
-function folderIdFromContextTarget(target: unknown): string | undefined {
-  // The callback target is the directory `<li data-folder-id="…">` (or a
-  // jQuery wrapper of it, depending on the Foundry version).
-  const el = (Array.isArray(target) ? target[0] : target) as
-    | { dataset?: { folderId?: string }; getAttribute?(name: string): string | null }
-    | undefined;
-  return el?.dataset?.folderId ?? el?.getAttribute?.('data-folder-id') ?? undefined;
+interface ContextTargetLike {
+  dataset?: { folderId?: string };
+  getAttribute?(name: string): string | null;
+  closest?(selector: string): ContextTargetLike | null;
+}
+
+/** Exported for tests — pulls the folder id out of a context-menu callback target. */
+export function folderIdFromContextTarget(target: unknown): string | undefined {
+  // v14's folder context menu binds to `.folder .folder-header` (confirmed
+  // live), so the callback target is the `<header class="folder-header">` —
+  // `data-folder-id` lives on its enclosing `<li class="directory-item
+  // folder">`, so walk up with `closest()`. The `Array.isArray` unwrap
+  // covers an older jQuery-wrapped target defensively.
+  const el = (Array.isArray(target) ? target[0] : target) as ContextTargetLike | undefined;
+  if (!el) return undefined;
+  const own = el.dataset?.folderId ?? el.getAttribute?.('data-folder-id') ?? undefined;
+  if (own) return own;
+  const ancestor = el.closest?.('[data-folder-id]');
+  return ancestor?.dataset?.folderId ?? ancestor?.getAttribute?.('data-folder-id') ?? undefined;
 }
 
 async function openFolderNodeTypeDialog(
