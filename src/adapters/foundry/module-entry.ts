@@ -28,7 +28,9 @@ import {
   type ContainmentSnapshot,
   type ContainmentSnapshotEntity,
   type ContainmentSnapshotFolder,
+  type ContainmentSnapshotScene,
 } from './folder-containment-sync.js';
+import { mapSceneToBlock, type FoundrySceneLike } from './scene-to-block.js';
 import { resolvePageAttachment } from './journal-entry-page-to-node.js';
 import { syncActor, syncAllActorsAndPages } from './storage-sync.js';
 import { isTaggedJournalEntry, type FoundryJournalEntryLike } from './journal-entry-to-node.js';
@@ -179,7 +181,24 @@ function gatherContainmentSnapshot(): ContainmentSnapshot {
     }
   }
 
-  return { folders, entities };
+  // ADAPT-018 — Scenes. Each Scene attaches to its nearest **tagged** folder
+  // ancestor (untagged folders between are transparent, same rule as an
+  // entity's containing folder); the resolver then keeps it only if that
+  // folder is place-like. A Scene with no tagged ancestor is dropped here.
+  const taggedFolderNodeIds = new Set(folders.map((folder) => folder.nodeId));
+  const scenes: ContainmentSnapshotScene[] = [];
+  for (const scene of (game.scenes?.contents ?? []) as (FoundrySceneLike & { name: string })[]) {
+    const chain = scene.folder
+      ? [scene.folder.uuid, ...(scene.folder.ancestors ?? []).map((a) => a.uuid)]
+      : [];
+    const nearestTagged = chain.find(
+      (id): id is string => id !== undefined && taggedFolderNodeIds.has(id),
+    );
+    if (nearestTagged === undefined) continue;
+    scenes.push({ block: mapSceneToBlock(scene), folderNodeId: nearestTagged });
+  }
+
+  return { folders, entities, scenes };
 }
 
 const scheduleContainmentReconcile = foundry.utils.debounce(() => {
@@ -188,8 +207,11 @@ const scheduleContainmentReconcile = foundry.utils.debounce(() => {
       storage: s,
       newId: () => foundry.utils.randomID(),
     });
-    if (result.added > 0 || result.removed > 0) {
-      log.info(`Folder containment: +${result.added} / -${result.removed} derived link(s).`);
+    if (result.added > 0 || result.removed > 0 || result.blocksChanged > 0) {
+      log.info(
+        `Folder containment: +${result.added} / -${result.removed} derived link(s), ` +
+          `${result.blocksChanged} folder-Node scene set(s) updated.`,
+      );
       Hooks.callAll('archivexus.relationshipsChanged');
     }
   });
@@ -221,6 +243,15 @@ Hooks.once('init', () => {
     scheduleContainmentReconcile();
   });
   Hooks.on('deleteActor', () => scheduleContainmentReconcile());
+
+  // Scenes (ADAPT-018). A Scene never becomes a Node — it's a `scene` Block
+  // on its nearest tagged place folder-Node, reconciled wholesale by the
+  // containment engine. Create / move-between-folders / rename / delete all
+  // change which folder-Node holds which Block, so all feed the re-derive.
+  Hooks.on('createScene', () => scheduleContainmentReconcile());
+  Hooks.on('updateScene', () => scheduleContainmentReconcile());
+  Hooks.on('deleteScene', () => scheduleContainmentReconcile());
+
   // A page inside a tagged JournalEntry is a Block on the entry-Node, not a
   // Node itself (ADR-0011 Amendment 2) — syncJournalEntryPageOrParent routes
   // to the whole-entry re-sync in that case, the page-only sync otherwise.
@@ -332,17 +363,20 @@ Hooks.once('ready', () => {
     await syncAllActorsAndPages({ actors, journalPages }, storage);
     await syncAllFolders(folders, storage);
     await syncAllJournalEntries(journalEntries, storage);
-    // ADAPT-017: derive the containment edges from the folder tree once the
-    // Nodes are all in (a full reconcile, so a re-parented folder or a tag
-    // cleared while Foundry was closed is picked up on load).
+    // ADAPT-017 / ADAPT-018: derive the containment edges + folder-Node
+    // scene Blocks from the folder tree once the Nodes are all in (a full
+    // reconcile, so a re-parented folder/scene or a tag cleared while
+    // Foundry was closed is picked up on load).
+    const sceneCount = (game.scenes?.contents ?? []).length;
     const containment = await reconcileFolderContainment(gatherContainmentSnapshot(), {
       storage,
       newId: () => foundry.utils.randomID(),
     });
     log.info(
       `Backfill complete: ${actors.length} actors, ${journalEntries.length} journal entries, ` +
-        `${journalPages.length} pages, ${folders.length} folders scanned; ` +
-        `folder containment +${containment.added} / -${containment.removed}.`,
+        `${journalPages.length} pages, ${folders.length} folders, ${sceneCount} scenes scanned; ` +
+        `folder containment +${containment.added} / -${containment.removed}, ` +
+        `${containment.blocksChanged} folder-Node scene set(s) updated.`,
     );
 
     // Signals the Codex sidebar tab (VIEW-001a) — which may have rendered
