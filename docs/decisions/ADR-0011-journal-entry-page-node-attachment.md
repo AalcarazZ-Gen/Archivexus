@@ -8,7 +8,7 @@ A JournalEntryPage becomes a Node by default, but a GM can explicitly attach it 
 
 ## Status
 
-Accepted
+Accepted (amended 2026-09-08 — see Amendment 2 below: a whole `JournalEntry` may be tagged as a single Node, its pages becoming that Node's Blocks; parallels ADR-0015's folder-as-Node)
 
 ---
 
@@ -147,3 +147,23 @@ This needs nothing beyond `listNodes()` and `saveNode()` — both already exist 
 **3. Schema (`migration.ts`) is unchanged by both mechanics — this is purely an orchestration-layer (`storage-sync.ts` + `src/core/domain/node.ts`) concern.** `blocks` stays exactly what it is today: an unindexed JSON `TEXT` column on `nodes`, written and read whole via `row-mapping.ts`'s existing `nodeToRow`/`rowToNode`. Neither mechanic needs a new column, a new table, or a new index — confirmed explicitly, not left implicit.
 
 **Future lever, not built now:** if the "no index over `blocks`" cost ever does become real, the principled place to add it is a new `StorageProvider.findNodesReferencingBlock(uuid): Promise<readonly Node[]>` method — engine-agnostic at the port level (the SQLite implementation could satisfy it via SQLite's JSON1 functions, e.g. a `json_each` join, without pulling/deserializing full rows via `listNodes()`; a simpler JSON-file fallback implementation could still just filter in JS) — not a SQL-specific escape hatch bolted onto `storage-sync.ts` directly. Naming this now so it doesn't need to be rediscovered from scratch if the scale assumption above ever stops holding.
+
+---
+
+## Amendment 2 (2026-09-08): a whole `JournalEntry` may be tagged as one Node
+
+**Prompted by:** Alberto testing ADR-0015's folder-containment against his real world. His organization folders ("Red Cuervo de Hierro") hold their members as **multi-page `JournalEntry` documents** ("Violet Meyer" = *Retrato* / *Biografía* / *Notas personales*; "Lord Fausto Farcon" likewise — the exact 3-fragment shape this ADR's Context named). To make one such member participate in folder-containment today, a GM must tag *one* page as the standalone Node and attach the other two to it (the mechanism this ADR built) — ~6 clicks per member, and the resulting Node is titled by the page (*"Violet Meyer — Biografía"*), not the entry. For a folder full of these, that's the "GM fighting their own documentation" the Vision rejects.
+
+ADR-0015 established the precedent: a **container** the GM has organised their world around (a Folder) becomes a Node on an explicit, opt-in tag, with its contained things expressed as graph structure. A `JournalEntry` is the same shape of thing — a Foundry container whose pages are fragments of *one* concept. This Decision's original "Is a Foundry Journal (the whole `JournalEntry`) a Node? **No — not as a single unit**" answer was written before both the multi-page-character pain (which this ADR only partly addressed, per-page) and folders-as-Nodes. It is now amended:
+
+**A1. A `JournalEntry` becomes a Node when — and only when — the GM explicitly tags it** (`flags.archivexus.nodeType` on the *entry*, set via a "Archivexus Node Type" entry in the journal directory's right-click context menu — the same discoverable surface ADR-0015 gave folders, *not* a buried sheet ⋯-menu action). No inference: an untagged `JournalEntry`'s pages map exactly as they do today (each its own `Lore` Node, or attached, per this ADR's original Decision).
+
+**A2. `id = entry.uuid` (`JournalEntry.<id>`)**, `title = entry.name`, `type` = the flag, visibility from `entry.ownership.default` (`JournalEntry` has real ownership, unlike a Folder — ADR-0003's existing mapping applies directly). Fits ADR-0001 as-is, same as `Folder.<id>` did — no ADR-0001 amendment.
+
+**A3. The tagged entry's pages become `{ type: 'JournalEntryPage', uuid, title }` Blocks on the entry-Node — an engine-owned array, reconciled wholesale** (the same ownership model ADR-0015 point 13 uses for a location folder-Node's `scene` Blocks). While an entry is tagged, its pages do **not** become their own standalone Nodes, and a page's own `attachedToNodeId` / `nodeType` flag is not read (the entry-tag supersedes — a page can't be a member of one Node and content of its own entry-Node at once). Clearing the entry tag returns every page to its individual mapping.
+
+**A4. The entry-Node participates in ADR-0015 folder-containment** exactly like a tagged Actor: its folder chain is `entry.folder` + that folder's ancestors, so "Violet Meyer" (entry-Node) auto-derives `member-of` → "Red Cuervo de Hierro" (folder-Node).
+
+**A5. State transition** mirrors this ADR's own point 5: tagging an entry deletes the standalone page-Nodes its pages had (their Relationships survive as dangling references — ADR-0007 point 8, reused not reinvented; the GM is warned non-blockingly if any existed). No forced migration — the 61 already-synced pages stay standalone until their entry is tagged.
+
+**Not in scope:** a folder-level "tag every entry in here as `<type>`" bulk action (a possible convenience follow-up), and re-deriving an entry-Node's `type` from anything other than the explicit flag.

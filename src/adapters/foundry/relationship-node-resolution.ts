@@ -5,6 +5,11 @@ import {
   mapJournalEntryPageToNode,
   type FoundryJournalEntryPageLike,
 } from './journal-entry-page-to-node.js';
+import {
+  isTaggedJournalEntry,
+  mapJournalEntryToNode,
+  type FoundryJournalEntryLike,
+} from './journal-entry-to-node.js';
 
 /**
  * Node-type resolution for the two entities dropped into the
@@ -20,7 +25,12 @@ import {
  * classification.
  */
 
-export const SUPPORTED_DOCUMENT_KINDS = ['Actor', 'JournalEntryPage', 'Folder'] as const;
+export const SUPPORTED_DOCUMENT_KINDS = [
+  'Actor',
+  'JournalEntryPage',
+  'JournalEntry',
+  'Folder',
+] as const;
 export type SupportedDocumentKind = (typeof SUPPORTED_DOCUMENT_KINDS)[number];
 
 /** What the authoring window needs to know about a successfully resolved endpoint. */
@@ -51,7 +61,8 @@ export type ResolveDroppedNodeResult =
  */
 export function resolveDroppedDocumentNode(
   documentName: string,
-  document: FoundryActorLike | FoundryJournalEntryPageLike | FoundryFolderLike,
+  document:
+    FoundryActorLike | FoundryJournalEntryPageLike | FoundryJournalEntryLike | FoundryFolderLike,
 ): ResolveDroppedNodeResult {
   if (documentName === 'Actor') {
     const node = mapActorToNode(document as FoundryActorLike);
@@ -70,6 +81,28 @@ export function resolveDroppedDocumentNode(
         nodeType: node.type,
         title: node.title,
         documentKind: 'JournalEntryPage',
+      },
+    };
+  }
+
+  if (documentName === 'JournalEntry') {
+    const entry = document as FoundryJournalEntryLike;
+    // A whole JournalEntry is only a Node once the GM has tagged it
+    // (ADR-0011 Amendment 2). Untagged → the same clear inline error.
+    if (!isTaggedJournalEntry(entry)) {
+      return {
+        ok: false,
+        error: `That journal entry isn't an Archivexus Node yet — right-click it in the Journal sidebar and pick "Archivexus Node Type" first.`,
+      };
+    }
+    const node = mapJournalEntryToNode(entry);
+    return {
+      ok: true,
+      node: {
+        nodeId: node.id,
+        nodeType: node.type,
+        title: node.title,
+        documentKind: 'JournalEntry',
       },
     };
   }
@@ -93,6 +126,6 @@ export function resolveDroppedDocumentNode(
 
   return {
     ok: false,
-    error: `Scenes and Items aren't Nodes yet — drop an Actor, a Journal Page, or a tagged Folder. (Got "${documentName}".)`,
+    error: `Scenes and Items aren't Nodes yet — drop an Actor, a Journal Page, a tagged Journal entry, or a tagged Folder. (Got "${documentName}".)`,
   };
 }

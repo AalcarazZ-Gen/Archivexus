@@ -3,6 +3,7 @@ import type { Block } from '../../core/domain/block.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import { mapActorToNode, type FoundryActorLike } from './actor-to-node.js';
 import {
+  isInsideTaggedJournalEntry,
   mapJournalEntryPageToNode,
   resolvePageAttachment,
   type FoundryJournalEntryPageLike,
@@ -36,6 +37,34 @@ import {
 
 export async function syncActor(actor: FoundryActorLike, storage: StorageProvider): Promise<void> {
   await storage.saveNode(mapActorToNode(actor));
+}
+
+/**
+ * Removes a page's standalone Node if one is stored, warning the GM
+ * non-blockingly first (ADR-0011 point 5 / Amendment 2 point A5) when it
+ * carried hand-authored Relationships — those survive as dangling
+ * references (ADR-0007 point 8), they are not deleted. `containerTitle`
+ * names what the page's content now belongs to (the attach target, or the
+ * tagged parent entry) for the warning text. Shared by `syncJournalEntryPage`
+ * (page moved into a tagged entry) and `journal-entry-sync.ts`'s
+ * `syncJournalEntry` (the entry itself just got tagged).
+ */
+export async function deleteStandalonePageNodeIfPresent(
+  page: FoundryJournalEntryPageLike,
+  containerTitle: string,
+  storage: StorageProvider,
+): Promise<void> {
+  const standalone = await storage.getNode(page.uuid);
+  if (!standalone) {
+    return;
+  }
+  const orphaned = await storage.getRelationshipsForNode(page.uuid);
+  if (orphaned.length > 0) {
+    ui.notifications.warn(
+      `${standalone.title} had ${orphaned.length} Relationship(s); they're preserved but excluded from the graph until re-authored against ${containerTitle} directly.`,
+    );
+  }
+  await storage.deleteNode(page.uuid);
 }
 
 /**
@@ -77,6 +106,20 @@ export async function syncJournalEntryPage(
   page: FoundryJournalEntryPageLike,
   storage: StorageProvider,
 ): Promise<void> {
+  // ADR-0011 Amendment 2: if the parent JournalEntry is itself tagged, the
+  // entry is the Node and this page is one of its engine-owned Blocks
+  // (`journal-entry-sync.ts`). Make sure no stale standalone Node for the
+  // page lingers, then stop — in particular, skip the Block-cleanup scan
+  // below, which would otherwise strip this page's Block off the entry-Node.
+  if (isInsideTaggedJournalEntry(page)) {
+    await deleteStandalonePageNodeIfPresent(
+      page,
+      page.parent?.name ?? 'its journal entry',
+      storage,
+    );
+    return;
+  }
+
   const attachment = resolvePageAttachment(page);
 
   let resolvedTargetId: string | undefined;

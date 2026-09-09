@@ -1,5 +1,30 @@
-export { FALLBACK_NODE_TYPE, mapJournalEntryPageToNode } from './journal-entry-page-to-node.js';
+export {
+  FALLBACK_NODE_TYPE,
+  isInsideTaggedJournalEntry,
+  mapJournalEntryPageToNode,
+  resolveJournalEntryPageTitle,
+} from './journal-entry-page-to-node.js';
 export type { FoundryJournalEntryPageLike } from './journal-entry-page-to-node.js';
+
+export {
+  isTaggedJournalEntry,
+  JOURNAL_ENTRY_NODE_TYPE_FLAG_KEY,
+  journalEntryPageBlocks,
+  mapJournalEntryToNode,
+} from './journal-entry-to-node.js';
+export type { FoundryJournalEntryLike } from './journal-entry-to-node.js';
+export {
+  entryIdFromContextTarget,
+  registerJournalEntryNodeTypeTag,
+} from './journal-entry-node-type-tag.js';
+export type { FoundryEntryContextOptionsLike } from './journal-entry-node-type-tag.js';
+export {
+  deleteJournalEntryNode,
+  syncAllJournalEntries,
+  syncJournalEntry,
+  syncJournalEntryPageOrParent,
+} from './journal-entry-sync.js';
+export { mapFoundryOwnershipToVisibility } from './foundry-ownership.js';
 
 export { ACTOR_FALLBACK_NODE_TYPE, mapActorToNode } from './actor-to-node.js';
 export type { FoundryActorLike } from './actor-to-node.js';
@@ -34,11 +59,7 @@ export type {
   ResolvedEndpointDisplay,
 } from './relationship-authoring-window.js';
 export { bootstrapRelationshipDefinitions } from './relationship-definitions-bootstrap.js';
-export {
-  FOLDER_NODE_TYPE_FLAG_KEY,
-  isTaggedFolder,
-  mapFolderToNode,
-} from './folder-to-node.js';
+export { FOLDER_NODE_TYPE_FLAG_KEY, isTaggedFolder, mapFolderToNode } from './folder-to-node.js';
 export type { FoundryFolderLike } from './folder-to-node.js';
 export {
   buildFolderNodeTypeDialogContent,
@@ -89,10 +110,7 @@ export {
   buildDefinitionSelectOptionsHTML,
   resolveDefinitionOrientation,
 } from './relationship-definition-options.js';
-export type {
-  DefinitionOption,
-  DefinitionOrientation,
-} from './relationship-definition-options.js';
+export type { DefinitionOption, DefinitionOrientation } from './relationship-definition-options.js';
 export {
   buildCardinalityWarningMessage,
   findCardinalityConflict,
@@ -105,7 +123,12 @@ export {
 } from './relationship-symmetry.js';
 export type { EndpointLabels } from './relationship-symmetry.js';
 
-export { syncActor, syncAllActorsAndPages, syncJournalEntryPage } from './storage-sync.js';
+export {
+  deleteStandalonePageNodeIfPresent,
+  syncActor,
+  syncAllActorsAndPages,
+  syncJournalEntryPage,
+} from './storage-sync.js';
 export { downloadPortableSnapshot, gatherPortableSnapshot } from './export-snapshot.js';
 
 export { ensureCytoscape, getLoadedCytoscape, layoutFor } from './cytoscape-loader.js';

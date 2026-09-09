@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FALLBACK_NODE_TYPE,
+  isInsideTaggedJournalEntry,
   mapJournalEntryPageToNode,
   resolvePageAttachment,
   type FoundryJournalEntryPageLike,
@@ -28,7 +29,11 @@ describe('mapJournalEntryPageToNode', () => {
   // the same Node title. Qualify with the parent JournalEntry's name when
   // it actually disambiguates something.
   it('qualifies the title with the parent journal name when they differ (#25)', () => {
-    const node = mapJournalEntryPageToNode({ ...basePage, name: 'Retrato', parent: { name: 'Violet Meyer' } });
+    const node = mapJournalEntryPageToNode({
+      ...basePage,
+      name: 'Retrato',
+      parent: { name: 'Violet Meyer' },
+    });
     expect(node.title).toBe('Violet Meyer — Retrato');
   });
 
@@ -43,9 +48,17 @@ describe('mapJournalEntryPageToNode', () => {
   });
 
   it('confirms 5 real, distinct-NPC "Retrato" pages now resolve to 5 distinct titles (regression for #25)', () => {
-    const journals = ['Violet Meyer', 'Garrick Stone', 'Drenna Colmillo Negro', 'Kragor Puño de Sangre', 'Varkesh Rompeescudos'];
-    const titles = journals.map((journalName) =>
-      mapJournalEntryPageToNode({ ...basePage, name: 'Retrato', parent: { name: journalName } }).title,
+    const journals = [
+      'Violet Meyer',
+      'Garrick Stone',
+      'Drenna Colmillo Negro',
+      'Kragor Puño de Sangre',
+      'Varkesh Rompeescudos',
+    ];
+    const titles = journals.map(
+      (journalName) =>
+        mapJournalEntryPageToNode({ ...basePage, name: 'Retrato', parent: { name: journalName } })
+          .title,
     );
     expect(new Set(titles).size).toBe(5);
   });
@@ -75,12 +88,15 @@ describe('mapJournalEntryPageToNode', () => {
     [1, 'hidden'], // LIMITED (content-wise still hidden, per ADR-0003)
     [2, 'visible'], // OBSERVER
     [3, 'owned'], // OWNER
-  ] as const)('maps Foundry ownership.default %i to Visibility %s', (ownership: number, visibility: string) => {
-    const node = mapJournalEntryPageToNode({ ...basePage, ownership: { default: ownership } });
-    expect(node.visibility).toBe(visibility);
-  });
+  ] as const)(
+    'maps Foundry ownership.default %i to Visibility %s',
+    (ownership: number, visibility: string) => {
+      const node = mapJournalEntryPageToNode({ ...basePage, ownership: { default: ownership } });
+      expect(node.visibility).toBe(visibility);
+    },
+  );
 
-  it('defaults to hidden when ownership is absent, matching KnowledgeElement\'s own default', () => {
+  it("defaults to hidden when ownership is absent, matching KnowledgeElement's own default", () => {
     const node = mapJournalEntryPageToNode(basePage);
     expect(node.visibility).toBe('hidden');
   });
@@ -97,11 +113,15 @@ describe('mapJournalEntryPageToNode', () => {
   });
 
   it('bubbles InvalidKnowledgeElementError for a page with an empty name (empty Node title)', () => {
-    expect(() => mapJournalEntryPageToNode({ ...basePage, name: '' })).toThrow(InvalidKnowledgeElementError);
+    expect(() => mapJournalEntryPageToNode({ ...basePage, name: '' })).toThrow(
+      InvalidKnowledgeElementError,
+    );
   });
 
   it('bubbles InvalidKnowledgeElementError for a page with an empty uuid (empty Node id)', () => {
-    expect(() => mapJournalEntryPageToNode({ ...basePage, uuid: '' })).toThrow(InvalidKnowledgeElementError);
+    expect(() => mapJournalEntryPageToNode({ ...basePage, uuid: '' })).toThrow(
+      InvalidKnowledgeElementError,
+    );
   });
 });
 
@@ -133,8 +153,29 @@ describe('resolvePageAttachment', () => {
     expect(resolvePageAttachment(page)).toEqual({ attached: true, targetNodeId: 'Actor.fausto' });
   });
 
-  it('rejects a Folder target — a Folder-Node\'s blocks are engine-owned (ADR-0015)', () => {
+  it("rejects a Folder target — a Folder-Node's blocks are engine-owned (ADR-0015)", () => {
     const page = { ...basePage, flags: { archivexus: { attachedToNodeId: 'Folder.rc' } } };
     expect(resolvePageAttachment(page)).toEqual({ attached: false });
+  });
+});
+
+describe('isInsideTaggedJournalEntry', () => {
+  it('is true only when the parent entry carries a non-empty nodeType flag', () => {
+    expect(
+      isInsideTaggedJournalEntry({
+        ...basePage,
+        parent: { name: 'Violet Meyer', flags: { archivexus: { nodeType: 'Character' } } },
+      }),
+    ).toBe(true);
+    expect(isInsideTaggedJournalEntry(basePage)).toBe(false);
+    expect(isInsideTaggedJournalEntry({ ...basePage, parent: { name: 'Violet Meyer' } })).toBe(
+      false,
+    );
+    expect(
+      isInsideTaggedJournalEntry({
+        ...basePage,
+        parent: { flags: { archivexus: { nodeType: '  ' } } },
+      }),
+    ).toBe(false);
   });
 });

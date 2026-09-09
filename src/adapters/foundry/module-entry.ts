@@ -30,7 +30,15 @@ import {
   type ContainmentSnapshotFolder,
 } from './folder-containment-sync.js';
 import { resolvePageAttachment } from './journal-entry-page-to-node.js';
-import { syncActor, syncAllActorsAndPages, syncJournalEntryPage } from './storage-sync.js';
+import { syncActor, syncAllActorsAndPages } from './storage-sync.js';
+import { isTaggedJournalEntry, type FoundryJournalEntryLike } from './journal-entry-to-node.js';
+import { registerJournalEntryNodeTypeTag } from './journal-entry-node-type-tag.js';
+import {
+  deleteJournalEntryNode,
+  syncAllJournalEntries,
+  syncJournalEntry,
+  syncJournalEntryPageOrParent,
+} from './journal-entry-sync.js';
 
 const MODULE_ID = 'archivexus';
 const log = createLogger(MODULE_ID);
@@ -92,7 +100,13 @@ interface RawFolder {
 interface RawFoldered {
   readonly uuid: string;
   readonly name: string;
-  readonly flags?: { readonly archivexus?: { readonly nodeType?: string; readonly containmentRoot?: boolean; readonly attachedToNodeId?: string } };
+  readonly flags?: {
+    readonly archivexus?: {
+      readonly nodeType?: string;
+      readonly containmentRoot?: boolean;
+      readonly attachedToNodeId?: string;
+    };
+  };
   readonly folder?: RawFolder | null;
 }
 
@@ -138,10 +152,26 @@ function gatherContainmentSnapshot(): ContainmentSnapshot {
     addTagged(actor, folderChain(actor.folder));
   }
   for (const entry of (game.journal?.contents ?? []) as {
+    uuid: string;
+    name: string;
     folder?: RawFolder | null;
+    flags?: { archivexus?: { nodeType?: string; containmentRoot?: boolean } };
     pages: { contents: readonly RawFoldered[] };
   }[]) {
     const entryChain = folderChain(entry.folder);
+    const entryType = entry.flags?.archivexus?.nodeType;
+    if (typeof entryType === 'string' && entryType.trim().length > 0) {
+      // Tagged JournalEntry → one Node (ADR-0011 Amendment 2); its pages
+      // are Blocks, not Nodes, so there are no page edges — the entry-Node
+      // itself is the containment entity.
+      entities.push({
+        nodeId: entry.uuid,
+        title: entry.name,
+        ...(entry.flags?.archivexus?.containmentRoot === true ? { isContainmentRoot: true } : {}),
+        ancestorFolderNodeIds: entryChain,
+      });
+      continue;
+    }
     for (const page of entry.pages.contents) {
       // A page attached to another Node is a Block, not a Node — no edge (ADR-0015 point 17).
       if (resolvePageAttachment(page as never).attached) continue;
@@ -174,6 +204,7 @@ Hooks.once('init', () => {
   registerCodexSidebarTab(CONFIG.ui, () => storage, log);
   registerOnboardingSetting(game.settings);
   registerFolderNodeTypeTag((id) => game.folders?.get(id), log);
+  registerJournalEntryNodeTypeTag((id) => game.journal?.get(id), log);
 
   // Registered at init, but each callback lazily resolves `storage` at
   // call time (see withStorage) - it isn't created until `ready`.
@@ -190,16 +221,63 @@ Hooks.once('init', () => {
     scheduleContainmentReconcile();
   });
   Hooks.on('deleteActor', () => scheduleContainmentReconcile());
+  // A page inside a tagged JournalEntry is a Block on the entry-Node, not a
+  // Node itself (ADR-0011 Amendment 2) — syncJournalEntryPageOrParent routes
+  // to the whole-entry re-sync in that case, the page-only sync otherwise.
   Hooks.on('createJournalEntryPage', (page: FoundryJournalEntryPageLike) => {
-    withStorage((s) => syncJournalEntryPage(page, s));
+    withStorage(async (s) => {
+      if (await syncJournalEntryPageOrParent(page, s)) {
+        Hooks.callAll('archivexus.relationshipsChanged');
+      }
+    });
     scheduleContainmentReconcile();
   });
   Hooks.on('updateJournalEntryPage', (page: FoundryJournalEntryPageLike) => {
-    withStorage((s) => syncJournalEntryPage(page, s));
+    withStorage(async (s) => {
+      if (await syncJournalEntryPageOrParent(page, s)) {
+        Hooks.callAll('archivexus.relationshipsChanged');
+      }
+    });
     scheduleContainmentReconcile();
   });
-  Hooks.on('deleteJournalEntryPage', () => scheduleContainmentReconcile());
-  Hooks.on('updateJournalEntry', () => scheduleContainmentReconcile()); // an entry moving folders
+  Hooks.on('deleteJournalEntryPage', (page: FoundryJournalEntryPageLike) => {
+    // No standalone-Node delete policy (storage-sync.ts) — but if the page
+    // lived in a tagged entry, the entry-Node's Block array must lose it.
+    const parent = page.parent as unknown as FoundryJournalEntryLike | undefined;
+    if (parent && isTaggedJournalEntry(parent)) {
+      withStorage(async (s) => {
+        await syncJournalEntry(parent, s);
+        Hooks.callAll('archivexus.relationshipsChanged');
+      });
+    }
+    scheduleContainmentReconcile();
+  });
+
+  // JournalEntry-Nodes (ADAPT-021 / ADR-0011 Amendment 2). syncJournalEntry
+  // upserts a tagged entry's Node (pages as Blocks) and removes a stale one
+  // when the GM clears the tag; deleteJournalEntryNode mirrors a Foundry
+  // entry delete. updateJournalEntry also covers an entry moving folders.
+  Hooks.on('createJournalEntry', (entry: FoundryJournalEntryLike) => {
+    withStorage(async (s) => {
+      await syncJournalEntry(entry, s);
+      Hooks.callAll('archivexus.relationshipsChanged');
+    });
+    scheduleContainmentReconcile();
+  });
+  Hooks.on('updateJournalEntry', (entry: FoundryJournalEntryLike) => {
+    withStorage(async (s) => {
+      await syncJournalEntry(entry, s);
+      Hooks.callAll('archivexus.relationshipsChanged');
+    });
+    scheduleContainmentReconcile();
+  });
+  Hooks.on('deleteJournalEntry', (entry: FoundryJournalEntryLike) => {
+    withStorage(async (s) => {
+      await deleteJournalEntryNode(entry.uuid, s);
+      Hooks.callAll('archivexus.relationshipsChanged');
+    });
+    scheduleContainmentReconcile();
+  });
 
   // Folder-Nodes (ADAPT-016). syncFolder upserts a tagged folder's Node and
   // removes a stale one when the GM clears the tag; deleteFolderNode mirrors
@@ -240,14 +318,20 @@ Hooks.once('ready', () => {
     // now, not a hardcoded list.
     await bootstrapRelationshipDefinitions(storage, log);
 
-    log.info('Backfilling existing Actors/Journal pages/Folders into storage');
+    log.info('Backfilling existing Actors/Journal entries/pages/Folders into storage');
     const actors = (game.actors?.contents ?? []) as FoundryActorLike[];
+    const journalEntries = (game.journal?.contents ?? []) as unknown as FoundryJournalEntryLike[];
     const journalPages = (game.journal?.contents ?? []).flatMap(
       (entry) => entry.pages.contents as FoundryJournalEntryPageLike[],
     );
     const folders = (game.folders?.contents ?? []) as FoundryFolderLike[];
+    // Order matters: pages first (a page inside a tagged entry is skipped by
+    // its own `isInsideTaggedJournalEntry` guard), then folders, then the
+    // tagged entry-Nodes, which also clear any pre-existing standalone
+    // page-Nodes their pages had.
     await syncAllActorsAndPages({ actors, journalPages }, storage);
     await syncAllFolders(folders, storage);
+    await syncAllJournalEntries(journalEntries, storage);
     // ADAPT-017: derive the containment edges from the folder tree once the
     // Nodes are all in (a full reconcile, so a re-parented folder or a tag
     // cleared while Foundry was closed is picked up on load).
@@ -256,7 +340,8 @@ Hooks.once('ready', () => {
       newId: () => foundry.utils.randomID(),
     });
     log.info(
-      `Backfill complete: ${actors.length} actors, ${journalPages.length} pages, ${folders.length} folders scanned; ` +
+      `Backfill complete: ${actors.length} actors, ${journalEntries.length} journal entries, ` +
+        `${journalPages.length} pages, ${folders.length} folders scanned; ` +
         `folder containment +${containment.added} / -${containment.removed}.`,
     );
 

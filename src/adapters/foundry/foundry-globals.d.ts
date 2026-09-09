@@ -47,7 +47,10 @@ declare const foundry: {
     fromUuid(uuid: string): Promise<unknown>;
     randomID(length?: number): string;
     /** `foundry.utils.debounce(fn, delayMs)` — trailing debounce (ADAPT-017's containment re-derive). */
-    debounce<A extends readonly unknown[]>(fn: (...args: A) => void, delayMs: number): (...args: A) => void;
+    debounce<A extends readonly unknown[]>(
+      fn: (...args: A) => void,
+      delayMs: number,
+    ): (...args: A) => void;
   };
 };
 
@@ -72,7 +75,12 @@ declare const CONFIG: {
 // `exportSnapshot` for now (no dedicated UI trigger yet - out of scope).
 declare const game: {
   actors?: { contents: readonly unknown[] };
-  journal?: { contents: readonly { pages: { contents: readonly unknown[] } }[] };
+  // `game.journal` — the world's JournalEntry collection. `.get(id)` resolves
+  // the live entry document for the directory context-menu tag (ADAPT-021).
+  journal?: {
+    contents: readonly { pages: { contents: readonly unknown[] } }[];
+    get(id: string): unknown;
+  };
   // `game.folders` — the world's Folder collection (ADAPT-016). Loose, same
   // no-real-Foundry-types tradeoff: `folder-node-type-tag.ts` /
   // `folder-to-node.ts` cast to their own narrow `FoundryFolderLike`.

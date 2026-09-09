@@ -85,4 +85,30 @@ describe('resolveDroppedDocumentNode', () => {
     expect(result.ok).toBe(false);
     expect(!result.ok && result.error).toContain('Archivexus Node Type');
   });
+
+  it('resolves a tagged JournalEntry to a JournalEntry-Node (ADAPT-021)', () => {
+    const result = resolveDroppedDocumentNode('JournalEntry', {
+      uuid: 'JournalEntry.violet',
+      name: 'Violet Meyer',
+      flags: { archivexus: { nodeType: 'Character' } },
+      pages: { contents: [] },
+    });
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.node).toMatchObject({
+      nodeId: 'JournalEntry.violet',
+      nodeType: 'Character',
+      title: 'Violet Meyer',
+      documentKind: 'JournalEntry',
+    });
+  });
+
+  it('rejects an untagged JournalEntry with a "tag it first" error', () => {
+    const result = resolveDroppedDocumentNode('JournalEntry', {
+      uuid: 'JournalEntry.loose',
+      name: 'Loose Notes',
+      pages: { contents: [] },
+    });
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('Archivexus Node Type');
+  });
 });

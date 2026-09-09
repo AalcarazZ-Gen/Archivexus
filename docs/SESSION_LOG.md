@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-09-08 (software-developer: ADAPT-021 — JournalEntry → Node)
+
+**Built:** ADAPT-021 (#85), **ADR-0011 Amendment 2** (written this session). After live-testing ADAPT-016+017, Alberto found his org folders ("Red Cuervo de Hierro") hold members as multi-page `JournalEntry` docs ("Violet Meyer" = Retrato/Biografía/Notas), which couldn't cleanly join a folder-org; and he couldn't find the per-page tag control. Amendment 2 + this ticket: tag a whole entry as one Node. Continues on `feat/adr-0015-containers` (ADAPT-016/017 branch, renamed).
+
+- `journal-entry-to-node.ts` — `mapJournalEntryToNode` / `isTaggedJournalEntry` / `journalEntryPageBlocks` (pure). `JournalEntry.<id>` id; **visibility from real `entry.ownership.default`** (ADR-0003 — unlike a Folder) + `flags.archivexus.visibility` override. Pages → engine-owned `{type:'JournalEntryPage',uuid,title}` Blocks, titles `"<entry> — <page>"`.
+- `journal-entry-node-type-tag.ts` — `getJournalEntryContextOptions` entry ("Archivexus Node Type" in the **journal directory right-click** — the discoverable surface, fixing the "couldn't find it" complaint). Dialog = `buildNodeTypeDialogContent` verbatim. Pure: `entryIdFromContextTarget`.
+- `journal-entry-sync.ts` — `syncJournalEntry` (tagged → upsert entry-Node w/ page Blocks + supersede the pages' standalone Nodes, warn-never-block if any had Relationships; untagged → delete stale entry-Node, re-sync pages individually), `syncJournalEntryPageOrParent` (route a page change to whole-entry re-sync when parent tagged), `deleteJournalEntryNode`, `syncAllJournalEntries`.
+- `storage-sync.ts` — `syncJournalEntryPage` short-circuits when `isInsideTaggedJournalEntry(page)`. Ownership→Visibility extracted to `foundry-ownership.ts` (rule of three). Shared `deleteStandalonePageNodeIfPresent`.
+- `resolveDroppedDocumentNode` — `JournalEntry` branch (tagged → endpoint; untagged → "tag it first"). `module-entry.ts` — entry hooks wired, `gatherContainmentSnapshot` adds a tagged entry as one containment entity (pages skipped), `ready` backfill runs `syncAllJournalEntries`.
+- `game.journal.get` + entry `.parent.flags` ambient. +23 tests (570 total). `tsc`/`eslint`/`vitest`/`build:foundry-module` clean (`archivexus.js` ~124 → ~130KB).
+
+**Not yet live-verified:** the `getJournalEntryContextOptions` hook name/target shape (the `getFolderContextOptions` parallel *was* verified live), and end-to-end tag → entry-Node + derived `member-of`. Next: ADAPT-018 (#82, Scene→Block, closes #23). Not merged — Alberto merges + redeploys.
+
 ## 2026-09-08 (software-developer: ADAPT-017 — folder-containment derivation engine)
 
 **Built:** ADAPT-017 (#81), third ticket of the ADR-0015 batch. Alberto tested ADAPT-016 and hit the expected gap — tagging folders as Organization did nothing to the graph (the "Links to: X" line implied it would). This ticket makes it real. Built on `feat/adapt-016-folder-node` (ADAPT-016 not merged yet), so that branch now carries ADAPT-016 + its fix + ADAPT-017.

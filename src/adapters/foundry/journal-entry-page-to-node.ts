@@ -1,15 +1,5 @@
 import { createNode, type CreateNodeInput, type Node } from '../../core/domain/node.js';
-import type { Visibility } from '../../core/domain/visibility.js';
-
-/**
- * Foundry's CONST.DOCUMENT_OWNERSHIP_LEVELS, duplicated as plain numbers
- * rather than importing Foundry's own types — this package has no
- * dependency on Foundry (01_ARCHITECTURE.md's Platform Independent principle).
- */
-const FOUNDRY_OWNERSHIP_NONE = 0;
-const FOUNDRY_OWNERSHIP_LIMITED = 1;
-const FOUNDRY_OWNERSHIP_OBSERVER = 2;
-const FOUNDRY_OWNERSHIP_OWNER = 3;
+import { mapFoundryOwnershipToVisibility } from './foundry-ownership.js';
 
 /**
  * Minimal structural subset of Foundry's `JournalEntryPage` this mapping
@@ -46,6 +36,17 @@ export interface FoundryJournalEntryPageLike {
      * directory root.
      */
     readonly folder?: { readonly uuid?: string } | null;
+    /**
+     * The parent `JournalEntry`'s own flags. When the entry itself is
+     * tagged (`flags.archivexus.nodeType`), ADR-0011 Amendment 2 says the
+     * entry is the Node and this page is one of its Blocks, not a Node of
+     * its own — `isInsideTaggedJournalEntry` reads this.
+     */
+    readonly flags?: {
+      readonly archivexus?: {
+        readonly nodeType?: string;
+      };
+    };
   };
   readonly ownership?: {
     readonly default?: number;
@@ -61,24 +62,8 @@ export interface FoundryJournalEntryPageLike {
 /** The Node type a page becomes when no explicit type is assigned. */
 export const FALLBACK_NODE_TYPE = 'Lore';
 
-function mapOwnershipToVisibility(defaultOwnership: number | undefined): Visibility | undefined {
-  switch (defaultOwnership) {
-    case FOUNDRY_OWNERSHIP_NONE:
-    case FOUNDRY_OWNERSHIP_LIMITED:
-      return 'hidden';
-    case FOUNDRY_OWNERSHIP_OBSERVER:
-      return 'visible';
-    case FOUNDRY_OWNERSHIP_OWNER:
-      return 'owned';
-    default:
-      // Unset or unrecognized (e.g. Foundry's -1 "inherit") — fall through
-      // to Node's own default rather than guessing.
-      return undefined;
-  }
-}
-
 /** Qualifies the title with the parent journal's name only when it disambiguates anything (#25). */
-function resolveTitle(page: FoundryJournalEntryPageLike): string {
+export function resolveJournalEntryPageTitle(page: FoundryJournalEntryPageLike): string {
   const parentName = page.parent?.name;
   if (parentName && parentName !== page.name) {
     return `${parentName} — ${page.name}`;
@@ -89,22 +74,32 @@ function resolveTitle(page: FoundryJournalEntryPageLike): string {
 /** Maps a Foundry `JournalEntryPage` to a Node. Pure and synchronous — no Foundry API calls. */
 export function mapJournalEntryPageToNode(page: FoundryJournalEntryPageLike): Node {
   const type = page.flags?.archivexus?.nodeType ?? FALLBACK_NODE_TYPE;
-  const visibility = mapOwnershipToVisibility(page.ownership?.default);
+  const visibility = mapFoundryOwnershipToVisibility(page.ownership?.default);
 
   const input: CreateNodeInput = {
     id: page.uuid,
     type,
-    title: resolveTitle(page),
+    title: resolveJournalEntryPageTitle(page),
     ...(visibility !== undefined ? { visibility } : {}),
   };
 
   return createNode(input);
 }
 
+/**
+ * `true` iff this page's parent `JournalEntry` is itself tagged as a Node
+ * (ADR-0011 Amendment 2). When so, the page is one of the entry-Node's
+ * engine-owned Blocks — `journal-entry-sync.ts` maintains it — and must not
+ * also become a standalone Node. Pure, synchronous, no Foundry API calls.
+ */
+export function isInsideTaggedJournalEntry(page: FoundryJournalEntryPageLike): boolean {
+  const type = page.parent?.flags?.archivexus?.nodeType;
+  return typeof type === 'string' && type.trim().length > 0;
+}
+
 /** What `resolvePageAttachment` reports — see its own doc comment. */
 export type PageAttachmentResolution =
-  | { readonly attached: true; readonly targetNodeId: string }
-  | { readonly attached: false };
+  { readonly attached: true; readonly targetNodeId: string } | { readonly attached: false };
 
 /**
  * Reads only `flags.archivexus.attachedToNodeId` (ADR-0011 point 3) — pure
