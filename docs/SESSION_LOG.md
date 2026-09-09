@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-09-08 (software-developer: ADAPT-018 — Scene → Block + branch cleanup)
+
+**Branch fix first:** the ADR-0015 batch had landed on `dev` only as CORE-007 + ADAPT-016 (base) — the ADAPT-016 context-menu fix (`5a5b1b9`), ADAPT-017 and ADAPT-021 were on `feat/adr-0015-containers` but never PR'd. Cherry-picked those 3 onto a branch off `dev` (`feat/adapt-017-021-followup`), verified (570 tests), fast-forwarded `dev`, pushed, deleted the redundant `feat/adr-0015-containers` (local + remote). `dev` now at the full batch.
+
+**Built:** ADAPT-018 (#82), on `feat/adapt-018-scene-blocks` off `dev`. **Closes #23 / ADAPT-005** (Scenes are maps, not concepts — they show up only as `scene` Blocks on the place-Node whose folder contains them).
+
+- `scene-to-block.ts` — `mapSceneToBlock` / `FoundrySceneLike` (pure). `{ type: 'scene', uuid, title }` via `createBlock`.
+- `folder-containment-sync.ts` — the ADAPT-017 engine folds in Scene→Block. `ContainmentSnapshot.scenes` (block + nearest-tagged-folder id); passes `scenesByFolderNodeId` to CORE-007's `deriveContainment` (which already had the place-like filter + `sceneBlocks` output — resolved definition `located-in`). Each tagged folder-Node's `blocks` set to exactly the derived scene set — wholesale, engine-owned, no marker; non-place-like folders forced `blocks: []`. New `blocksChanged` in the result.
+- `module-entry.ts` — `gatherContainmentSnapshot` walks each `game.scenes` entry's folder chain to its nearest tagged ancestor (transparency rule, same as entities). `create/update/deleteScene` hooks → debounced re-derive. Logs + `relationshipsChanged` include the scene-set count. `game.scenes` ambient.
+- +8 tests (578). `tsc`/`eslint`/`vitest`/`build:foundry-module` clean (`archivexus.js` ~131KB).
+
+**Also answered (no ticket):** Alberto asked about removing a Node by untagging + editing relations. Untag removes the Node for **containers** (Folder, JournalEntry — the tag dialog's clear-the-field path); **Actors/standalone pages have no delete path** (Node-deletion policy still open, ADR-0007). Relations: the Console does create + delete only, **no in-place edit**; derived edges reappear on re-derive and have no "derived" badge — both parked in ADAPT-013. Alberto chose to keep that in ADAPT-013 rather than pull it forward.
+
+**Not yet live-verified:** the scene hook cascade + end-to-end scene-Block flow. Next per plan: **VIEW-001e / VIEW-001f** (now unblocked — real derived edges exist), then ADAPT-013 last. Branch not merged — Alberto merges.
+
 ## 2026-09-08 (software-developer: ADAPT-021 — JournalEntry → Node)
 
 **Built:** ADAPT-021 (#85), **ADR-0011 Amendment 2** (written this session). After live-testing ADAPT-016+017, Alberto found his org folders ("Red Cuervo de Hierro") hold members as multi-page `JournalEntry` docs ("Violet Meyer" = Retrato/Biografía/Notas), which couldn't cleanly join a folder-org; and he couldn't find the per-page tag control. Amendment 2 + this ticket: tag a whole entry as one Node. Continues on `feat/adr-0015-containers` (ADAPT-016/017 branch, renamed).

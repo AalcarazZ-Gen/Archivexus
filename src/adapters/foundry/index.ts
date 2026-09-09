@@ -77,9 +77,12 @@ export type {
   ContainmentSnapshot,
   ContainmentSnapshotEntity,
   ContainmentSnapshotFolder,
+  ContainmentSnapshotScene,
   ReconcileFolderContainmentDeps,
   ReconcileFolderContainmentResult,
 } from './folder-containment-sync.js';
+export { mapSceneToBlock, SCENE_BLOCK_TYPE } from './scene-to-block.js';
+export type { FoundrySceneLike } from './scene-to-block.js';
 export { resolveDroppedDocumentNode } from './relationship-node-resolution.js';
 export type {
   ResolvedDroppedNode,

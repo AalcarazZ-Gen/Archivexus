@@ -85,6 +85,10 @@ declare const game: {
   // no-real-Foundry-types tradeoff: `folder-node-type-tag.ts` /
   // `folder-to-node.ts` cast to their own narrow `FoundryFolderLike`.
   folders?: { contents: readonly unknown[]; get(id: string): unknown };
+  // `game.scenes` — the world's Scene collection (ADAPT-018). Each Scene
+  // becomes a `scene` Block on its nearest tagged place folder-Node, never
+  // a Node; `scene-to-block.ts` casts to its own narrow `FoundrySceneLike`.
+  scenes?: { contents: readonly unknown[] };
   modules: { get(id: string): { api?: Record<string, unknown> } | undefined };
   // `game.user.isGM` — the Codex (VIEW-001a) filters `hidden` Nodes out for
   // non-GM viewers (ADR-0003). `getFlag`/`setFlag` — the navigator's
