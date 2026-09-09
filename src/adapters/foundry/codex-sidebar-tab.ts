@@ -400,10 +400,13 @@ export function getCodexSidebarTabClass(
 
       // Storage is created on Foundry's `ready` hook (STORE-003) and the
       // sidebar can render before that — re-pull the list once module-entry
-      // signals storage is up. Bound once (the tab is a singleton).
+      // signals storage is up. `relationshipsChanged` also fires when the
+      // folder-containment engine (ADAPT-017) adds/removes Nodes or edges.
+      // Bound once (the tab is a singleton).
       if (!this.#storageReadyHookBound) {
         this.#storageReadyHookBound = true;
         Hooks.on('archivexus.ready', () => void this._loadNodes());
+        Hooks.on('archivexus.relationshipsChanged', () => void this._loadNodes());
       }
 
       void this._loadNodes();

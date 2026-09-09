@@ -51,6 +51,14 @@ export type {
   FoundryFolderContextOptionsLike,
 } from './folder-node-type-tag.js';
 export { deleteFolderNode, syncAllFolders, syncFolder } from './folder-sync.js';
+export { reconcileFolderContainment } from './folder-containment-sync.js';
+export type {
+  ContainmentSnapshot,
+  ContainmentSnapshotEntity,
+  ContainmentSnapshotFolder,
+  ReconcileFolderContainmentDeps,
+  ReconcileFolderContainmentResult,
+} from './folder-containment-sync.js';
 export { resolveDroppedDocumentNode } from './relationship-node-resolution.js';
 export type {
   ResolvedDroppedNode,

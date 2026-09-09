@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-09-08 (software-developer: ADAPT-017 — folder-containment derivation engine)
+
+**Built:** ADAPT-017 (#81), third ticket of the ADR-0015 batch. Alberto tested ADAPT-016 and hit the expected gap — tagging folders as Organization did nothing to the graph (the "Links to: X" line implied it would). This ticket makes it real. Built on `feat/adapt-016-folder-node` (ADAPT-016 not merged yet), so that branch now carries ADAPT-016 + its fix + ADAPT-017.
+
+- `folder-containment-sync.ts` — `reconcileFolderContainment(snapshot, { storage, newId })`: `deriveContainment` (CORE-007) → diff vs stored → marker-gated reconcile. Adds a desired edge with `metadata.archivexus` (`folder-containment`); deletes a stored **marked** edge no longer desired; **never** touches an unmarked edge or a `group-membership`-marked one; won't duplicate an edge a human already asserted. Full re-derive every run.
+- `module-entry.ts` — `gatherContainmentSnapshot()` (tagged folders + `.ancestors`; tagged Actors + standalone tagged pages + their folder chain; attached pages excluded). `scheduleContainmentReconcile = foundry.utils.debounce(…, 500)` wired to every folder/actor/page create/update/delete + `updateJournalEntry` + the `ready` backfill. A non-empty reconcile logs `+N / -M` and fires `archivexus.relationshipsChanged`.
+- `codex-sidebar-tab.ts` — the navigator reloads on `archivexus.relationshipsChanged` (fixes Alberto's "doesn't refresh" note); folder hooks fire it after `syncFolder`/`deleteFolderNode` too.
+- `foundry.utils.debounce` ambient. +7 tests (547 total). `tsc`/`eslint`/`vitest`/`build:foundry-module` clean (`archivexus.js` ~117 → ~123KB).
+
+**Scoping calls:** Scene→Block stays out (ADAPT-018). The Console "derived" badge/filter and the folder-Node "open sheet" fix → both moved to ADAPT-013 (Alberto flagged them as UI-polish). No per-edge type override (v1 = folder-level `containmentRelationship` flag).
+
+**Not yet live-verified:** the debounced hook cascade + the end-to-end flow. Next: ADAPT-018 (#82, Scene→Block, closes #23). Not merged — Alberto merges + redeploys.
+
 ## 2026-09-08 (software-developer: ADAPT-016 — Folder → Node)
 
 **Built:** ADAPT-016 (#80), second ticket of the ADR-0015 batch. Makes a Folder a Node — the Node itself only; the derived containment edges are ADAPT-017. Branched `feat/adapt-016-folder-node` off `dev` (CORE-007 merged).

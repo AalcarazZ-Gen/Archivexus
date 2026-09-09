@@ -46,6 +46,8 @@ declare const foundry: {
   utils: {
     fromUuid(uuid: string): Promise<unknown>;
     randomID(length?: number): string;
+    /** `foundry.utils.debounce(fn, delayMs)` — trailing debounce (ADAPT-017's containment re-derive). */
+    debounce<A extends readonly unknown[]>(fn: (...args: A) => void, delayMs: number): (...args: A) => void;
   };
 };
 

@@ -20,9 +20,16 @@ import { downloadPortableSnapshot } from './export-snapshot.js';
 import { createLogger } from './logger.js';
 import type { FoundryActorLike } from './actor-to-node.js';
 import type { FoundryJournalEntryPageLike } from './journal-entry-page-to-node.js';
-import type { FoundryFolderLike } from './folder-to-node.js';
+import { isTaggedFolder, type FoundryFolderLike } from './folder-to-node.js';
 import { registerFolderNodeTypeTag } from './folder-node-type-tag.js';
 import { deleteFolderNode, syncAllFolders, syncFolder } from './folder-sync.js';
+import {
+  reconcileFolderContainment,
+  type ContainmentSnapshot,
+  type ContainmentSnapshotEntity,
+  type ContainmentSnapshotFolder,
+} from './folder-containment-sync.js';
+import { resolvePageAttachment } from './journal-entry-page-to-node.js';
 import { syncActor, syncAllActorsAndPages, syncJournalEntryPage } from './storage-sync.js';
 
 const MODULE_ID = 'archivexus';
@@ -72,6 +79,92 @@ function activateCodexSidebarTab(): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Folder-containment engine (ADAPT-017)
+// ---------------------------------------------------------------------------
+
+interface RawFolder {
+  readonly uuid: string;
+  readonly name: string;
+  readonly flags?: { readonly archivexus?: Record<string, unknown> };
+  readonly ancestors?: readonly { readonly uuid: string }[];
+}
+interface RawFoldered {
+  readonly uuid: string;
+  readonly name: string;
+  readonly flags?: { readonly archivexus?: { readonly nodeType?: string; readonly containmentRoot?: boolean; readonly attachedToNodeId?: string } };
+  readonly folder?: RawFolder | null;
+}
+
+function folderChain(folder: RawFolder | null | undefined): readonly string[] {
+  return folder ? [folder.uuid, ...(folder.ancestors ?? []).map((a) => a.uuid)] : [];
+}
+
+/** Flattens `game.folders`/`game.actors`/`game.journal` into the plain snapshot the reconcile engine consumes. */
+function gatherContainmentSnapshot(): ContainmentSnapshot {
+  const folders: ContainmentSnapshotFolder[] = [];
+  for (const raw of (game.folders?.contents ?? []) as RawFolder[]) {
+    if (!isTaggedFolder(raw as FoundryFolderLike)) continue;
+    const ax = (raw.flags?.archivexus ?? {}) as {
+      nodeType?: string;
+      containmentRelationship?: string;
+      containmentRoot?: boolean;
+    };
+    folders.push({
+      nodeId: raw.uuid,
+      nodeType: (ax.nodeType ?? '').trim(),
+      title: raw.name,
+      ...(typeof ax.containmentRelationship === 'string' && ax.containmentRelationship.length > 0
+        ? { containmentRelationshipOverride: ax.containmentRelationship }
+        : {}),
+      ...(ax.containmentRoot === true ? { isContainmentRoot: true } : {}),
+      ancestorFolderNodeIds: (raw.ancestors ?? []).map((a) => a.uuid),
+    });
+  }
+
+  const entities: ContainmentSnapshotEntity[] = [];
+  const addTagged = (doc: RawFoldered, ancestors: readonly string[]): void => {
+    const type = doc.flags?.archivexus?.nodeType;
+    if (typeof type !== 'string' || type.trim().length === 0) return;
+    entities.push({
+      nodeId: doc.uuid,
+      title: doc.name,
+      ...(doc.flags?.archivexus?.containmentRoot === true ? { isContainmentRoot: true } : {}),
+      ancestorFolderNodeIds: ancestors,
+    });
+  };
+
+  for (const actor of (game.actors?.contents ?? []) as RawFoldered[]) {
+    addTagged(actor, folderChain(actor.folder));
+  }
+  for (const entry of (game.journal?.contents ?? []) as {
+    folder?: RawFolder | null;
+    pages: { contents: readonly RawFoldered[] };
+  }[]) {
+    const entryChain = folderChain(entry.folder);
+    for (const page of entry.pages.contents) {
+      // A page attached to another Node is a Block, not a Node — no edge (ADR-0015 point 17).
+      if (resolvePageAttachment(page as never).attached) continue;
+      addTagged(page, entryChain);
+    }
+  }
+
+  return { folders, entities };
+}
+
+const scheduleContainmentReconcile = foundry.utils.debounce(() => {
+  withStorage(async (s) => {
+    const result = await reconcileFolderContainment(gatherContainmentSnapshot(), {
+      storage: s,
+      newId: () => foundry.utils.randomID(),
+    });
+    if (result.added > 0 || result.removed > 0) {
+      log.info(`Folder containment: +${result.added} / -${result.removed} derived link(s).`);
+      Hooks.callAll('archivexus.relationshipsChanged');
+    }
+  });
+}, 500);
+
 Hooks.once('init', () => {
   log.info('Initializing');
   registerActorNodeTypeTag();
@@ -84,31 +177,55 @@ Hooks.once('init', () => {
 
   // Registered at init, but each callback lazily resolves `storage` at
   // call time (see withStorage) - it isn't created until `ready`.
+  // Every document/folder change also schedules a debounced
+  // folder-containment re-derive (ADAPT-017): tagging a doc, moving it
+  // between folders, or (re-)tagging a folder can all add or remove
+  // derived edges.
   Hooks.on('createActor', (actor: FoundryActorLike) => {
     withStorage((s) => syncActor(actor, s));
+    scheduleContainmentReconcile();
   });
   Hooks.on('updateActor', (actor: FoundryActorLike) => {
     withStorage((s) => syncActor(actor, s));
+    scheduleContainmentReconcile();
   });
+  Hooks.on('deleteActor', () => scheduleContainmentReconcile());
   Hooks.on('createJournalEntryPage', (page: FoundryJournalEntryPageLike) => {
     withStorage((s) => syncJournalEntryPage(page, s));
+    scheduleContainmentReconcile();
   });
   Hooks.on('updateJournalEntryPage', (page: FoundryJournalEntryPageLike) => {
     withStorage((s) => syncJournalEntryPage(page, s));
+    scheduleContainmentReconcile();
   });
+  Hooks.on('deleteJournalEntryPage', () => scheduleContainmentReconcile());
+  Hooks.on('updateJournalEntry', () => scheduleContainmentReconcile()); // an entry moving folders
 
   // Folder-Nodes (ADAPT-016). syncFolder upserts a tagged folder's Node and
   // removes a stale one when the GM clears the tag; deleteFolderNode mirrors
   // a Foundry folder delete (ADR-0015 point 10's scoped delete exception).
-  // The derived containment edges are ADAPT-017's engine, wired separately.
+  // Each also schedules the containment re-derive (ADAPT-017), which
+  // creates/removes the derived edges and fires archivexus.relationshipsChanged.
   Hooks.on('createFolder', (folder: FoundryFolderLike) => {
-    withStorage((s) => syncFolder(folder, s));
+    withStorage(async (s) => {
+      await syncFolder(folder, s);
+      Hooks.callAll('archivexus.relationshipsChanged'); // the navigator re-pulls its Node list
+    });
+    scheduleContainmentReconcile();
   });
   Hooks.on('updateFolder', (folder: FoundryFolderLike) => {
-    withStorage((s) => syncFolder(folder, s));
+    withStorage(async (s) => {
+      await syncFolder(folder, s);
+      Hooks.callAll('archivexus.relationshipsChanged');
+    });
+    scheduleContainmentReconcile();
   });
   Hooks.on('deleteFolder', (folder: FoundryFolderLike) => {
-    withStorage((s) => deleteFolderNode(folder.uuid, s));
+    withStorage(async (s) => {
+      await deleteFolderNode(folder.uuid, s);
+      Hooks.callAll('archivexus.relationshipsChanged');
+    });
+    scheduleContainmentReconcile();
   });
 });
 
@@ -131,8 +248,16 @@ Hooks.once('ready', () => {
     const folders = (game.folders?.contents ?? []) as FoundryFolderLike[];
     await syncAllActorsAndPages({ actors, journalPages }, storage);
     await syncAllFolders(folders, storage);
+    // ADAPT-017: derive the containment edges from the folder tree once the
+    // Nodes are all in (a full reconcile, so a re-parented folder or a tag
+    // cleared while Foundry was closed is picked up on load).
+    const containment = await reconcileFolderContainment(gatherContainmentSnapshot(), {
+      storage,
+      newId: () => foundry.utils.randomID(),
+    });
     log.info(
-      `Backfill complete: ${actors.length} actors, ${journalPages.length} pages, ${folders.length} folders scanned.`,
+      `Backfill complete: ${actors.length} actors, ${journalPages.length} pages, ${folders.length} folders scanned; ` +
+        `folder containment +${containment.added} / -${containment.removed}.`,
     );
 
     // Signals the Codex sidebar tab (VIEW-001a) — which may have rendered
