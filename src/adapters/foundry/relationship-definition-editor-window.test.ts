@@ -10,7 +10,6 @@ import {
   buildDefinitionFormHTML,
   buildDefinitionListHTML,
   emptyDefinitionFormValues,
-  ensureDefinitionEditorStyles,
   formValuesFromDefinition,
   getRelationshipDefinitionEditorClass,
   openRelationshipDefinitionEditor,
@@ -228,32 +227,6 @@ describe('buildDefinitionEditorContentHTML', () => {
     expect(html).toContain('data-role="form"');
     expect(html).toContain('data-action="add"');
     expect(html).toContain('archivexus-def-count">1<');
-  });
-});
-
-describe('ensureDefinitionEditorStyles', () => {
-  it('is a no-op without a document', () => {
-    expect(() => ensureDefinitionEditorStyles()).not.toThrow();
-  });
-
-  it('injects a single <style> once', () => {
-    const appended: { id: string; textContent: string }[] = [];
-    const byId = new Map<string, unknown>();
-    (globalThis as { document?: unknown }).document = {
-      getElementById: (id: string) => byId.get(id) ?? null,
-      createElement: () => ({ id: '', textContent: '' }),
-      head: {
-        appendChild: (node: { id: string; textContent: string }) => {
-          appended.push(node);
-          byId.set(node.id, node);
-        },
-      },
-    };
-    ensureDefinitionEditorStyles();
-    ensureDefinitionEditorStyles();
-    expect(appended).toHaveLength(1);
-    expect(appended[0]?.id).toBe('archivexus-def-editor-styles');
-    delete (globalThis as { document?: unknown }).document;
   });
 });
 

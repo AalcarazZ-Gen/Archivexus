@@ -13,7 +13,6 @@ import {
   buildConsoleRows,
   buildConsoleRowsHTML,
   EMPTY_CONSOLE_FILTERS,
-  ensureConsoleStyles,
   filterConsoleRows,
   getRelationshipConsoleClass,
   groupConsoleRows,
@@ -209,31 +208,6 @@ describe('buildConsoleContentHTML', () => {
     );
     expect(html).toContain('3 of 3 shown');
     expect(html).toContain('data-role="console-list"');
-  });
-});
-
-describe('ensureConsoleStyles', () => {
-  it('is a no-op without a document', () => {
-    expect(() => ensureConsoleStyles()).not.toThrow();
-  });
-
-  it('injects a single <style> once', () => {
-    const appended: { id: string }[] = [];
-    const byId = new Map<string, unknown>();
-    (globalThis as { document?: unknown }).document = {
-      getElementById: (id: string) => byId.get(id) ?? null,
-      createElement: () => ({ id: '', textContent: '' }),
-      head: {
-        appendChild: (node: { id: string }) => {
-          appended.push(node);
-          byId.set(node.id, node);
-        },
-      },
-    };
-    ensureConsoleStyles();
-    ensureConsoleStyles();
-    expect(appended).toHaveLength(1);
-    delete (globalThis as { document?: unknown }).document;
   });
 });
 

@@ -49,7 +49,6 @@ export type {
 export {
   buildEndpointFieldHTML,
   buildRelationshipAuthoringContentHTML,
-  ensureRelationshipAuthoringStyles,
   openRelationshipAuthoringWindow,
   parseDropPayloadUuid,
   registerRelationshipAuthoringEntryPoints,
@@ -135,6 +134,16 @@ export {
 export { downloadPortableSnapshot, gatherPortableSnapshot } from './export-snapshot.js';
 
 export { ensureCytoscape, getLoadedCytoscape, layoutFor } from './cytoscape-loader.js';
+export {
+  ARCHIVEXUS_CSS,
+  buildCytoscapeStyle,
+  categoryEdgeColor,
+  CATEGORY_EDGE_COLORS,
+  ensureArchivexusStyles,
+  NODE_TYPE_COLORS,
+  nodeTypeColor,
+} from './archivexus-styles.js';
+export type { ColorScheme } from './archivexus-styles.js';
 export { isViewerGM } from './foundry-viewer.js';
 export {
   buildGraphViewElements,
@@ -182,7 +191,6 @@ export {
   buildNavigatorGroupsHTML,
   buildNavigatorShellHTML,
   buildNavigatorStateHTML,
-  ensureCodexStyles,
   getCodexSidebarTabClass,
   NAVIGATOR_AUTO_EXPAND_MAX_NODES,
   navigatorGroupsStartExpanded,
@@ -218,7 +226,6 @@ export {
   buildDefinitionFormHTML,
   buildDefinitionListHTML,
   emptyDefinitionFormValues,
-  ensureDefinitionEditorStyles,
   formValuesFromDefinition,
   getRelationshipDefinitionEditorClass,
   openRelationshipDefinitionEditor,
@@ -238,7 +245,6 @@ export {
   buildConsoleRows,
   buildConsoleRowsHTML,
   EMPTY_CONSOLE_FILTERS,
-  ensureConsoleStyles,
   filterConsoleRows,
   getRelationshipConsoleClass,
   groupConsoleRows,
@@ -254,9 +260,9 @@ export type {
 export {
   buildContextMenuHTML,
   buildGraphPopoutContentHTML,
+  buildGraphLegendHTML,
   buildInspectorEmptyHTML,
   buildInspectorHTML,
-  ensureGraphPopoutStyles,
   gatherNodeConnections,
   openGraphPopout,
 } from './graph-popout-window.js';

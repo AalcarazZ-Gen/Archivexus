@@ -77,6 +77,25 @@ describe('buildGraphViewElements', () => {
     expect(elements.map((e) => e.group)).toEqual(['nodes', 'nodes', 'edges']);
   });
 
+  it('carries the resolved traversalCategory onto the edge when a definitions map is given (ADAPT-013)', () => {
+    const definitionsById = new Map([
+      ['member-of', { id: 'member-of', traversalCategory: 'affiliation' } as never],
+    ]);
+    const withDefs = buildGraphViewElements([kael, guild], [kaelInGuild], definitionsById);
+    const withoutDefs = buildGraphViewElements([kael, guild], [kaelInGuild]);
+    expect((withDefs.find((e) => e.group === 'edges') as GraphViewEdgeElement).data.category).toBe(
+      'affiliation',
+    );
+    // an unresolved definition → 'other'; no map at all → the field is absent
+    const unknownEdge = buildGraphViewElements([kael, guild], [kaelInGuild], new Map());
+    expect(
+      (unknownEdge.find((e) => e.group === 'edges') as GraphViewEdgeElement).data.category,
+    ).toBe('other');
+    expect(
+      (withoutDefs.find((e) => e.group === 'edges') as GraphViewEdgeElement).data.category,
+    ).toBeUndefined();
+  });
+
   it('drops an edge whose origin or target Node is not in the set (dangling reference, ADR-0007 point 8)', () => {
     // guild is missing → the member-of edge has a dangling target.
     const elements = buildGraphViewElements([kael, city], [kaelResidesInCity, kaelInGuild]);

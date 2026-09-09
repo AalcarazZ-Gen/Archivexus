@@ -3,6 +3,7 @@ import type { RelationshipDefinition } from '../../core/domain/relationship-defi
 import { DEFAULT_RELATIONSHIP_DEFINITIONS } from '../../core/domain/relationship-definitions-default.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import type { Logger } from './logger.js';
+import { ensureArchivexusStyles } from './archivexus-styles.js';
 import {
   buildDefinitionOptions,
   buildDefinitionSelectOptionsHTML,
@@ -125,7 +126,7 @@ export function buildRelationshipAuthoringContentHTML(
   prefillOrigin?: ResolvedEndpointDisplay,
 ): string {
   return (
-    `<form class="archivexus-relationship-authoring" autocomplete="off">` +
+    `<form class="archivexus archivexus-relationship-authoring" autocomplete="off">` +
     buildEndpointFieldHTML('origin', originLabel, prefillOrigin) +
     buildEndpointFieldHTML('target', targetLabel) +
     `<div class="form-group">` +
@@ -160,48 +161,6 @@ export function parseDropPayloadUuid(raw: string): string | undefined {
     // not JSON — fall through to the bare-UUID check
   }
   return /^[A-Za-z]+\.[A-Za-z0-9]+/.test(trimmed) ? trimmed : undefined;
-}
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const STYLE_ELEMENT_ID = 'archivexus-relationship-authoring-styles';
-
-const CSS = `
-.archivexus-rel-endpoint-control { display: flex; align-items: center; gap: 0.35rem; }
-.archivexus-rel-endpoint-control input { flex: 1 1 auto; min-width: 0; }
-.archivexus-rel-endpoint-control input[readonly] { font-weight: 600; }
-.archivexus-rel-endpoint-clear {
-  flex: 0 0 auto; border: 0; background: transparent; cursor: pointer; padding: 0.15rem 0.4rem; opacity: 0.7;
-}
-.archivexus-rel-endpoint-clear:hover { opacity: 1; }
-.archivexus-rel-endpoint-uuid {
-  margin: 0.1rem 0 0; font-size: var(--font-size-11, 11px); font-family: var(--font-mono, monospace); opacity: 0.55;
-}
-.archivexus-rel-endpoint-control.archivexus-rel-drop-active input { outline: 1px dashed var(--color-border-highlight, #ff9); }
-.archivexus-relationship-authoring .form-footer { display: flex; gap: 0.5rem; }
-p.notification[data-role="saved-notice"] {
-  background: var(--color-level-success-bg, rgba(0,140,0,0.15));
-  border: 1px solid var(--color-level-success-border, rgba(0,140,0,0.4));
-}
-`;
-
-export function ensureRelationshipAuthoringStyles(): void {
-  const doc = (globalThis as { document?: unknown }).document as
-    | {
-        getElementById(id: string): unknown;
-        createElement(tag: string): { id: string; textContent: string };
-        head: { appendChild(node: unknown): unknown };
-      }
-    | undefined;
-  if (!doc || doc.getElementById(STYLE_ELEMENT_ID)) {
-    return;
-  }
-  const style = doc.createElement('style');
-  style.id = STYLE_ELEMENT_ID;
-  style.textContent = CSS;
-  doc.head.appendChild(style);
 }
 
 // ---------------------------------------------------------------------------
@@ -362,7 +321,7 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
     }
 
     _replaceHTML(result: string, content: MinimalDomElementLike): void {
-      ensureRelationshipAuthoringStyles();
+      ensureArchivexusStyles();
       content.innerHTML = result;
     }
 
@@ -376,7 +335,9 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
           event.preventDefault();
           drop.classList.add('archivexus-rel-drop-active');
         });
-        drop?.addEventListener('dragleave', () => drop.classList.remove('archivexus-rel-drop-active'));
+        drop?.addEventListener('dragleave', () =>
+          drop.classList.remove('archivexus-rel-drop-active'),
+        );
         drop?.addEventListener('drop', (event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -577,7 +538,8 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
       const saveAndNew = root.querySelector('[data-action="saveAndNew"]');
       if (saveAndNew) {
         saveAndNew.disabled = !enabled;
-        saveAndNew.textContent = label === 'Save' ? 'Save & add another' : 'Save anyway & add another';
+        saveAndNew.textContent =
+          label === 'Save' ? 'Save & add another' : 'Save anyway & add another';
       }
     }
 
@@ -587,7 +549,11 @@ export function getRelationshipAuthoringApplicationClass(): RelationshipAuthorin
       origin: ResolvedDroppedNode,
       target: ResolvedDroppedNode,
     ): { origin: ResolvedDroppedNode; target: ResolvedDroppedNode } {
-      const orientation = resolveDefinitionOrientation(definition, origin.nodeType, target.nodeType);
+      const orientation = resolveDefinitionOrientation(
+        definition,
+        origin.nodeType,
+        target.nodeType,
+      );
       return orientation === 'reversed' ? { origin: target, target: origin } : { origin, target };
     }
 

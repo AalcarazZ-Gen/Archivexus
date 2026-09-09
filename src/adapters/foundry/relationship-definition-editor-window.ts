@@ -10,6 +10,7 @@ import {
 } from '../../core/domain/relationship-definition.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import type { Logger } from './logger.js';
+import { ensureArchivexusStyles } from './archivexus-styles.js';
 
 /**
  * ADAPT-014 — the Relationship *Definition* editor `ApplicationV2`. Alberto's
@@ -241,9 +242,7 @@ export function buildDefinitionFormHTML(
 ): string {
   const heading = mode === 'add' ? 'New relationship type' : 'Edit relationship type';
   const cancel =
-    mode === 'edit'
-      ? `<button type="button" data-action="cancelEdit">Cancel</button>`
-      : '';
+    mode === 'edit' ? `<button type="button" data-action="cancelEdit">Cancel</button>` : '';
   return (
     `<form class="archivexus-def-form" autocomplete="off">` +
     `<h3 class="archivexus-def-form-heading" data-role="form-heading">${heading}</h3>` +
@@ -292,7 +291,7 @@ export function buildDefinitionEditorContentHTML(
   errorMessage?: string,
 ): string {
   return (
-    `<div class="archivexus-def-editor">` +
+    `<div class="archivexus archivexus-def-editor">` +
     `<div class="archivexus-def-editor-list" data-role="list">` +
     `<div class="archivexus-def-editor-list-header">` +
     `<h3>Relationship types <span class="archivexus-def-count">${definitions.length}</span></h3>` +
@@ -305,50 +304,6 @@ export function buildDefinitionEditorContentHTML(
     `</div>` +
     `</div>`
   );
-}
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const STYLE_ELEMENT_ID = 'archivexus-def-editor-styles';
-
-const CSS = `
-.archivexus-def-editor { display: flex; gap: 1rem; align-items: flex-start; }
-.archivexus-def-editor-list { flex: 1 1 55%; min-width: 0; }
-.archivexus-def-editor-form { flex: 1 1 45%; min-width: 0; }
-.archivexus-def-editor-list-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-.archivexus-def-editor-list-header h3, .archivexus-def-form-heading { margin: 0 0 0.5rem; }
-.archivexus-def-count { opacity: 0.6; font-weight: normal; }
-.archivexus-def-rows { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow-y: auto; }
-.archivexus-def-row { padding: 0.35rem 0.4rem; border-radius: 3px; }
-.archivexus-def-row + .archivexus-def-row { border-top: 1px solid var(--color-border-light-tertiary, rgba(0,0,0,0.08)); }
-.archivexus-def-row--active { background: var(--color-hover-bg, rgba(0,0,0,0.06)); }
-.archivexus-def-row-arrow, .archivexus-def-row-sym { opacity: 0.6; }
-.archivexus-def-row-meta { font-size: var(--font-size-11, 11px); opacity: 0.65; text-transform: uppercase; }
-.archivexus-def-row-actions { display: flex; gap: 0.35rem; margin-top: 0.2rem; }
-.archivexus-def-empty { opacity: 0.6; font-style: italic; padding: 0.5rem 0; }
-.archivexus-def-form .form-group { margin-bottom: 0.6rem; }
-.archivexus-def-form .hint { font-size: var(--font-size-11, 11px); opacity: 0.6; margin: 0.15rem 0 0; }
-.archivexus-def-form label.checkbox { display: flex; gap: 0.4rem; align-items: flex-start; font-weight: normal; }
-.archivexus-def-form .form-footer { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
-`;
-
-export function ensureDefinitionEditorStyles(): void {
-  const doc = (globalThis as { document?: unknown }).document as
-    | {
-        getElementById(id: string): unknown;
-        createElement(tag: string): { id: string; textContent: string };
-        head: { appendChild(node: unknown): unknown };
-      }
-    | undefined;
-  if (!doc || doc.getElementById(STYLE_ELEMENT_ID)) {
-    return;
-  }
-  const style = doc.createElement('style');
-  style.id = STYLE_ELEMENT_ID;
-  style.textContent = CSS;
-  doc.head.appendChild(style);
 }
 
 // ---------------------------------------------------------------------------
@@ -470,7 +425,7 @@ export function getRelationshipDefinitionEditorClass(): EditorConstructor {
     }
 
     _replaceHTML(result: string, content: MinimalDomElementLike): void {
-      ensureDefinitionEditorStyles();
+      ensureArchivexusStyles();
       content.innerHTML = result;
     }
 
@@ -526,8 +481,7 @@ export function getRelationshipDefinitionEditorClass(): EditorConstructor {
 
     #readFormValues(): DefinitionFormValues {
       const root = this.element;
-      const get = (name: string): string =>
-        root.querySelector(`[name="${name}"]`)?.value ?? '';
+      const get = (name: string): string => root.querySelector(`[name="${name}"]`)?.value ?? '';
       const checked = (name: string): boolean =>
         root.querySelector(`[name="${name}"]`)?.checked ?? false;
       return {
