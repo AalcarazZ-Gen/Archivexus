@@ -8,6 +8,7 @@ import {
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import { openGraphPopout } from './graph-popout-window.js';
 import type { Logger } from './logger.js';
+import { ensureArchivexusStyles } from './archivexus-styles.js';
 import { categoryLabel, UNCATEGORIZED_KEY } from './node-connections.js';
 import { openRelationshipAuthoringWindow } from './relationship-authoring-window.js';
 import type { ResolvedDroppedNode } from './relationship-node-resolution.js';
@@ -284,66 +285,12 @@ export function buildConsoleContentHTML(
   totalCount: number,
 ): string {
   return (
-    `<div class="archivexus-console">` +
+    `<div class="archivexus archivexus-console">` +
     buildConsoleFiltersHTML(definitions, filters, groupMode, involvesNodeTitle) +
     `<div class="archivexus-console-list" data-role="console-list">${buildConsoleRowsHTML(groups, totalCount > 0)}</div>` +
     `<div class="archivexus-console-count" data-role="console-count">${shownCount} of ${totalCount} shown</div>` +
     `</div>`
   );
-}
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const STYLE_ELEMENT_ID = 'archivexus-console-styles';
-
-const CSS = `
-.archivexus-console { display: flex; flex-direction: column; gap: 0.5rem; }
-.archivexus-console-filters { display: flex; flex-direction: column; gap: 0.35rem; }
-.archivexus-console-filter-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-.archivexus-console-filter-row [data-role="console-search"] { flex: 1 1 12rem; }
-.archivexus-console-new { margin-left: auto; }
-.archivexus-console-check { display: flex; gap: 0.3rem; align-items: center; font-weight: normal; white-space: nowrap; }
-.archivexus-console-chip {
-  border: 1px solid var(--color-border-light-primary, rgba(0,0,0,0.2));
-  border-radius: 999px; padding: 0.1rem 0.6rem; background: var(--color-bg-option, rgba(0,0,0,0.04)); cursor: pointer;
-}
-.archivexus-console-list { max-height: 60vh; overflow-y: auto; }
-.archivexus-console-group[hidden] { display: none; }
-.archivexus-console-group-header { margin: 0.5rem 0 0.15rem; font-size: var(--font-size-11, 11px); text-transform: uppercase; opacity: 0.7; }
-.archivexus-console-group-count { opacity: 0.6; }
-.archivexus-console-rows { list-style: none; margin: 0; padding: 0; }
-.archivexus-console-row { padding: 0.35rem 0.4rem; border-radius: 3px; }
-.archivexus-console-row[hidden] { display: none; }
-.archivexus-console-row + .archivexus-console-row { border-top: 1px solid var(--color-border-light-tertiary, rgba(0,0,0,0.08)); }
-.archivexus-console-row-title { font-weight: 600; }
-.archivexus-console-row-meta { font-size: var(--font-size-11, 11px); opacity: 0.75; }
-.archivexus-console-cat { text-transform: uppercase; opacity: 0.7; }
-.archivexus-console-flag {
-  border-radius: 3px; padding: 0 0.3rem; background: var(--color-bg-option, rgba(0,0,0,0.06));
-}
-.archivexus-console-flag--warn { background: var(--color-level-warning-bg, rgba(190,120,0,0.2)); }
-.archivexus-console-row-actions { display: flex; gap: 0.35rem; margin-top: 0.2rem; }
-.archivexus-console-empty { opacity: 0.6; font-style: italic; padding: 0.75rem 0; }
-.archivexus-console-count { font-size: var(--font-size-11, 11px); opacity: 0.6; }
-`;
-
-export function ensureConsoleStyles(): void {
-  const doc = (globalThis as { document?: unknown }).document as
-    | {
-        getElementById(id: string): unknown;
-        createElement(tag: string): { id: string; textContent: string };
-        head: { appendChild(node: unknown): unknown };
-      }
-    | undefined;
-  if (!doc || doc.getElementById(STYLE_ELEMENT_ID)) {
-    return;
-  }
-  const style = doc.createElement('style');
-  style.id = STYLE_ELEMENT_ID;
-  style.textContent = CSS;
-  doc.head.appendChild(style);
 }
 
 // ---------------------------------------------------------------------------
@@ -531,7 +478,7 @@ export function getRelationshipConsoleClass(): ConsoleConstructor {
     }
 
     _replaceHTML(result: string, content: MinimalDomElementLike): void {
-      ensureConsoleStyles();
+      ensureArchivexusStyles();
       content.innerHTML = result;
     }
 
@@ -588,7 +535,8 @@ export function getRelationshipConsoleClass(): ConsoleConstructor {
       for (const group of this.element.querySelectorAll('[data-console-group]')) {
         let anyVisible = false;
         for (const row of group.querySelectorAll('[data-relationship-id]')) {
-          const match = needle.length === 0 || (row.getAttribute('data-search') ?? '').includes(needle);
+          const match =
+            needle.length === 0 || (row.getAttribute('data-search') ?? '').includes(needle);
           row.hidden = !match;
           if (match) anyVisible = true;
         }

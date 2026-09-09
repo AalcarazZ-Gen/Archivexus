@@ -4,12 +4,18 @@ import { createView, type GraphViewNodePosition, type View } from '../../core/do
 import { resolveTraversal } from '../../core/query/traversal.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import {
-  CYTOSCAPE_STYLE,
   ensureCytoscape,
   getLoadedCytoscape,
   layoutFor,
   type CytoscapeCoreLike,
 } from './cytoscape-loader.js';
+import {
+  buildCytoscapeStyle,
+  DEFAULT_NODE_COLOR,
+  ensureArchivexusStyles,
+  NODE_TYPE_COLORS,
+  type ColorScheme,
+} from './archivexus-styles.js';
 import { isViewerGM } from './foundry-viewer.js';
 import {
   buildGraphViewElements,
@@ -17,6 +23,7 @@ import {
   filterNodesForViewer,
   filterTraversalForViewer,
   type GraphViewElement,
+  type GraphViewNodeElement,
 } from './graph-view-elements.js';
 import {
   buildClusteredGraphElements,
@@ -67,12 +74,17 @@ import { buildNodeConnections, type NodeConnectionGroup } from './node-connectio
  * Cytoscape compound node — tap to expand in place, "Collapse clusters" to
  * reset. Switching preset / re-rooting / "Whole graph" clears the expansion
  * state.
+ *
+ * ADAPT-013: styles come from the one shared `archivexus-styles.ts`
+ * (`ensureArchivexusStyles` + the `.archivexus` token layer); the Cytoscape
+ * palette is `buildCytoscapeStyle(scheme)` — nodes coloured by `node.type`,
+ * edges by `traversalCategory` (carried onto edge `data` here), a legend
+ * strip and label plates so labels stop colliding.
  */
 
 type Preset = 'direct-only' | 'everything-connected' | 'curated-by-me';
 
 const WINDOW_ID = 'archivexus-graph-popout';
-const STYLE_ELEMENT_ID = 'archivexus-graph-popout-styles';
 const SELECTED_CLASS = 'archivexus-selected';
 
 const LAYOUT_OPTIONS: readonly { readonly value: string; readonly label: string }[] = [
@@ -107,10 +119,10 @@ export function buildGraphPopoutContentHTML(options: { readonly isGM: boolean })
     : '';
 
   return (
-    `<div class="archivexus-graph-popout">` +
-    `<div class="ax-gp-toolbar">` +
+    `<div class="archivexus archivexus-graph-popout">` +
+    `<div class="ax-toolbar ax-gp-toolbar">` +
     `<button type="button" data-action="wholeGraph">Whole graph</button>` +
-    `<span class="ax-gp-presets" role="group" aria-label="Traversal preset">` +
+    `<span class="ax-segmented ax-gp-presets" role="group" aria-label="Traversal preset">` +
     `<button type="button" data-action="preset" data-preset="direct-only" aria-pressed="true">Direct</button>` +
     `<button type="button" data-action="preset" data-preset="everything-connected" aria-pressed="false">Everything</button>` +
     `<button type="button" data-action="preset" data-preset="curated-by-me" aria-pressed="false" title="Pick which relationships to keep, then save it as a named view">Curated</button>` +
@@ -120,6 +132,7 @@ export function buildGraphPopoutContentHTML(options: { readonly isGM: boolean })
     previewControl +
     `</div>` +
     `<div class="ax-gp-preview-banner" data-role="preview-banner" hidden></div>` +
+    `<div class="ax-gp-legend" data-role="legend" hidden></div>` +
     `<div class="ax-gp-body">` +
     `<div class="ax-gp-canvas" data-role="canvas"></div>` +
     `<aside class="ax-gp-inspector" data-role="inspector">` +
@@ -135,6 +148,43 @@ export function buildGraphPopoutContentHTML(options: { readonly isGM: boolean })
 /** Inspector content before any Node is selected. */
 export function buildInspectorEmptyHTML(): string {
   return `<p class="ax-gp-insp-empty">Select a node to see its attached content and connections.</p>`;
+}
+
+/**
+ * The node-type colour legend (ADAPT-013) — a swatch per `node.type`
+ * currently on the canvas. Pure; the popout hides the strip when empty.
+ */
+export function buildGraphLegendHTML(nodeTypes: readonly string[]): string {
+  const seen = [...new Set(nodeTypes)].sort((a, b) => a.localeCompare(b));
+  return seen
+    .map((type) => {
+      const color = NODE_TYPE_COLORS[type] ?? DEFAULT_NODE_COLOR;
+      return (
+        `<span><span class="ax-gp-legend-swatch" style="background:${color}"></span>` +
+        `${escapeHtml(type)}</span>`
+      );
+    })
+    .join('');
+}
+
+/**
+ * Reads Foundry's UI colour scheme (`core.colorScheme` — a plain string in
+ * v13, a `{ applications, interface }` object in later builds). Anything
+ * that isn't explicitly "light" → the dark palette (Foundry's default).
+ */
+function currentColorScheme(): ColorScheme {
+  try {
+    const raw = game.settings.get('core', 'colorScheme');
+    const value =
+      typeof raw === 'string'
+        ? raw
+        : typeof (raw as { applications?: unknown } | null)?.applications === 'string'
+          ? (raw as { applications: string }).applications
+          : '';
+    return value === 'light' ? 'light' : 'dark';
+  } catch {
+    return 'dark';
+  }
 }
 
 function buildBlockListHTML(blocks: readonly Block[]): string {
@@ -209,57 +259,6 @@ export function buildContextMenuHTML(nodeId: string): string {
     `<button type="button" data-action="menuEverything" data-node-id="${id}">Everything connected from here</button>`,
   ];
   return `<div class="ax-gp-context-menu" data-role="context-menu">${items.join('')}</div>`;
-}
-
-const POPOUT_CSS = `
-.archivexus-graph-popout { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.ax-gp-toolbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.35rem 0.25rem; }
-.ax-gp-presets button[aria-pressed="true"] { font-weight: 700; text-decoration: underline; }
-.ax-gp-preview-banner { background: var(--color-warm-2, #6a4a1a); color: #fff; padding: 0.25rem 0.5rem; font-size: var(--font-size-12, 12px); }
-.ax-gp-body { display: flex; flex: 1 1 auto; min-height: 0; }
-.ax-gp-canvas { flex: 1 1 auto; min-width: 0; }
-.ax-gp-inspector { flex: 0 0 260px; overflow-y: auto; padding: 0.5rem; border-left: 1px solid var(--color-border-light-primary, #999); font-size: var(--font-size-13, 13px); }
-.ax-gp-inspector[hidden] { display: none; }
-.ax-gp-insp-head { display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-.ax-gp-insp-title { font-weight: 700; }
-.ax-gp-insp-type { opacity: 0.6; font-size: var(--font-size-11, 11px); }
-.ax-gp-insp-section h4 { margin: 0.5rem 0 0.25rem; }
-.ax-gp-insp-section h5 { margin: 0.4rem 0 0.15rem; opacity: 0.75; font-size: var(--font-size-11, 11px); text-transform: uppercase; }
-.ax-gp-insp-blocks, .ax-gp-insp-conns { list-style: none; margin: 0; padding: 0; }
-.ax-gp-insp-conns li, .ax-gp-insp-blocks li { padding: 0.1rem 0; }
-.ax-gp-insp-verb { opacity: 0.6; }
-.ax-gp-no-actor { opacity: 0.6; cursor: help; }
-.ax-gp-insp-none, .ax-gp-insp-empty { opacity: 0.6; font-style: italic; }
-.ax-gp-curated { margin-bottom: 0.6rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--color-border-light-primary, #999); }
-.ax-gp-curated[hidden] { display: none; }
-.ax-gp-curate-head { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; margin-bottom: 0.35rem; }
-.ax-gp-curate-list { list-style: none; margin: 0 0 0.3rem; padding: 0; }
-.ax-gp-curate-row { display: flex; align-items: baseline; gap: 0.35rem; padding: 0.1rem 0; cursor: pointer; }
-.ax-gp-curate-row em { opacity: 0.6; }
-.ax-gp-curate-empty { opacity: 0.6; font-style: italic; }
-.ax-gp-status { padding: 0.2rem 0.5rem; font-size: var(--font-size-11, 11px); opacity: 0.7; }
-.ax-gp-context-overlay { position: fixed; inset: 0; z-index: 999; }
-.ax-gp-context-menu { position: fixed; z-index: 1000; display: flex; flex-direction: column; background: var(--color-bg, #1b1b1d); border: 1px solid var(--color-border-light-primary, #999); border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
-.ax-gp-context-menu button { text-align: left; border: 0; background: transparent; padding: 0.3rem 0.7rem; white-space: nowrap; }
-.ax-gp-context-menu button:hover { background: var(--color-hover, rgba(255,255,255,0.08)); }
-`;
-
-/** Injects the popout stylesheet into `<head>` once (same reasoning as `ensureCodexStyles` — keeps the ship a single `archivexus.js`). */
-export function ensureGraphPopoutStyles(): void {
-  const doc = (globalThis as { document?: unknown }).document as
-    | {
-        getElementById(id: string): unknown;
-        createElement(tag: string): { id: string; textContent: string };
-        head: { appendChild(node: unknown): unknown };
-      }
-    | undefined;
-  if (!doc || doc.getElementById(STYLE_ELEMENT_ID)) {
-    return;
-  }
-  const style = doc.createElement('style');
-  style.id = STYLE_ELEMENT_ID;
-  style.textContent = POPOUT_CSS;
-  doc.head.appendChild(style);
 }
 
 // ---------------------------------------------------------------------------
@@ -494,7 +493,7 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
     }
 
     _replaceHTML(result: string, content: MinimalElementLike): void {
-      ensureGraphPopoutStyles();
+      ensureArchivexusStyles();
       content.innerHTML = result;
 
       const canvas = content.querySelector('[data-role="canvas"]');
@@ -508,7 +507,7 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       this.#cy = factory({
         container: canvas,
         elements: [],
-        style: CYTOSCAPE_STYLE,
+        style: buildCytoscapeStyle(currentColorScheme()),
         layout: { name: 'preset' },
         wheelSensitivity: 0.2,
       });
@@ -565,13 +564,19 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
         let hiddenCount: number;
         let relationshipCount: number;
 
+        // One Definitions fetch per render — edge colouring (ADAPT-013) needs
+        // it on every path, and clustering / the curated checklist reuse it.
+        const definitionsById = new Map(
+          (await storage.listRelationshipDefinitions()).map((d) => [d.id, d]),
+        );
+
         if (this.#rootNodeId === undefined) {
           const [allNodes, relationships] = await Promise.all([
             storage.listNodes(),
             storage.listRelationships(),
           ]);
           const nodes = filterNodesForViewer(allNodes, { isGM });
-          elements = buildGraphViewElements(nodes, relationships);
+          elements = buildGraphViewElements(nodes, relationships, definitionsById);
           visibleCount = nodes.length;
           hiddenCount = allNodes.length - nodes.length;
           relationshipCount = relationships.length;
@@ -581,10 +586,10 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
           // VIEW-001f: start from the root's "Direct only" result, keep only
           // the ticked Relationships; the ticked set + hand-placed layout is
           // what a saved View persists.
-          const [direct, definitions] = await Promise.all([
-            resolveTraversal(storage, { preset: 'direct-only', nodeId: this.#rootNodeId }),
-            storage.listRelationshipDefinitions(),
-          ]);
+          const direct = await resolveTraversal(storage, {
+            preset: 'direct-only',
+            nodeId: this.#rootNodeId,
+          });
           if (this.#curatedSeededForRoot !== this.#rootNodeId) {
             this.#curatedIncluded = new Set(defaultCuratedRelationshipIds(direct));
             this.#curatedSeededForRoot = this.#rootNodeId;
@@ -600,10 +605,13 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
           hiddenCount = allReached.length - visibleReached.length;
           relationshipCount = visibleTraversal.relationships.length;
           visibleCount = visibleReached.length;
-          elements = buildGraphViewElements(visibleReached, visibleTraversal.relationships);
+          elements = buildGraphViewElements(
+            visibleReached,
+            visibleTraversal.relationships,
+            definitionsById,
+          );
           this.#clusterCount = 0;
 
-          const definitionsById = new Map(definitions.map((d) => [d.id, d]));
           const groups = buildCuratedCandidates(
             this.#rootNodeId,
             direct,
@@ -627,8 +635,6 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
           if (this.#preset === 'everything-connected') {
             // VIEW-001e / ADR-0007 point 6: the depth-2 ring renders as
             // collapsed, category-labelled clusters by default.
-            const definitions = await storage.listRelationshipDefinitions();
-            const definitionsById = new Map(definitions.map((d) => [d.id, d]));
             const clustered = buildClusteredTraversal(visibleTraversal, definitionsById);
             const liveClusterIds = new Set(clustered.clusters.map((c) => c.id));
             for (const id of [...this.#expandedClusters]) {
@@ -638,16 +644,22 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
               visibleTraversal,
               clustered,
               this.#expandedClusters,
+              definitionsById,
             );
             this.#clusterCount = clustered.clusters.length;
           } else {
-            elements = buildGraphViewElements(visibleReached, visibleTraversal.relationships);
+            elements = buildGraphViewElements(
+              visibleReached,
+              visibleTraversal.relationships,
+              definitionsById,
+            );
             this.#clusterCount = 0;
           }
         }
 
         this.#applyElements(elements);
         this.#applyPendingLayout();
+        this.#updateLegend(elements);
         this.#updatePreviewBanner(hiddenCount);
         this.#updateCollapseButton();
         const presetWord =
@@ -697,6 +709,21 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       } catch (error) {
         this.#log.error(`Graph popout: failed to inspect "${nodeId}": ${errorMessage(error)}`);
       }
+    }
+
+    /** ADAPT-013 — refresh the node-type colour legend from what's on the canvas (hidden when empty). */
+    #updateLegend(elements: readonly GraphViewElement[]): void {
+      const legend = this.element.querySelector('[data-role="legend"]');
+      if (!legend) return;
+      const nodeTypes = elements
+        .filter(
+          (element): element is GraphViewNodeElement =>
+            element.group === 'nodes' && element.data.isCluster !== true,
+        )
+        .map((element) => element.data.nodeType);
+      const html = buildGraphLegendHTML(nodeTypes);
+      legend.innerHTML = html;
+      legend.hidden = html.length === 0;
     }
 
     /** VIEW-001f — show/refill the curated checklist panel, or hide it when not in curated mode. */

@@ -5,6 +5,7 @@ import { filterNodesForViewer } from './graph-view-elements.js';
 import { openGraphPopout } from './graph-popout-window.js';
 import { openRelationshipDefinitionEditor } from './relationship-definition-editor-window.js';
 import { openRelationshipConsole } from './relationship-console-window.js';
+import { ensureArchivexusStyles } from './archivexus-styles.js';
 import { buildGuidancePanelHTML } from './first-run-guidance.js';
 import {
   buildSavedViewsPanelHTML,
@@ -146,7 +147,7 @@ function escapeHtml(value: string): string {
 export function buildNavigatorShellHTML(options: { isGM?: boolean } = {}): string {
   const { isGM = true } = options;
   return (
-    `<div class="archivexus-codex">` +
+    `<div class="archivexus archivexus-codex">` +
     `<div class="archivexus-codex-toolbar">` +
     `<button type="button" data-action="openWholeGraph" title="Open the campaign graph in a resizable window">Open graph ⧉</button>` +
     (isGM
@@ -229,100 +230,6 @@ export function buildNavigatorGroupsHTML(
       );
     })
     .join('');
-}
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const CODEX_STYLE_ELEMENT_ID = 'archivexus-codex-styles';
-
-const CODEX_CSS = `
-.archivexus-codex { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 0.25rem; }
-.archivexus-codex-toolbar { display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0; }
-.archivexus-codex-search { width: 100%; }
-.archivexus-codex-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
-.archivexus-codex-hint { font-size: var(--font-size-12, 12px); opacity: 0.7; padding: 0.15rem 0; }
-.archivexus-codex-state { opacity: 0.6; font-style: italic; padding: 0.5rem 0; }
-.archivexus-codex-group { margin-bottom: 0.35rem; }
-.archivexus-codex-group[hidden] { display: none; }
-.archivexus-codex-group-header {
-  display: block; width: 100%; text-align: left; border: 0; background: transparent; cursor: pointer;
-  margin: 0.35rem 0 0.15rem; padding: 0.1rem 0; font-size: var(--font-size-11, 11px);
-  text-transform: uppercase; opacity: 0.7;
-}
-.archivexus-codex-group-header:hover { opacity: 1; }
-.archivexus-codex-group-caret { display: inline-block; width: 1em; }
-.archivexus-codex-group-count { opacity: 0.6; }
-.archivexus-codex-rows { list-style: none; margin: 0; padding: 0; }
-.archivexus-codex-rows[hidden] { display: none; }
-.archivexus-codex-rows li { display: flex; align-items: center; }
-.archivexus-codex-rows li[hidden] { display: none; }
-.archivexus-codex-row-label {
-  flex: 1 1 auto; min-width: 0; text-align: left; border: 0; background: transparent;
-  padding: 0.2rem 0.4rem; border-radius: 3px; cursor: pointer;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.archivexus-codex-row-label:hover { background: var(--color-hover-bg, rgba(0,0,0,0.06)); }
-.archivexus-codex-fav {
-  flex: 0 0 auto; border: 0; background: transparent; cursor: pointer;
-  padding: 0.2rem 0.3rem; opacity: 0; transition: opacity 0.1s;
-}
-.archivexus-codex-rows li:hover .archivexus-codex-fav,
-.archivexus-codex-fav--on { opacity: 0.85; }
-.archivexus-codex-fav:hover { opacity: 1; }
-.archivexus-codex-guidance {
-  border: 1px solid var(--color-border-light-primary, rgba(0,0,0,0.15));
-  border-radius: 4px; padding: 0.25rem 0.5rem; margin: 0.15rem 0;
-  background: var(--color-bg-option, rgba(0,0,0,0.03));
-}
-.archivexus-codex-guidance-toggle {
-  display: block; width: 100%; text-align: left; border: 0; background: transparent;
-  padding: 0.2rem 0; cursor: pointer; font-weight: bold;
-  font-size: var(--font-size-12, 12px); text-transform: uppercase; opacity: 0.8;
-}
-.archivexus-codex-guidance-caret { display: inline-block; width: 1em; }
-.archivexus-codex-guidance-body[hidden] { display: none; }
-.archivexus-codex-guidance-body .archivexus-guidance-steps {
-  margin: 0.25rem 0; padding-left: 1.2rem; font-size: var(--font-size-12, 12px);
-}
-.archivexus-codex-guidance-body .archivexus-guidance-steps li { margin-bottom: 0.35rem; }
-.archivexus-codex-guidance-count { font-size: var(--font-size-11, 11px); opacity: 0.7; margin: 0.25rem 0 0; }
-.ax-codex-views { margin-bottom: 0.35rem; }
-.ax-codex-views-header { display: flex; align-items: center; gap: 0.35rem; width: 100%; text-align: left; background: transparent; border: 0; padding: 0.2rem 0; font-weight: 600; cursor: pointer; }
-.ax-codex-views-caret { display: inline-block; width: 1em; }
-.ax-codex-views-count { opacity: 0.6; font-size: var(--font-size-11, 11px); }
-.ax-codex-views-list { list-style: none; margin: 0; padding: 0; }
-.ax-codex-views-list[hidden] { display: none; }
-.ax-codex-view-row { display: flex; align-items: center; gap: 0.25rem; }
-.ax-codex-view-open { flex: 1 1 auto; text-align: left; background: transparent; border: 0; padding: 0.15rem 0.25rem; cursor: pointer; }
-.ax-codex-view-meta { opacity: 0.6; font-size: var(--font-size-11, 11px); }
-.ax-codex-view-del { background: transparent; border: 0; opacity: 0.5; cursor: pointer; padding: 0 0.25rem; }
-.ax-codex-view-del:hover { opacity: 1; }
-.ax-codex-view-hidden { opacity: 0.6; cursor: help; }
-`;
-
-/**
- * Injects the Codex's stylesheet into `<head>` once (ADR-0014 Amendment 2
- * decision 4: an injected `<style>` module, not a `module.json` styles
- * asset — keeps the hand-run build a single JS emit). `document` is
- * reached via `globalThis` since this package's tsconfig omits the DOM lib.
- */
-export function ensureCodexStyles(): void {
-  const doc = (globalThis as { document?: unknown }).document as
-    | {
-        getElementById(id: string): unknown;
-        createElement(tag: string): { id: string; textContent: string };
-        head: { appendChild(node: unknown): unknown };
-      }
-    | undefined;
-  if (!doc || doc.getElementById(CODEX_STYLE_ELEMENT_ID)) {
-    return;
-  }
-  const style = doc.createElement('style');
-  style.id = CODEX_STYLE_ELEMENT_ID;
-  style.textContent = CODEX_CSS;
-  doc.head.appendChild(style);
 }
 
 // ---------------------------------------------------------------------------
@@ -425,7 +332,7 @@ export function getCodexSidebarTabClass(
     }
 
     _replaceHTML(result: string, content: MinimalDomElementLike): void {
-      ensureCodexStyles();
+      ensureArchivexusStyles();
       content.innerHTML = result;
 
       const search = content.querySelector('[data-role="search"]');

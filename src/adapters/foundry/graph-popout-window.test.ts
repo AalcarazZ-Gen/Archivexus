@@ -9,7 +9,6 @@ import {
   buildGraphPopoutContentHTML,
   buildInspectorEmptyHTML,
   buildInspectorHTML,
-  ensureGraphPopoutStyles,
   gatherNodeConnections,
   openGraphPopout,
 } from './graph-popout-window.js';
@@ -167,29 +166,6 @@ describe('buildContextMenuHTML', () => {
     expect(html).toContain('data-action="menuReRoot"');
     expect(html).toContain('data-action="menuEverything"');
     expect((html.match(/data-node-id="Actor.kael"/g) ?? []).length).toBe(3);
-  });
-});
-
-describe('ensureGraphPopoutStyles', () => {
-  it('is a no-op without a document, and injects exactly once', () => {
-    expect(() => ensureGraphPopoutStyles()).not.toThrow();
-
-    const appended: { id: string; textContent: string }[] = [];
-    const byId = new Map<string, unknown>();
-    (globalThis as { document?: unknown }).document = {
-      getElementById: (id: string) => byId.get(id) ?? null,
-      createElement: () => ({ id: '', textContent: '' }),
-      head: {
-        appendChild: (n: { id: string; textContent: string }) => {
-          appended.push(n);
-          byId.set(n.id, n);
-        },
-      },
-    };
-    ensureGraphPopoutStyles();
-    ensureGraphPopoutStyles();
-    expect(appended).toHaveLength(1);
-    expect(appended[0]?.id).toBe('archivexus-graph-popout-styles');
   });
 });
 

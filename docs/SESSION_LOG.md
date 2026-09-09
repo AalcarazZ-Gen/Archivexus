@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-09-08 (software-developer: ADAPT-013 — shared style baseline)
+
+**Built:** ADAPT-013 (#68), **the last ticket**, on `feat/adapt-013-style-baseline` off `dev` (VIEW-001ef merged first).
+
+- `archivexus-styles.ts` (new) — `ensureArchivexusStyles()` replaces all 5 `ensure*Styles` (codex / graph-popout / console / def-editor / authoring). One `<style>`, id `archivexus-styles`. Contents: (1) `.archivexus` token layer — ~14 `var(--foundry-var, fallback)` custom props (gap/pad/radius/border/muted/font/hover/sunken/accent) so it tracks Foundry's theme; (2) base components scoped under `.archivexus` (`.ax-toolbar` `.ax-segmented` `.ax-list-row` `.ax-section-header` `.ax-empty`/`.ax-loading`/`.ax-error` `.ax-badge` `.ax-canvas`); (3) every migrated per-surface rule, re-scoped under `.archivexus` (root rules use the compound `.archivexus.archivexus-codex` since the wrapper carries both classes), hex → token.
+- Each surface HTML wrapper gains the bare `archivexus` class; each calls `ensureArchivexusStyles()`.
+- Cytoscape: `cytoscape-loader.ts`'s flat `CYTOSCAPE_STYLE` (hardcoded hex, identical nodes) → `archivexus-styles.ts`'s `buildCytoscapeStyle(scheme)` — `node[nodeType="X"]` rules from `NODE_TYPE_COLORS` (a hue per `KNOWN_NODE_TYPE`), `edge[category="Y"]` from `CATEGORY_EDGE_COLORS`; the category is resolved onto edge `data` in `graph-view-elements.ts`'s `toEdgeElement` (new optional `definitionsById` param, threaded through `buildClusteredGraphElements` + the popout's one-fetch-per-render). Light/dark from `game.settings.get('core','colorScheme')`.
+- Popout: node-type **legend** strip (`buildGraphLegendHTML`, pure); toolbar/preset now use the `.ax-toolbar` + `.ax-segmented` base classes (dropped the redundant `.ax-gp-toolbar`/`.ax-gp-presets` blocks).
+- **3 rough edges:** node labels get a semi-opaque plate + `text-margin-y` (no more overlap); popout gets tokened canvas border/radius/sunken-bg + bordered inspector + `.ax-toolbar` bar + body padding; the preset toggle's bare `text-decoration: underline` → a real segmented control (accent fill on `[aria-pressed=true]`).
+- +9 tests net (603): removed 4 old per-surface `ensure*Styles` describe blocks, added `archivexus-styles.test.ts` (idempotency, scoping, colour maps, `buildCytoscapeStyle`) + an edge-category test. `tsc`/`eslint`/`vitest`/`build:foundry-module` clean (`archivexus.js` ~154 → ~162KB).
+
+**Scope kept tight:** did NOT rename the proven per-surface class names (`.archivexus-codex-*` etc.) — only re-scoped + tokenised them; base components exist as a vocabulary for future surfaces (only the popout toolbar wired to them so far). Reverted an accidental repo-wide prettier reformat of ~12 unrelated test files.
+
+**Not yet live-verified:** the themed canvas + node/edge colours + legend, the segmented toggle, and that the `.archivexus` token layer actually flips on a Foundry light-theme switch. **This closes the ADR-0014/0015 UI arc** — no open enhancement tickets remain.
+
 ## 2026-09-08 (software-developer: VIEW-001f — "Curated by me" + saved Views)
 
 **Built:** VIEW-001f (#71), the **last of the VIEW-001 lineage**, on `feat/view-001ef-graph-views` (same branch/PR as VIEW-001e).

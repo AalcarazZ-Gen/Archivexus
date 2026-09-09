@@ -5,7 +5,6 @@ import {
   buildNavigatorGroupsHTML,
   buildNavigatorShellHTML,
   buildNavigatorStateHTML,
-  ensureCodexStyles,
   getCodexSidebarTabClass,
   navigatorGroupsStartExpanded,
   registerCodexSidebarTab,
@@ -186,30 +185,3 @@ describe('getCodexSidebarTabClass', () => {
   });
 });
 
-describe('ensureCodexStyles', () => {
-  it('is a no-op when there is no document (Worker/Node context)', () => {
-    expect(() => ensureCodexStyles()).not.toThrow();
-  });
-
-  it('injects a single <style> element into <head>, and does not duplicate it on a second call', () => {
-    const appended: { id: string; textContent: string }[] = [];
-    const byId = new Map<string, unknown>();
-    (globalThis as { document?: unknown }).document = {
-      getElementById: (id: string) => byId.get(id) ?? null,
-      createElement: () => ({ id: '', textContent: '' }),
-      head: {
-        appendChild: (node: { id: string; textContent: string }) => {
-          appended.push(node);
-          byId.set(node.id, node);
-        },
-      },
-    };
-
-    ensureCodexStyles();
-    ensureCodexStyles();
-
-    expect(appended).toHaveLength(1);
-    expect(appended[0]?.id).toBe('archivexus-codex-styles');
-    expect(appended[0]?.textContent).toContain('.archivexus-codex-rows');
-  });
-});

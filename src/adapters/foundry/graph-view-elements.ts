@@ -1,5 +1,6 @@
 import type { Node } from '../../core/domain/node.js';
 import type { Relationship } from '../../core/domain/relationship.js';
+import type { RelationshipDefinition } from '../../core/domain/relationship-definition.js';
 import type { TraversalResult } from '../../core/query/traversal.js';
 
 /**
@@ -56,8 +57,14 @@ export interface GraphViewEdgeElement {
     readonly source: string;
     readonly target: string;
     readonly label: string;
-    /** The Relationship's `definitionId` — carried through for later category-based styling (VIEW-001b), unused by VIEW-001a itself. */
+    /** The Relationship's `definitionId`. */
     readonly definitionId: string;
+    /**
+     * The Relationship's `traversalCategory` (resolved from the Definition,
+     * `'other'` when it doesn't resolve) — ADAPT-013 colours edges by it.
+     * Only present when `buildGraphViewElements` was given a definitions map.
+     */
+    readonly category?: string;
   };
 }
 
@@ -81,7 +88,13 @@ function toNodeElement(node: Node): GraphViewNodeElement {
   };
 }
 
-function toEdgeElement(relationship: Relationship): GraphViewEdgeElement {
+function toEdgeElement(
+  relationship: Relationship,
+  definitionsById?: ReadonlyMap<string, RelationshipDefinition>,
+): GraphViewEdgeElement {
+  const category = definitionsById
+    ? (definitionsById.get(relationship.definitionId)?.traversalCategory ?? 'other')
+    : undefined;
   return {
     group: 'edges',
     data: {
@@ -90,6 +103,7 @@ function toEdgeElement(relationship: Relationship): GraphViewEdgeElement {
       target: relationship.target,
       label: relationship.title,
       definitionId: relationship.definitionId,
+      ...(category !== undefined ? { category } : {}),
     },
   };
 }
@@ -107,12 +121,13 @@ function toEdgeElement(relationship: Relationship): GraphViewEdgeElement {
 export function buildGraphViewElements(
   nodes: readonly Node[],
   relationships: readonly Relationship[],
+  definitionsById?: ReadonlyMap<string, RelationshipDefinition>,
 ): readonly GraphViewElement[] {
   const nodeIds = new Set(nodes.map((node) => node.id));
   const nodeElements = nodes.map(toNodeElement);
   const edgeElements = relationships
     .filter((relationship) => nodeIds.has(relationship.origin) && nodeIds.has(relationship.target))
-    .map(toEdgeElement);
+    .map((relationship) => toEdgeElement(relationship, definitionsById));
   return [...nodeElements, ...edgeElements];
 }
 

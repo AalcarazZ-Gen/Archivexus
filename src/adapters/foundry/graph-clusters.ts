@@ -175,6 +175,7 @@ export function buildClusteredGraphElements(
   traversal: TraversalResult,
   clustered: ClusteredTraversal,
   expandedClusterIds: ReadonlySet<string>,
+  definitionsById?: ReadonlyMap<string, RelationshipDefinition>,
 ): readonly GraphViewElement[] {
   const nodesById = new Map<string, Node>();
   if (traversal.rootNode) nodesById.set(traversal.rootNode.id, traversal.rootNode);
@@ -196,7 +197,7 @@ export function buildClusteredGraphElements(
   }
 
   // Real nodes + the Relationships among them, via the existing transform.
-  const baseElements = buildGraphViewElements(plainNodes, traversal.relationships);
+  const baseElements = buildGraphViewElements(plainNodes, traversal.relationships, definitionsById);
 
   const parentByMemberId = new Map<string, string>();
   for (const cluster of clustered.clusters) {
