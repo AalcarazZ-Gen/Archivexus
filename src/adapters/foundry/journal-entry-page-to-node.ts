@@ -39,6 +39,13 @@ export interface FoundryJournalEntryPageLike {
   readonly name: string;
   readonly parent?: {
     readonly name?: string;
+    /**
+     * The parent `JournalEntry`'s containing Folder (ADAPT-017 reads this
+     * to place a standalone page-Node in the folder tree — a page has no
+     * folder of its own, its entry does). `null` when the entry is at the
+     * directory root.
+     */
+    readonly folder?: { readonly uuid?: string } | null;
   };
   readonly ownership?: {
     readonly default?: number;
@@ -110,6 +117,12 @@ export type PageAttachmentResolution =
 export function resolvePageAttachment(page: FoundryJournalEntryPageLike): PageAttachmentResolution {
   const targetNodeId = page.flags?.archivexus?.attachedToNodeId?.trim();
   if (targetNodeId === undefined || targetNodeId.length === 0) {
+    return { attached: false };
+  }
+  // ADR-0015: a Folder-Node's `blocks` array is engine-owned (the ADAPT-018
+  // Scene→Block derivation reconciles it wholesale), so a page can't attach
+  // to one — treat a `Folder.` target as no attachment (standalone).
+  if (targetNodeId.startsWith('Folder.')) {
     return { attached: false };
   }
   return { attached: true, targetNodeId };

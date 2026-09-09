@@ -132,4 +132,9 @@ describe('resolvePageAttachment', () => {
     };
     expect(resolvePageAttachment(page)).toEqual({ attached: true, targetNodeId: 'Actor.fausto' });
   });
+
+  it('rejects a Folder target — a Folder-Node\'s blocks are engine-owned (ADR-0015)', () => {
+    const page = { ...basePage, flags: { archivexus: { attachedToNodeId: 'Folder.rc' } } };
+    expect(resolvePageAttachment(page)).toEqual({ attached: false });
+  });
 });

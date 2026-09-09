@@ -1,5 +1,6 @@
 import type { NodeType } from '../../core/domain/node.js';
 import { mapActorToNode, type FoundryActorLike } from './actor-to-node.js';
+import { isTaggedFolder, mapFolderToNode, type FoundryFolderLike } from './folder-to-node.js';
 import {
   mapJournalEntryPageToNode,
   type FoundryJournalEntryPageLike,
@@ -19,7 +20,7 @@ import {
  * classification.
  */
 
-export const SUPPORTED_DOCUMENT_KINDS = ['Actor', 'JournalEntryPage'] as const;
+export const SUPPORTED_DOCUMENT_KINDS = ['Actor', 'JournalEntryPage', 'Folder'] as const;
 export type SupportedDocumentKind = (typeof SUPPORTED_DOCUMENT_KINDS)[number];
 
 /** What the authoring window needs to know about a successfully resolved endpoint. */
@@ -50,7 +51,7 @@ export type ResolveDroppedNodeResult =
  */
 export function resolveDroppedDocumentNode(
   documentName: string,
-  document: FoundryActorLike | FoundryJournalEntryPageLike,
+  document: FoundryActorLike | FoundryJournalEntryPageLike | FoundryFolderLike,
 ): ResolveDroppedNodeResult {
   if (documentName === 'Actor') {
     const node = mapActorToNode(document as FoundryActorLike);
@@ -73,8 +74,25 @@ export function resolveDroppedDocumentNode(
     };
   }
 
+  if (documentName === 'Folder') {
+    const folder = document as FoundryFolderLike;
+    // A Folder is only a Node once the GM has tagged it (ADR-0015). An
+    // untagged folder gets the same clear inline error a Scene/Item does.
+    if (!isTaggedFolder(folder)) {
+      return {
+        ok: false,
+        error: `That folder isn't an Archivexus Node yet — right-click it and pick "Archivexus Node Type" first.`,
+      };
+    }
+    const node = mapFolderToNode(folder);
+    return {
+      ok: true,
+      node: { nodeId: node.id, nodeType: node.type, title: node.title, documentKind: 'Folder' },
+    };
+  }
+
   return {
     ok: false,
-    error: `Scenes and Items aren't Nodes yet — drop an Actor or a Journal Page. (Got "${documentName}".)`,
+    error: `Scenes and Items aren't Nodes yet — drop an Actor, a Journal Page, or a tagged Folder. (Got "${documentName}".)`,
   };
 }

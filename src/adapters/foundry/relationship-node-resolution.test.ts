@@ -64,4 +64,25 @@ describe('resolveDroppedDocumentNode', () => {
     const result = resolveDroppedDocumentNode('Item', { uuid: 'Item.1', name: 'Sword' });
     expect(result.ok).toBe(false);
   });
+
+  it('resolves a tagged Folder to a Folder-Node (ADAPT-016)', () => {
+    const result = resolveDroppedDocumentNode('Folder', {
+      uuid: 'Folder.rc',
+      name: 'Red Cuervo de Hierro',
+      flags: { archivexus: { nodeType: 'Organization' } },
+    });
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.node).toMatchObject({
+      nodeId: 'Folder.rc',
+      nodeType: 'Organization',
+      title: 'Red Cuervo de Hierro',
+      documentKind: 'Folder',
+    });
+  });
+
+  it('rejects an untagged Folder with a "tag it first" error', () => {
+    const result = resolveDroppedDocumentNode('Folder', { uuid: 'Folder.npc', name: 'NPC' });
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('Archivexus Node Type');
+  });
 });

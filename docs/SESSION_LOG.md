@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-09-08 (software-developer: ADAPT-016 — Folder → Node)
+
+**Built:** ADAPT-016 (#80), second ticket of the ADR-0015 batch. Makes a Folder a Node — the Node itself only; the derived containment edges are ADAPT-017. Branched `feat/adapt-016-folder-node` off `dev` (CORE-007 merged).
+
+- `folder-to-node.ts` — `mapFolderToNode` / `isTaggedFolder` (pure). `Folder.<id>` id; visibility `hidden` (Folders have no `ownership`) unless `flags.archivexus.visibility` overrides.
+- `folder-node-type-tag.ts` — `getFolderContextOptions` context-menu entry → a `DialogV2` (shared node-type input + datalist; when a tagged ancestor exists, a "Links to: X" line + a "top-level concept" checkbox → `flags.archivexus.containmentRoot`). Pure: `resolveNearestTaggedAncestor`, `buildFolderNodeTypeDialogContent`, `parseFolderNodeTypeDialogResult`.
+- `folder-sync.ts` — `syncFolder` (upsert / delete-on-untag), `deleteFolderNode` (the ADR-0015 point 10 scoped delete exception), `syncAllFolders`. `module-entry.ts` wires `create/update/deleteFolder` + the backfill scan.
+- `resolveDroppedDocumentNode` gains a `Folder` branch (tagged folders resolve; untagged → "tag it first" error). `resolvePageAttachment` rejects `Folder.` targets (a folder-Node's blocks are engine-owned). `FoundryJournalEntryPageLike.parent.folder` added (for ADAPT-017). `game.folders` ambient.
+- +19 tests (537). `tsc`/`eslint`/`vitest`/`build:foundry-module` clean (`archivexus.js` ~112 → ~117KB).
+
+**Scoping calls:** trimmed the tag dialog's relationship-type-override dropdown — the type default (`member-of` / `located-in` / `part-of` from CORE-007's `containmentDefinitionFor`) + a per-folder `containmentRelationship` flag (settable later, e.g. from the console) covers v1; the dialog just needs node type + the root opt-out. "Open sheet" for a folder-Node is degraded (a Folder has a config dialog, not a content sheet) — left as the ADR flagged it.
+
+**Not yet live-verified:** the exact `getFolderContextOptions` hook name / callback-target shape on v14.367. Next: ADAPT-017 (#81) — the derivation engine. Not merged — Alberto merges.
+
 ## 2026-09-08 (software-developer: CORE-007 — folder-containment foundation)
 
 **Built:** CORE-007 (#79), the first ticket of the ADR-0015 batch. Core/pure only — no Foundry glue. Branched `feat/core-007-folder-containment-resolver` off `dev`.
