@@ -6,6 +6,12 @@ import { openGraphPopout } from './graph-popout-window.js';
 import { openRelationshipDefinitionEditor } from './relationship-definition-editor-window.js';
 import { openRelationshipConsole } from './relationship-console-window.js';
 import { buildGuidancePanelHTML } from './first-run-guidance.js';
+import {
+  buildSavedViewsPanelHTML,
+  filterViewsForViewer,
+  sortViews,
+  toSavedViewRow,
+} from './saved-views.js';
 import type { Logger } from './logger.js';
 import {
   FAVOURITES_GROUP_TYPE,
@@ -79,9 +85,7 @@ function readFavouriteNodeIds(): ReadonlySet<string> {
 
 function writeFavouriteNodeIds(ids: readonly string[]): Promise<unknown> {
   const user = (globalThis as { game?: typeof game }).game?.user;
-  return user
-    ? user.setFlag(MODULE_ID, FAVOURITE_NODE_IDS_FLAG, [...ids])
-    : Promise.resolve();
+  return user ? user.setFlag(MODULE_ID, FAVOURITE_NODE_IDS_FLAG, [...ids]) : Promise.resolve();
 }
 
 // ---------------------------------------------------------------------------
@@ -152,6 +156,7 @@ export function buildNavigatorShellHTML(options: { isGM?: boolean } = {}): strin
       : '') +
     `</div>` +
     (isGM ? `<div class="archivexus-codex-guidance-mount" data-role="guidance-mount"></div>` : '') +
+    `<div class="archivexus-codex-views-mount" data-role="saved-views"></div>` +
     `<input type="search" class="archivexus-codex-search" data-role="search" placeholder="Filter nodes…" autocomplete="off" />` +
     `<div class="archivexus-codex-list" data-role="list"></div>` +
     `<div class="archivexus-codex-hint" data-role="hint"></div>` +
@@ -160,9 +165,7 @@ export function buildNavigatorShellHTML(options: { isGM?: boolean } = {}): strin
 }
 
 /** A loading / empty / error state for the `data-role="list"` region. */
-export function buildNavigatorStateHTML(
-  state: 'loading' | 'empty' | 'error',
-): string {
+export function buildNavigatorStateHTML(state: 'loading' | 'empty' | 'error'): string {
   const text =
     state === 'loading'
       ? 'Loading campaign…'
@@ -285,6 +288,18 @@ const CODEX_CSS = `
 }
 .archivexus-codex-guidance-body .archivexus-guidance-steps li { margin-bottom: 0.35rem; }
 .archivexus-codex-guidance-count { font-size: var(--font-size-11, 11px); opacity: 0.7; margin: 0.25rem 0 0; }
+.ax-codex-views { margin-bottom: 0.35rem; }
+.ax-codex-views-header { display: flex; align-items: center; gap: 0.35rem; width: 100%; text-align: left; background: transparent; border: 0; padding: 0.2rem 0; font-weight: 600; cursor: pointer; }
+.ax-codex-views-caret { display: inline-block; width: 1em; }
+.ax-codex-views-count { opacity: 0.6; font-size: var(--font-size-11, 11px); }
+.ax-codex-views-list { list-style: none; margin: 0; padding: 0; }
+.ax-codex-views-list[hidden] { display: none; }
+.ax-codex-view-row { display: flex; align-items: center; gap: 0.25rem; }
+.ax-codex-view-open { flex: 1 1 auto; text-align: left; background: transparent; border: 0; padding: 0.15rem 0.25rem; cursor: pointer; }
+.ax-codex-view-meta { opacity: 0.6; font-size: var(--font-size-11, 11px); }
+.ax-codex-view-del { background: transparent; border: 0; opacity: 0.5; cursor: pointer; padding: 0 0.25rem; }
+.ax-codex-view-del:hover { opacity: 1; }
+.ax-codex-view-hidden { opacity: 0.6; cursor: help; }
 `;
 
 /**
@@ -368,6 +383,22 @@ export function getCodexSidebarTabClass(
           const id = target.getAttribute('data-node-id');
           if (id) void this.#toggleFavourite(id);
         },
+        toggleSavedViews(this: CodexSidebarTab): void {
+          this.#savedViewsCollapsed = !this.#savedViewsCollapsed;
+          void this.#renderSavedViews();
+        },
+        openSavedView(this: CodexSidebarTab, _event: unknown, target: MinimalDomElementLike): void {
+          const id = target.getAttribute('data-view-id');
+          if (id) openGraphPopout(getStorage, log, { viewId: id });
+        },
+        deleteSavedView(
+          this: CodexSidebarTab,
+          _event: unknown,
+          target: MinimalDomElementLike,
+        ): void {
+          const id = target.getAttribute('data-view-id');
+          if (id) void this.#deleteSavedView(id);
+        },
       },
     };
 
@@ -384,6 +415,8 @@ export function getCodexSidebarTabClass(
 
     /** Per-user favourites (VIEW-001d), refreshed from `game.user` flags on every load. */
     #favouriteIds: ReadonlySet<string> = new Set();
+    /** VIEW-001f — the "Saved views" panel's collapsed state (session-only). */
+    #savedViewsCollapsed = false;
     /** Last render inputs, so a favourite toggle can re-render without a storage round-trip. */
     #lastRender: { nodes: readonly Node[]; hiddenCount: number; isGM: boolean } | undefined;
 
@@ -407,6 +440,8 @@ export function getCodexSidebarTabClass(
         this.#storageReadyHookBound = true;
         Hooks.on('archivexus.ready', () => void this._loadNodes());
         Hooks.on('archivexus.relationshipsChanged', () => void this._loadNodes());
+        // VIEW-001f — the popout fires this after a curated View is saved/updated.
+        Hooks.on('archivexus.viewsChanged', () => void this.#renderSavedViews());
       }
 
       void this._loadNodes();
@@ -438,9 +473,54 @@ export function getCodexSidebarTabClass(
         if (isGM) {
           this.#renderGuidance({ nodeCount: visible.length, relationshipCount });
         }
+        await this.#renderSavedViews();
       } catch (error) {
         log.error(`Codex: failed to load nodes: ${errorMessage(error)}`);
         if (listEl) listEl.innerHTML = buildNavigatorStateHTML('error');
+      }
+    }
+
+    /** VIEW-001f — renders the "Saved views" panel (empty → nothing). Own storage round-trip so `archivexus.viewsChanged` can refresh just this. */
+    async #renderSavedViews(): Promise<void> {
+      const mount = this.element.querySelector('[data-role="saved-views"]');
+      const storage = getStorage();
+      if (!mount || !storage) return;
+      try {
+        const isGM = isViewerGM();
+        const views = filterViewsForViewer(sortViews(await storage.listViews()), { isGM });
+        const rows = await Promise.all(
+          views.map(async (view) => {
+            const root = await storage.getNode(view.spec.rootNodeId);
+            return toSavedViewRow(view, root?.title ?? view.spec.rootNodeId);
+          }),
+        );
+        mount.innerHTML = buildSavedViewsPanelHTML(rows, {
+          isGM,
+          collapsed: this.#savedViewsCollapsed,
+        });
+      } catch (error) {
+        log.error(`Codex: failed to load saved views: ${errorMessage(error)}`);
+        mount.innerHTML = '';
+      }
+    }
+
+    async #deleteSavedView(viewId: string): Promise<void> {
+      const storage = getStorage();
+      if (!storage) return;
+      const view = await storage.getView(viewId);
+      const dialogV2 = foundry.applications.api.DialogV2 as unknown as {
+        confirm(config: { window: { title: string }; content: string }): Promise<boolean>;
+      };
+      const confirmed = await dialogV2.confirm({
+        window: { title: 'Delete saved view' },
+        content: `<p>Delete the saved view “<strong>${escapeHtml(view?.title ?? viewId)}</strong>”? The Nodes and relationships it showed are not affected.</p>`,
+      });
+      if (confirmed !== true) return;
+      try {
+        await storage.deleteView(viewId);
+        await this.#renderSavedViews();
+      } catch (error) {
+        log.error(`Codex: failed to delete saved view "${viewId}": ${errorMessage(error)}`);
       }
     }
 

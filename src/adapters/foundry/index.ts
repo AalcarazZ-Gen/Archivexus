@@ -155,6 +155,23 @@ export {
   isClusterNodeId,
 } from './graph-clusters.js';
 export type { ClusteredTraversal, ClusterCategoryKey, GraphCluster } from './graph-clusters.js';
+export {
+  buildCuratedCandidates,
+  buildCuratedChecklistHTML,
+  defaultCuratedRelationshipIds,
+} from './curated-view.js';
+export type {
+  CuratedCandidateGroup,
+  CuratedCandidateRow,
+  CuratedCategoryKey,
+} from './curated-view.js';
+export {
+  buildSavedViewsPanelHTML,
+  filterViewsForViewer,
+  sortViews,
+  toSavedViewRow,
+} from './saved-views.js';
+export type { SavedViewRow } from './saved-views.js';
 export { buildNodeConnections, categoryLabel, UNCATEGORIZED_KEY } from './node-connections.js';
 export type {
   BuildNodeConnectionsInput,

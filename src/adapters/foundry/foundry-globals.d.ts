@@ -119,13 +119,15 @@ declare const game: {
 // export action.
 declare function saveDataToFile(data: string, type: string, filename: string): void;
 
-// `ui.notifications.warn(message)` (storage-sync.ts, ADR-0011 point 5) — the
-// non-blocking GM-facing notification for a retag that orphans existing
-// Relationships. Same minimal-surface tradeoff as everything else in this
-// file: only the one method this codebase actually calls is declared.
+// `ui.notifications.{warn,info,error}(message)` — non-blocking GM-facing
+// toasts (`warn` for ADR-0011 point 5's orphaned-Relationship notice;
+// `info`/`error` for VIEW-001f's "saved view" / save-failed feedback). Same
+// minimal-surface tradeoff as everything else in this file.
 declare const ui: {
   notifications: {
     warn(message: string): void;
+    info(message: string): void;
+    error(message: string): void;
   };
   // `ui.sidebar` — module-entry.ts switches the sidebar to the Codex tab
   // (and expands it) when the GM picks "Show me the Codex" in the welcome
