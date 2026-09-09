@@ -23,11 +23,24 @@ import type { GraphViewElement } from './graph-view-elements.js';
  * `sqlite-executor.ts` and the Foundry ambient globals.
  */
 
+export interface CytoscapePositionLike {
+  x: number;
+  y: number;
+}
+
+/** A single element (node) inside a collection — enough for VIEW-001f's saved-layout capture/apply. */
+export interface CytoscapeNodeLike {
+  id(): string;
+  position(): CytoscapePositionLike;
+  position(position: CytoscapePositionLike): unknown;
+}
+
 export interface CytoscapeCollectionLike {
   readonly length: number;
   remove(): unknown;
   addClass(className: string): unknown;
   removeClass(className: string): unknown;
+  forEach(iterator: (element: CytoscapeNodeLike) => void): unknown;
 }
 
 export interface CytoscapeLayoutLike {

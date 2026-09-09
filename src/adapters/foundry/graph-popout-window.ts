@@ -1,5 +1,6 @@
 import type { Block } from '../../core/domain/block.js';
 import type { Node } from '../../core/domain/node.js';
+import { createView, type GraphViewNodePosition, type View } from '../../core/domain/view.js';
 import { resolveTraversal } from '../../core/query/traversal.js';
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import {
@@ -22,6 +23,11 @@ import {
   buildClusteredTraversal,
   isClusterNodeId,
 } from './graph-clusters.js';
+import {
+  buildCuratedCandidates,
+  buildCuratedChecklistHTML,
+  defaultCuratedRelationshipIds,
+} from './curated-view.js';
 import type { Logger } from './logger.js';
 import { buildNodeConnections, type NodeConnectionGroup } from './node-connections.js';
 
@@ -63,7 +69,7 @@ import { buildNodeConnections, type NodeConnectionGroup } from './node-connectio
  * state.
  */
 
-type Preset = 'direct-only' | 'everything-connected';
+type Preset = 'direct-only' | 'everything-connected' | 'curated-by-me';
 
 const WINDOW_ID = 'archivexus-graph-popout';
 const STYLE_ELEMENT_ID = 'archivexus-graph-popout-styles';
@@ -107,7 +113,7 @@ export function buildGraphPopoutContentHTML(options: { readonly isGM: boolean })
     `<span class="ax-gp-presets" role="group" aria-label="Traversal preset">` +
     `<button type="button" data-action="preset" data-preset="direct-only" aria-pressed="true">Direct</button>` +
     `<button type="button" data-action="preset" data-preset="everything-connected" aria-pressed="false">Everything</button>` +
-    `<button type="button" disabled title="Saved curated views — VIEW-001f">Curated</button>` +
+    `<button type="button" data-action="preset" data-preset="curated-by-me" aria-pressed="false" title="Pick which relationships to keep, then save it as a named view">Curated</button>` +
     `</span>` +
     `<button type="button" data-action="collapseClusters" data-role="collapse-clusters" hidden>Collapse clusters</button>` +
     `<label class="ax-gp-layout">Layout <select data-action="changeLayout" data-role="layout">${layoutOptions}</select></label>` +
@@ -116,7 +122,10 @@ export function buildGraphPopoutContentHTML(options: { readonly isGM: boolean })
     `<div class="ax-gp-preview-banner" data-role="preview-banner" hidden></div>` +
     `<div class="ax-gp-body">` +
     `<div class="ax-gp-canvas" data-role="canvas"></div>` +
-    `<aside class="ax-gp-inspector" data-role="inspector">${buildInspectorEmptyHTML()}</aside>` +
+    `<aside class="ax-gp-inspector" data-role="inspector">` +
+    `<div class="ax-gp-curated" data-role="curated" hidden></div>` +
+    `<div class="ax-gp-inspector-node" data-role="inspector-node">${buildInspectorEmptyHTML()}</div>` +
+    `</aside>` +
     `</div>` +
     `<div class="ax-gp-status" data-role="status"></div>` +
     `</div>`
@@ -221,6 +230,13 @@ const POPOUT_CSS = `
 .ax-gp-insp-verb { opacity: 0.6; }
 .ax-gp-no-actor { opacity: 0.6; cursor: help; }
 .ax-gp-insp-none, .ax-gp-insp-empty { opacity: 0.6; font-style: italic; }
+.ax-gp-curated { margin-bottom: 0.6rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--color-border-light-primary, #999); }
+.ax-gp-curated[hidden] { display: none; }
+.ax-gp-curate-head { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; margin-bottom: 0.35rem; }
+.ax-gp-curate-list { list-style: none; margin: 0 0 0.3rem; padding: 0; }
+.ax-gp-curate-row { display: flex; align-items: baseline; gap: 0.35rem; padding: 0.1rem 0; cursor: pointer; }
+.ax-gp-curate-row em { opacity: 0.6; }
+.ax-gp-curate-empty { opacity: 0.6; font-style: italic; }
 .ax-gp-status { padding: 0.2rem 0.5rem; font-size: var(--font-size-11, 11px); opacity: 0.7; }
 .ax-gp-context-overlay { position: fixed; inset: 0; z-index: 999; }
 .ax-gp-context-menu { position: fixed; z-index: 1000; display: flex; flex-direction: column; background: var(--color-bg, #1b1b1d); border: 1px solid var(--color-border-light-primary, #999); border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
@@ -357,7 +373,11 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
         },
         preset(this: GraphPopoutApplication, _event: unknown, target: MinimalElementLike): void {
           const value = target.getAttribute('data-preset');
-          if (value === 'direct-only' || value === 'everything-connected') {
+          if (
+            value === 'direct-only' ||
+            value === 'everything-connected' ||
+            value === 'curated-by-me'
+          ) {
             this.#preset = value;
             this.#expandedClusters.clear();
             this.#syncPresetButtons();
@@ -370,6 +390,20 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
           }
           this.#expandedClusters.clear();
           void this._renderGraph();
+        },
+        toggleCurated(
+          this: GraphPopoutApplication,
+          _event: unknown,
+          target: MinimalElementLike,
+        ): void {
+          const id = target.getAttribute('data-relationship-id');
+          if (!id) return;
+          if (this.#curatedIncluded.has(id)) this.#curatedIncluded.delete(id);
+          else this.#curatedIncluded.add(id);
+          void this._renderGraph();
+        },
+        saveCuratedView(this: GraphPopoutApplication): void {
+          void this.#saveCuratedView();
         },
         changeLayout(
           this: GraphPopoutApplication,
@@ -426,6 +460,14 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
     /** VIEW-001e — cluster node ids the GM has expanded in the "Everything connected" view. */
     readonly #expandedClusters = new Set<string>();
     #clusterCount = 0;
+    /** VIEW-001f — the curated Relationship-id set for "Curated by me" (seeded from "Direct only" on first entry). */
+    #curatedIncluded = new Set<string>();
+    /** VIEW-001f — the root id `#curatedIncluded` was last seeded for; re-seed when the root changes. */
+    #curatedSeededForRoot: string | undefined;
+    /** VIEW-001f — a hand-placed layout to apply once after the next render (from a loaded View, or kept across a curated re-render). */
+    #pendingLayout: Readonly<Record<string, GraphViewNodePosition>> | undefined;
+    /** VIEW-001f — the saved View this popout is currently showing, if any (for re-save / status). */
+    #loadedView: View | undefined;
 
     constructor(options: GraphPopoutOptions) {
       super(options as unknown as Record<string, unknown>);
@@ -438,6 +480,9 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
     setRoot(rootNodeId: string | undefined): void {
       this.#rootNodeId = rootNodeId;
       this.#expandedClusters.clear();
+      this.#loadedView = undefined;
+      this.#curatedSeededForRoot = undefined;
+      this.#pendingLayout = undefined;
       void this._renderGraph();
     }
 
@@ -530,7 +575,44 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
           visibleCount = nodes.length;
           hiddenCount = allNodes.length - nodes.length;
           relationshipCount = relationships.length;
+          this.#clusterCount = 0;
+          this.#updateCuratedPanel(undefined);
+        } else if (this.#preset === 'curated-by-me') {
+          // VIEW-001f: start from the root's "Direct only" result, keep only
+          // the ticked Relationships; the ticked set + hand-placed layout is
+          // what a saved View persists.
+          const [direct, definitions] = await Promise.all([
+            resolveTraversal(storage, { preset: 'direct-only', nodeId: this.#rootNodeId }),
+            storage.listRelationshipDefinitions(),
+          ]);
+          if (this.#curatedSeededForRoot !== this.#rootNodeId) {
+            this.#curatedIncluded = new Set(defaultCuratedRelationshipIds(direct));
+            this.#curatedSeededForRoot = this.#rootNodeId;
+          }
+          const curated = await resolveTraversal(storage, {
+            preset: 'curated-by-me',
+            nodeId: this.#rootNodeId,
+            includedRelationshipIds: [...this.#curatedIncluded],
+          });
+          const allReached = collectTraversalNodes(curated);
+          const visibleTraversal = filterTraversalForViewer(curated, { isGM });
+          const visibleReached = collectTraversalNodes(visibleTraversal);
+          hiddenCount = allReached.length - visibleReached.length;
+          relationshipCount = visibleTraversal.relationships.length;
+          visibleCount = visibleReached.length;
+          elements = buildGraphViewElements(visibleReached, visibleTraversal.relationships);
+          this.#clusterCount = 0;
+
+          const definitionsById = new Map(definitions.map((d) => [d.id, d]));
+          const groups = buildCuratedCandidates(
+            this.#rootNodeId,
+            direct,
+            definitionsById,
+            this.#curatedIncluded,
+          );
+          this.#updateCuratedPanel(buildCuratedChecklistHTML(groups));
         } else {
+          this.#updateCuratedPanel(undefined);
           const traversal = await resolveTraversal(storage, {
             preset: this.#preset,
             nodeId: this.#rootNodeId,
@@ -565,18 +647,24 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
         }
 
         this.#applyElements(elements);
+        this.#applyPendingLayout();
         this.#updatePreviewBanner(hiddenCount);
         this.#updateCollapseButton();
-        const rootLabel = this.#rootNodeId
-          ? ` · rooted (${this.#preset === 'direct-only' ? 'direct' : 'everything'})`
-          : '';
+        const presetWord =
+          this.#preset === 'direct-only'
+            ? 'direct'
+            : this.#preset === 'everything-connected'
+              ? 'everything'
+              : 'curated';
+        const rootLabel = this.#rootNodeId ? ` · rooted (${presetWord})` : '';
+        const viewLabel = this.#loadedView ? ` · view “${this.#loadedView.title}”` : '';
         const hiddenLabel = isViewerGM() && hiddenCount > 0 ? ` · ${hiddenCount} hidden` : '';
         const clusterLabel =
           this.#clusterCount > 0
             ? ` · ${this.#expandedClusters.size}/${this.#clusterCount} clusters expanded`
             : '';
         this.#setStatus(
-          `${visibleCount} nodes · ${relationshipCount} relationships${rootLabel}${clusterLabel}${hiddenLabel}`,
+          `${visibleCount} nodes · ${relationshipCount} relationships${rootLabel}${viewLabel}${clusterLabel}${hiddenLabel}`,
         );
         if (this.#selectedNodeId) {
           this.#cy?.getElementById(this.#selectedNodeId).addClass(SELECTED_CLASS);
@@ -596,7 +684,7 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       this.#cy?.nodes().removeClass(SELECTED_CLASS);
       this.#cy?.getElementById(nodeId).addClass(SELECTED_CLASS);
 
-      const inspector = this.element.querySelector('[data-role="inspector"]');
+      const inspector = this.element.querySelector('[data-role="inspector-node"]');
       if (!inspector) {
         return;
       }
@@ -609,6 +697,129 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       } catch (error) {
         this.#log.error(`Graph popout: failed to inspect "${nodeId}": ${errorMessage(error)}`);
       }
+    }
+
+    /** VIEW-001f — show/refill the curated checklist panel, or hide it when not in curated mode. */
+    #updateCuratedPanel(html: string | undefined): void {
+      const panel = this.element.querySelector('[data-role="curated"]');
+      if (!panel) return;
+      if (html === undefined) {
+        panel.hidden = true;
+        panel.innerHTML = '';
+      } else {
+        panel.hidden = false;
+        panel.innerHTML = html;
+      }
+    }
+
+    /** VIEW-001f — the current canvas positions (real Nodes only), for saving into a View's `layout`. */
+    #captureLayout(): Record<string, GraphViewNodePosition> {
+      const layout: Record<string, GraphViewNodePosition> = {};
+      this.#cy?.nodes().forEach((node) => {
+        const id = node.id();
+        if (isClusterNodeId(id)) return;
+        const position = node.position();
+        if (position && Number.isFinite(position.x) && Number.isFinite(position.y)) {
+          layout[id] = { x: position.x, y: position.y };
+        }
+      });
+      return layout;
+    }
+
+    /** VIEW-001f — apply a loaded View's saved positions once, after the layout engine has run. */
+    #applyPendingLayout(): void {
+      const layout = this.#pendingLayout;
+      const cy = this.#cy;
+      if (!layout || !cy) return;
+      this.#pendingLayout = undefined;
+      let moved = 0;
+      cy.nodes().forEach((node) => {
+        const position = layout[node.id()];
+        if (position) {
+          node.position(position);
+          moved += 1;
+        }
+      });
+      if (moved > 0) cy.fit();
+    }
+
+    async #saveCuratedView(): Promise<void> {
+      const storage = this.#getStorage();
+      const rootNodeId = this.#rootNodeId;
+      if (!storage || !rootNodeId) return;
+
+      const dialogV2 = foundry.applications.api.DialogV2 as unknown as {
+        prompt(config: {
+          window: { title: string };
+          content: string;
+          ok: {
+            label: string;
+            callback: (
+              event: unknown,
+              button: { form: { elements: Record<string, { value?: string }> } },
+            ) => string;
+          };
+        }): Promise<string | null>;
+      };
+      const existingTitle = this.#loadedView?.title ?? '';
+      const raw = await dialogV2.prompt({
+        window: { title: this.#loadedView ? 'Update saved view' : 'Save graph view' },
+        content:
+          `<input type="text" name="viewTitle" value="${escapeHtml(existingTitle)}" ` +
+          `placeholder="e.g. Puerto Umbral — power map" style="width:100%" />`,
+        ok: {
+          label: 'Save',
+          callback: (_event, button) => button.form.elements.viewTitle?.value ?? '',
+        },
+      });
+      if (raw === null || raw === undefined) return;
+      const title = raw.trim();
+      if (title.length === 0) {
+        ui.notifications.warn('A view needs a name.');
+        return;
+      }
+
+      const layout = this.#captureLayout();
+      try {
+        const view = createView({
+          id: this.#loadedView?.id ?? foundry.utils.randomID(),
+          title,
+          spec: {
+            preset: 'curated-by-me',
+            rootNodeId,
+            relationshipIds: [...this.#curatedIncluded],
+            ...(Object.keys(layout).length > 0 ? { layout } : {}),
+          },
+        });
+        await storage.saveView(view);
+        this.#loadedView = view;
+        Hooks.callAll('archivexus.viewsChanged');
+        ui.notifications.info(`Saved view “${title}”.`);
+        void this._renderGraph();
+      } catch (error) {
+        this.#log.error(`Graph popout: failed to save the view: ${errorMessage(error)}`);
+        ui.notifications.error('Could not save the view.');
+      }
+    }
+
+    /** Public — `openGraphPopout({ viewId })` loads a saved View into the open window. */
+    setView(view: View): void {
+      this.#loadedView = view;
+      this.#rootNodeId = view.spec.rootNodeId;
+      this.#expandedClusters.clear();
+      this.#selectedNodeId = undefined;
+      if (view.spec.preset === 'curated-by-me') {
+        this.#preset = 'curated-by-me';
+        this.#curatedIncluded = new Set(view.spec.relationshipIds);
+        this.#curatedSeededForRoot = view.spec.rootNodeId;
+        this.#pendingLayout = view.spec.layout;
+      } else {
+        this.#preset = view.spec.preset;
+        this.#curatedSeededForRoot = undefined;
+        this.#pendingLayout = undefined;
+      }
+      this.#syncPresetButtons();
+      void this._renderGraph();
     }
 
     _applyLayout(): void {
@@ -628,6 +839,12 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       cy.elements().remove();
       cy.add(elements);
       cy.resize();
+      if (this.#pendingLayout) {
+        // A saved View's hand-placed positions are about to be applied
+        // (`#applyPendingLayout`) — don't run an auto-layout that fights them.
+        cy.layout({ name: 'preset' }).run();
+        return;
+      }
       const edgeCount = elements.reduce((n, element) => (element.group === 'edges' ? n + 1 : n), 0);
       cy.layout(layoutFor(edgeCount, this.#layout)).run();
     }
@@ -718,12 +935,18 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
         case 'menuReRoot':
           this.#rootNodeId = nodeId;
           this.#expandedClusters.clear();
+          this.#loadedView = undefined;
+          this.#curatedSeededForRoot = undefined;
+          this.#pendingLayout = undefined;
           void this._renderGraph().then(() => this._selectNode(nodeId));
           break;
         case 'menuEverything':
           this.#rootNodeId = nodeId;
           this.#preset = 'everything-connected';
           this.#expandedClusters.clear();
+          this.#loadedView = undefined;
+          this.#curatedSeededForRoot = undefined;
+          this.#pendingLayout = undefined;
           this.#syncPresetButtons();
           void this._renderGraph().then(() => this._selectNode(nodeId));
           break;
@@ -743,25 +966,50 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
 }
 
 /**
- * Opens the graph popout, or focuses (and optionally re-roots) the one
- * already open — singleton, per Amendment A1. Safe to call before a Foundry
- * client exists only in the sense that it builds the class lazily; it does
- * touch `foundry.applications.api.ApplicationV2`, so it's Foundry-runtime
- * code, not import-safe.
+ * Opens the graph popout, or focuses the one already open — singleton, per
+ * Amendment A1. `rootNodeId` re-roots it; `viewId` (VIEW-001f) loads a saved
+ * `View` into it (preset, root, curated set, hand-placed layout). Safe to
+ * call before a Foundry client exists only in the sense that it builds the
+ * class lazily; it touches `foundry.applications.api.ApplicationV2`, so it's
+ * Foundry-runtime code, not import-safe.
  */
 export function openGraphPopout(
   getStorage: () => StorageProvider | undefined,
   log: Logger,
-  options: { readonly rootNodeId?: string } = {},
+  options: { readonly rootNodeId?: string; readonly viewId?: string } = {},
 ): void {
   const ApplicationClass = getGraphPopoutApplicationClass();
-  if (openInstance) {
-    (openInstance as unknown as { setRoot(id: string | undefined): void }).setRoot(
-      options.rootNodeId,
-    );
-    openInstance.render(true);
-    return;
+  const wasOpen = openInstance !== undefined;
+  if (openInstance === undefined) {
+    openInstance = new ApplicationClass({
+      getStorage,
+      log,
+      ...(options.rootNodeId !== undefined ? { rootNodeId: options.rootNodeId } : {}),
+    });
   }
-  openInstance = new ApplicationClass({ getStorage, log, ...options });
+  const instance = openInstance as unknown as {
+    setRoot(id: string | undefined): void;
+    setView(view: View): void;
+  };
   openInstance.render(true);
+
+  if (options.viewId !== undefined) {
+    const viewId = options.viewId;
+    void (async () => {
+      try {
+        const view = await getStorage()?.getView(viewId);
+        if (view) {
+          instance.setView(view);
+        } else {
+          log.error(`Graph popout: saved view "${viewId}" not found.`);
+        }
+      } catch (error) {
+        log.error(
+          `Graph popout: failed to load view "${viewId}": ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    })();
+  } else if (wasOpen) {
+    instance.setRoot(options.rootNodeId);
+  }
 }

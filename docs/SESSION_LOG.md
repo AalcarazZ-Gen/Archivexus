@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-09-08 (software-developer: VIEW-001f — "Curated by me" + saved Views)
+
+**Built:** VIEW-001f (#71), the **last of the VIEW-001 lineage**, on `feat/view-001ef-graph-views` (same branch/PR as VIEW-001e).
+
+- `curated-view.ts` (new, pure) — `buildCuratedCandidates` (category-grouped checklist of the root's "Direct only" relationships, direction-correct verbs), `defaultCuratedRelationshipIds`, `buildCuratedChecklistHTML`.
+- `saved-views.ts` (new, pure) — `sortViews` / `filterViewsForViewer` (ADR-0003, drops `hidden` for non-GM) / `toSavedViewRow` / `buildSavedViewsPanelHTML` (collapsible; empty → renders nothing).
+- `graph-popout-window.ts` — "Curated" preset now live. Curated mode shows a checklist panel above the Inspector (`data-role="curated"` inside the aside, `inspector-node` for the node inspector); tick/untick a relationship → `resolveTraversal({ preset: 'curated-by-me', includedRelationshipIds })` re-render. "Save view…" → `DialogV2.prompt` name + `cy.nodes().forEach` position capture → `createView` + `storage.saveView`, fires `archivexus.viewsChanged`; re-save overwrites the loaded View. `openGraphPopout(…, { viewId })` → `setView(view)` (preset/root/curated set/`pendingLayout`); `#applyElements` uses `preset` layout when a `pendingLayout` is set, then `#applyPendingLayout` positions + fits. Root/preset/menu changes clear `#loadedView` + curated seed + layout. Status: `· view "…"`.
+- `codex-sidebar-tab.ts` — a "Saved views" collapsible panel (`data-role="saved-views"`); `#renderSavedViews` (own storage round-trip so `archivexus.viewsChanged` refreshes just it), `#deleteSavedView` (`DialogV2.confirm`). Rows open the popout on the View.
+- `cytoscape-loader.ts` — `CytoscapeCollectionLike.forEach` + `CytoscapeNodeLike` (`id()`/`position()`). `ui.notifications` ambient += `info`/`error`.
+- +12 tests (601). `tsc`/`eslint`/`vitest`/`build:foundry-module` clean (`archivexus.js` ~137 → ~154KB).
+
+**Judgment calls:** a depth-2 node lands in exactly one cluster (VIEW-001e) / a curated node lands under its category once — simpler than the Inspector's not-a-partition list. Layout re-apply is synchronous after a `preset` layout (no `layoutstop` wait) — fine for `animate:false` at ~100 nodes; wire a listener if positions don't stick live.
+
+**Not yet live-verified** (VIEW-001e + f both): the Cytoscape compound-node render + tap-to-expand, the curated checklist wiring, "Save view…" + position capture, the saved-Views list, layout re-apply. **VIEW-001 lineage complete** — next is ADAPT-013 (last ticket). Branch not merged.
+
 ## 2026-09-08 (software-developer: VIEW-001e — "Everything connected" clusters)
 
 **Un-deferred:** VIEW-001e/f were parked for lack of real Relationship data; ADAPT-015/017/021 now produce ~14 authored + folder-containment edges, and ADAPT-018 was live-verified against Alberto's world (Neverwinter → City-Node with 6 scene Blocks; branches reconciled — `dev` had a half-applied ADR-0015 batch, cherry-picked the missing fix/017/021 and force-forwarded + pushed). Started `feat/view-001ef-graph-views` off `dev` for VIEW-001e **and** VIEW-001f (one PR).
