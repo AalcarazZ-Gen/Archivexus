@@ -146,6 +146,19 @@ export const DEFAULT_RELATIONSHIP_DEFINITIONS: readonly RelationshipDefinition[]
     symmetry: false,
     traversalCategory: 'governance',
   }),
+  createRelationshipDefinition({
+    // Generic containment fallback (ADR-0015): the folder-containment engine
+    // uses this when a tagged container folder is neither Organization-like
+    // (`member-of`) nor place-like (`located-in`) — a "Pantheon" folder of
+    // deities, a "Ships" folder, an invented category. Deliberately
+    // unrestricted so it fits any container/contained pair.
+    id: 'part-of',
+    name: 'part-of',
+    inverse: 'has-part',
+    cardinality: 'many-to-one',
+    symmetry: false,
+    traversalCategory: 'governance',
+  }),
   // --- participation ------------------------------------------------
   createRelationshipDefinition({
     id: 'participated-in',

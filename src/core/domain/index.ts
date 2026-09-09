@@ -25,6 +25,17 @@ export type { KnowledgeElementReference } from './reference.js';
 export { createRelationship, InvalidRelationshipError, isRelationship } from './relationship.js';
 export type { CreateRelationshipInput, Relationship } from './relationship.js';
 export {
+  derivedRelationshipMetadata,
+  isDerivedFrom,
+  isDerivedRelationship,
+  PROVENANCE_METADATA_KEY,
+  readRelationshipProvenance,
+} from './relationship-provenance.js';
+export type {
+  DerivedRelationshipProvenance,
+  DerivedRelationshipSource,
+} from './relationship-provenance.js';
+export {
   createRelationshipDefinition,
   InvalidRelationshipDefinitionError,
   isRelationshipDefinition,
