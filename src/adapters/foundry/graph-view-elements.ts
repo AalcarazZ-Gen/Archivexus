@@ -32,6 +32,20 @@ export interface GraphViewNodeElement {
      * not this field.
      */
     readonly documentType: string | null;
+    /**
+     * Cytoscape compound-node parent id — set by VIEW-001e's
+     * `buildClusteredGraphElements` on a Node that currently sits inside an
+     * expanded cluster box. Absent for every normal node.
+     */
+    readonly parent?: string;
+    /** VIEW-001e — `true` on a synthetic cluster node (not a real Knowledge Element). */
+    readonly isCluster?: boolean;
+    /** VIEW-001e — a cluster node's collapsed/expanded state, for styling + tap handling. */
+    readonly collapsed?: boolean;
+    /** VIEW-001e — how many depth-2 Nodes the cluster holds (viewer-filtered count). */
+    readonly clusterCount?: number;
+    /** VIEW-001e — the cluster's `traversalCategory` key (or `'other'`). */
+    readonly clusterCategory?: string;
   };
 }
 
@@ -139,4 +153,32 @@ export function filterNodesForViewer(
     return nodes;
   }
   return nodes.filter((node) => node.visibility !== 'hidden');
+}
+
+/**
+ * The same viewer filter, applied to a whole `TraversalResult` (VIEW-001e
+ * needs to cluster the *viewer-visible* graph, not filter after clustering —
+ * otherwise a collapsed cluster's count would leak how many hidden Nodes it
+ * holds). The root is always kept (the viewer reached this graph by opening
+ * it on that Node); a Relationship is kept only when both endpoints survive.
+ */
+export function filterTraversalForViewer(
+  traversal: TraversalResult,
+  options: { readonly isGM: boolean },
+): TraversalResult {
+  if (options.isGM) {
+    return traversal;
+  }
+  const visibleNodes = filterNodesForViewer(traversal.nodes, options);
+  const visibleIds = new Set(visibleNodes.map((node) => node.id));
+  if (traversal.rootNode) {
+    visibleIds.add(traversal.rootNode.id);
+  }
+  return {
+    ...traversal,
+    nodes: visibleNodes,
+    relationships: traversal.relationships.filter(
+      (relationship) => visibleIds.has(relationship.origin) && visibleIds.has(relationship.target),
+    ),
+  };
 }
