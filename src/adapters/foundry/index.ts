@@ -41,6 +41,25 @@ export type {
   SupportedDocumentKind,
 } from './relationship-node-resolution.js';
 export {
+  CONTAINMENT_DEFINITION_GENERIC,
+  CONTAINMENT_DEFINITION_LOCATION,
+  CONTAINMENT_DEFINITION_MEMBER,
+  containmentDefinitionFor,
+  deriveContainment,
+  ORGANIZATION_LIKE_NODE_TYPES,
+  PLACE_LIKE_NODE_TYPES,
+} from './folder-containment.js';
+export type {
+  ContainmentEntity,
+  DeriveContainmentInput,
+  DeriveContainmentResult,
+  DerivedContainmentEdge,
+  DerivedFolderBlocks,
+  DerivedSceneBlock,
+  SceneRef,
+  TaggedFolder,
+} from './folder-containment.js';
+export {
   buildDefinitionOptions,
   buildDefinitionSelectOptionsHTML,
   resolveDefinitionOrientation,

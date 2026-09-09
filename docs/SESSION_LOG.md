@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-09-08 (software-developer: CORE-007 — folder-containment foundation)
+
+**Built:** CORE-007 (#79), the first ticket of the ADR-0015 batch. Core/pure only — no Foundry glue. Branched `feat/core-007-folder-containment-resolver` off `dev`.
+
+- `src/core/domain/relationship-provenance.ts` — the reserved `metadata.archivexus` marker (`derivedRelationshipMetadata` / `readRelationshipProvenance` / `isDerivedRelationship` / `isDerivedFrom`). Defensive read: a malformed/absent marker = hand-authored. No `Relationship` shape or SQLite change — `metadata` is already a JSON column carried verbatim into the snapshot (`to-portable-snapshot.test.ts` already proves metadata round-trips).
+- `src/adapters/foundry/folder-containment.ts` — pure `deriveContainment(input)`: nearest-tagged-folder-ancestor edges (untagged folders transparent; `isContainmentRoot` suppresses; dedupe; no self-link; no tagged ancestor → no edge), plus `scene`-Block sets for place-like folder-Nodes. `containmentDefinitionFor(type, override?)`: Organization → `member-of`, `City`/`Kingdom` → `located-in`, else `part-of`; folder-level override wins. (Adapter directory, zero Foundry imports — same as `relationship-node-resolution.ts`.)
+- `part-of` / `has-part` added to `DEFAULT_RELATIONSHIP_DEFINITIONS` (`many-to-one`, `governance`).
+- +15 tests (518 total). `tsc`/`eslint`/`vitest`/`build:foundry-module` clean.
+
+**Scoping calls:** `PLACE_LIKE_NODE_TYPES` kept small (`City`/`Kingdom`, matching `KNOWN_NODE_TYPES`) — a GM's invented place type falls to `part-of` and they pick `located-in` from the ADAPT-016 dialog dropdown, honest rather than guessing every world's vocabulary. Batch `StorageProvider` writes **not** added — ADAPT-017 decides from measured first-tag timing (per the ADR).
+
+**Next:** ADAPT-016 (#80) — the folder tag dialog + `mapFolderToNode` + `syncFolder`. Not merged — Alberto merges.
+
 ## 2026-09-08 (product-owner + architect consult: Folders as a Node source → ADR-0015)
 
 **Triggered:** after merging the VIEW-001 batch + ADAPT-015, Alberto tested against his real world and raised 4 issues. #2 (couldn't create a standalone concept like "Red Cuervo de Hierro" to hang journals/actors off) grew, in conversation, into a much bigger idea: **his world is already organised in Foundry's folder tree**, and that tree already encodes the containment Archivexus wants. He designed the model with me over several turns, then asked to run it by product + architect agents.

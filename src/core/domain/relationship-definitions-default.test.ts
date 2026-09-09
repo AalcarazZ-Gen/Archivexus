@@ -18,6 +18,13 @@ describe('DEFAULT_RELATIONSHIP_DEFINITIONS', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it('includes the containment triad the folder engine relies on (ADR-0015): member-of, located-in, part-of', () => {
+    const ids = new Set(DEFAULT_RELATIONSHIP_DEFINITIONS.map((d) => d.id));
+    expect(ids.has('member-of')).toBe(true);
+    expect(ids.has('located-in')).toBe(true);
+    expect(ids.has('part-of')).toBe(true);
+  });
+
   it('covers every traversalCategory so a GM is never blocked by a gap', () => {
     const covered = new Set(DEFAULT_RELATIONSHIP_DEFINITIONS.map((d) => d.traversalCategory));
     for (const category of RELATIONSHIP_TRAVERSAL_CATEGORIES) {
