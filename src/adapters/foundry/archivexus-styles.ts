@@ -91,6 +91,30 @@ export const ARCHIVEXUS_CSS = `
 }
 .archivexus .ax-segmented button:disabled { opacity: 0.45; cursor: default; }
 
+/*
+ * The plain button primitive — one token-driven look for every non-segmented
+ * button (toolbars, list headers, dialogs). ADAPT-013 shipped .ax-toolbar and
+ * .ax-segmented but left plain buttons on Foundry's defaults; ADAPT-022/024
+ * put them here. Metrics match .ax-segmented button so a row of mixed
+ * controls lines up.
+ */
+.archivexus .ax-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ax-gap-xs);
+  white-space: nowrap;
+  border: var(--ax-border);
+  border-radius: var(--ax-radius);
+  background: var(--ax-sunken-bg);
+  color: var(--ax-text);
+  padding: 0.15rem 0.6rem;
+  font-size: var(--ax-font-sm);
+  line-height: 1.6;
+  cursor: pointer;
+}
+.archivexus .ax-btn:hover:not(:disabled) { background: var(--ax-hover-bg); }
+.archivexus .ax-btn:disabled { opacity: 0.45; cursor: default; }
+
 .archivexus .ax-list { list-style: none; margin: 0; padding: 0; }
 .archivexus .ax-list-row {
   display: flex;
@@ -138,7 +162,8 @@ export const ARCHIVEXUS_CSS = `
 /* ---- 3a. Codex sidebar navigator (was ensureCodexStyles) -------------- */
 
 .archivexus.archivexus-codex { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: var(--ax-gap-xs); }
-.archivexus .archivexus-codex-toolbar { display: flex; align-items: center; gap: var(--ax-gap); padding: var(--ax-gap-xs) 0; flex-wrap: wrap; }
+.archivexus .archivexus-codex-toolbar { display: flex; align-items: center; gap: var(--ax-gap-sm); padding: var(--ax-gap-xs) 0; flex-wrap: wrap; }
+.archivexus .archivexus-codex-toolbar .ax-btn { flex: 0 0 auto; }
 .archivexus .archivexus-codex-search { width: 100%; }
 .archivexus .archivexus-codex-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
 .archivexus .archivexus-codex-hint { font-size: var(--ax-font-sm); color: var(--ax-muted); padding: 0.15rem 0; }

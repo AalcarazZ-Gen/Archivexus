@@ -140,20 +140,20 @@ function escapeHtml(value: string): string {
  * The navigator's static shell — toolbar, search box, a `data-role="list"`
  * region the group markup drops into, a `data-role="hint"` count line. The
  * GM-only toolbar affordances (`isGM`, default true): "Relationships" (the
- * Console, VIEW-001i), "Relationship types" (the Definition editor, ADAPT-014),
- * "Getting started" + `data-role="guidance-mount"` for the first-run panel (VIEW-001g)
- * — both point at GM-only authoring surfaces.
+ * Console, VIEW-001i) and "Relationship types" (the Definition editor, ADAPT-014).
+ * The first-run guidance renders into `data-role="guidance-mount"` and carries
+ * its own `▸ Getting started` toggle (VIEW-001g) — ADAPT-022 dropped the
+ * redundant toolbar button that only re-expanded it.
  */
 export function buildNavigatorShellHTML(options: { isGM?: boolean } = {}): string {
   const { isGM = true } = options;
   return (
     `<div class="archivexus archivexus-codex">` +
     `<div class="archivexus-codex-toolbar">` +
-    `<button type="button" data-action="openWholeGraph" title="Open the campaign graph in a resizable window">Open graph ⧉</button>` +
+    `<button type="button" class="ax-btn" data-action="openWholeGraph" title="Open the campaign graph in a resizable window">Open graph ⧉</button>` +
     (isGM
-      ? `<button type="button" data-action="openConsole" title="List, search, create and delete every relationship">Relationships</button>` +
-        `<button type="button" data-action="openDefinitionEditor" title="Add or edit relationship types">Relationship types</button>` +
-        `<button type="button" data-action="showGuidance" title="Show the getting-started guidance">Getting started</button>`
+      ? `<button type="button" class="ax-btn" data-action="openConsole" title="List, search, create and delete every relationship">Relationships</button>` +
+        `<button type="button" class="ax-btn" data-action="openDefinitionEditor" title="Add or edit relationship types">Relationship types</button>`
       : '') +
     `</div>` +
     (isGM ? `<div class="archivexus-codex-guidance-mount" data-role="guidance-mount"></div>` : '') +
@@ -268,9 +268,6 @@ export function getCodexSidebarTabClass(
           if (id) {
             openGraphPopout(getStorage, log, { rootNodeId: id });
           }
-        },
-        showGuidance(this: CodexSidebarTab): void {
-          this.#setGuidanceExpanded(true);
         },
         openDefinitionEditor(): void {
           openRelationshipDefinitionEditor(getStorage, log);

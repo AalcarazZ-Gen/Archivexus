@@ -73,6 +73,12 @@ describe('ARCHIVEXUS_CSS', () => {
     expect(ARCHIVEXUS_CSS).toContain('.ax-segmented button[aria-pressed="true"]');
     expect(ARCHIVEXUS_CSS).toMatch(/\.ax-segmented button\[aria-pressed="true"\][^}]*background/);
   });
+
+  it('carries the .ax-btn plain-button primitive with a hover and a disabled state', () => {
+    expect(ARCHIVEXUS_CSS).toContain('.archivexus .ax-btn {');
+    expect(ARCHIVEXUS_CSS).toMatch(/\.archivexus \.ax-btn:hover/);
+    expect(ARCHIVEXUS_CSS).toMatch(/\.archivexus \.ax-btn:disabled/);
+  });
 });
 
 describe('node / edge colour maps', () => {
