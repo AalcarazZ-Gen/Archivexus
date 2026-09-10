@@ -389,24 +389,25 @@ export const ARCHIVEXUS_CSS = `
 /* ---- 3f. tag dialogs (Node Type input + datalist) -------------------- */
 /*
  * The "Archivexus Node Type" DialogV2 body wraps in .archivexus so it picks
- * up the token layer (ADAPT-023). The datalist combobox's native dropdown
- * indicator (Chromium/Electron) rendered vertically off-centre under
- * Foundry's form CSS - pin the input's box metrics and re-centre the
- * indicator.
+ * up the token layer (ADAPT-023). Chromium's native datalist indicator
+ * rendered bottom-aligned under Foundry's tall form inputs and re-centring
+ * it via the pseudo-element did not take in the Electron client - so hide
+ * it (opacity 0 keeps the click target) and paint a centre-positioned
+ * chevron as a background image, which is height-independent (ADAPT-023
+ * follow-up).
  */
 .archivexus input[list] {
   box-sizing: border-box;
-  min-height: var(--input-height, 1.75rem);
-  padding: 0 0.4rem;
+  padding-right: 1.4rem;
   border-radius: var(--ax-radius);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0h10L5 6z' fill='%238a8a8a'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
 }
 .archivexus input[list]::-webkit-calendar-picker-indicator {
-  margin: 0 0 0 0.25rem;
-  align-self: center;
-  opacity: 0.6;
+  opacity: 0;
   cursor: pointer;
 }
-.archivexus input[list]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 `;
 
 /** Injects the single Archivexus stylesheet into `<head>` once. Idempotent, safe to call on every surface render. */
