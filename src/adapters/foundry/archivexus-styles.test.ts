@@ -83,6 +83,11 @@ describe('ARCHIVEXUS_CSS', () => {
   it('carries the .ax-select primitive for toolbar dropdowns', () => {
     expect(ARCHIVEXUS_CSS).toContain('.archivexus .ax-select {');
   });
+
+  it('normalises the datalist input dropdown indicator (ADAPT-023)', () => {
+    expect(ARCHIVEXUS_CSS).toContain('.archivexus input[list]');
+    expect(ARCHIVEXUS_CSS).toContain('::-webkit-calendar-picker-indicator');
+  });
 });
 
 describe('node / edge colour maps', () => {

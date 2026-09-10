@@ -15,6 +15,10 @@ describe('buildNodeTypeDialogContent', () => {
     expect(html).toContain('value="Character"');
   });
 
+  it('wraps the body in .archivexus so it picks up the shared token layer (ADAPT-023)', () => {
+    expect(buildNodeTypeDialogContent('actor-1', '')).toContain('<div class="archivexus"');
+  });
+
   it('falls back to an empty value when there is no current type', () => {
     const html = buildNodeTypeDialogContent('actor-1', '');
     expect(html).toContain('value=""');

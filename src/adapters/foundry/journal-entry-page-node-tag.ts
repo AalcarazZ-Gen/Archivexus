@@ -148,7 +148,7 @@ export function buildJournalEntryPageNodeTagDialogContent(
       : '';
 
   return (
-    `<div style="display:flex;flex-direction:column;gap:0.75em;">` +
+    `<div class="archivexus" style="display:flex;flex-direction:column;gap:0.75em;">` +
     `<div style="display:flex;flex-direction:column;gap:0.5em;">` +
     `<label for="${datalistId}-input">Node Type</label>` +
     `<input type="text" id="${datalistId}-input" name="${TYPE_INPUT_NAME}" list="${datalistId}" value="${escapeHtmlAttribute(currentType)}" placeholder="e.g. Character" />` +
