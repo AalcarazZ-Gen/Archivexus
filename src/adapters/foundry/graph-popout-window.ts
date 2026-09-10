@@ -87,6 +87,57 @@ type Preset = 'direct-only' | 'everything-connected' | 'curated-by-me';
 const WINDOW_ID = 'archivexus-graph-popout';
 const SELECTED_CLASS = 'archivexus-selected';
 
+// VIEW-003 — the resizable inspector panel.
+const INSPECTOR_WIDTH_DEFAULT = 264;
+const INSPECTOR_WIDTH_MIN = 200;
+const INSPECTOR_WIDTH_MAX = 560;
+const INSPECTOR_WIDTH_KEY = 'archivexus.graphPopout.inspectorWidth';
+const INSPECTOR_WIDTH_STEP = 24;
+
+/** Clamp an inspector width to the allowed range; a non-finite input falls back to the default. */
+export function clampInspectorWidth(px: number): number {
+  if (!Number.isFinite(px)) {
+    return INSPECTOR_WIDTH_DEFAULT;
+  }
+  return Math.min(INSPECTOR_WIDTH_MAX, Math.max(INSPECTOR_WIDTH_MIN, Math.round(px)));
+}
+
+interface MinimalStorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+interface MinimalTimersLike {
+  setTimeout(callback: () => void, ms: number): unknown;
+  clearTimeout(handle: unknown): void;
+}
+
+const timers = globalThis as unknown as MinimalTimersLike;
+
+function loadInspectorWidth(): number {
+  try {
+    const raw = (globalThis as { localStorage?: MinimalStorageLike }).localStorage?.getItem(
+      INSPECTOR_WIDTH_KEY,
+    );
+    return raw === null || raw === undefined
+      ? INSPECTOR_WIDTH_DEFAULT
+      : clampInspectorWidth(Number.parseInt(raw, 10));
+  } catch {
+    return INSPECTOR_WIDTH_DEFAULT;
+  }
+}
+
+function persistInspectorWidth(px: number): void {
+  try {
+    (globalThis as { localStorage?: MinimalStorageLike }).localStorage?.setItem(
+      INSPECTOR_WIDTH_KEY,
+      String(px),
+    );
+  } catch {
+    // Private-mode / disabled storage — the width just won't persist.
+  }
+}
+
 const LAYOUT_OPTIONS: readonly { readonly value: string; readonly label: string }[] = [
   { value: 'auto', label: 'Auto' },
   { value: 'cose', label: 'Force' },
@@ -135,6 +186,7 @@ export function buildGraphPopoutContentHTML(options: { readonly isGM: boolean })
     `<div class="ax-gp-legend" data-role="legend" hidden></div>` +
     `<div class="ax-gp-body">` +
     `<div class="ax-gp-canvas" data-role="canvas"></div>` +
+    `<div class="ax-gp-splitter" data-role="splitter" role="separator" aria-orientation="vertical" aria-label="Resize inspector" tabindex="0"></div>` +
     `<aside class="ax-gp-inspector" data-role="inspector">` +
     `<div class="ax-gp-curated" data-role="curated" hidden></div>` +
     `<div class="ax-gp-inspector-node" data-role="inspector-node">${buildInspectorEmptyHTML()}</div>` +
@@ -299,20 +351,35 @@ export async function gatherNodeConnections(
 // Foundry glue — the ApplicationV2 popout
 // ---------------------------------------------------------------------------
 
+interface MinimalStyleLike {
+  left: string;
+  top: string;
+  setProperty(name: string, value: string): void;
+}
+
 interface MinimalElementLike {
   innerHTML: string;
   hidden: boolean;
   textContent: string | null;
   readonly value: string;
   readonly dataset?: Record<string, string | undefined>;
-  style?: { left: string; top: string };
+  style?: MinimalStyleLike;
   setAttribute(name: string, value: string): void;
   getAttribute(name: string): string | null;
   querySelector(selector: string): MinimalElementLike | null;
   querySelectorAll(selector: string): Iterable<MinimalElementLike>;
   addEventListener(type: string, listener: (event: unknown) => void): void;
+  removeEventListener?(type: string, listener: (event: unknown) => void): void;
+  getBoundingClientRect?(): { readonly left: number; readonly width: number };
+  focus?(): void;
+  setPointerCapture?(pointerId: number): void;
   remove(): void;
   appendChild(node: unknown): unknown;
+}
+
+interface MinimalDocLike {
+  addEventListener(type: string, listener: (event: unknown) => void): void;
+  removeEventListener(type: string, listener: (event: unknown) => void): void;
 }
 
 interface GraphPopoutInstanceLike {
@@ -467,12 +534,25 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
     #pendingLayout: Readonly<Record<string, GraphViewNodePosition>> | undefined;
     /** VIEW-001f — the saved View this popout is currently showing, if any (for re-save / status). */
     #loadedView: View | undefined;
+    /** VIEW-003 — inspector width (px), persisted per client; splitter + canvas resize adjust it. */
+    #inspectorWidth = INSPECTOR_WIDTH_DEFAULT;
+    /**
+     * VIEW-003 — true once the current graph's node positions come from a
+     * saved View's `pendingLayout` or a manual drag: a window/splitter resize
+     * then only `cy.resize()`s, never `cy.fit()`s, so those positions stand.
+     * Reset by every fresh auto-layout.
+     */
+    #layoutIsHandPlaced = false;
+    #canvasResizeObserver: { disconnect(): void } | undefined;
+    #canvasResizeTimer: unknown;
+    #detachSplitterDrag: (() => void) | undefined;
 
     constructor(options: GraphPopoutOptions) {
       super(options as unknown as Record<string, unknown>);
       this.#getStorage = options.getStorage;
       this.#log = options.log;
       this.#rootNodeId = options.rootNodeId;
+      this.#inspectorWidth = loadInspectorWidth();
     }
 
     /** Public — `openGraphPopout` re-points an already-open window at a new root without spawning a duplicate. */
@@ -538,17 +618,131 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
         );
       });
       this.#cy.on('tap', 'core', () => this.#dismissContextMenu());
+      // VIEW-003 — a manual drag pins the layout: window/splitter resizes
+      // then only `cy.resize()`, they don't `cy.fit()` over the placement.
+      this.#cy.on('dragfree', 'node', () => {
+        this.#layoutIsHandPlaced = true;
+      });
+
+      this.#applyInspectorWidth();
+      this.#setupSplitter();
+      this.#observeCanvasResize();
 
       void this._renderGraph();
     }
 
     _onClose(): void {
       this.#dismissContextMenu();
+      this.#teardownResizeWiring();
       this.#cy?.destroy();
       this.#cy = undefined;
       if (openInstance === (this as unknown as GraphPopoutInstanceLike)) {
         openInstance = undefined;
       }
+    }
+
+    // -- VIEW-003: resizable inspector + canvas-follows-window ---------------
+
+    #applyInspectorWidth(): void {
+      this.element.style?.setProperty('--ax-gp-inspector-w', `${this.#inspectorWidth}px`);
+      this.#cy?.resize();
+    }
+
+    #setInspectorWidth(px: number, persist: boolean): void {
+      this.#inspectorWidth = clampInspectorWidth(px);
+      this.#applyInspectorWidth();
+      if (persist) {
+        persistInspectorWidth(this.#inspectorWidth);
+      }
+    }
+
+    #setupSplitter(): void {
+      const splitter = this.element.querySelector('[data-role="splitter"]');
+      const inspector = this.element.querySelector('[data-role="inspector"]');
+      const doc = (globalThis as { document?: MinimalDocLike }).document;
+      if (!splitter || !doc) {
+        return;
+      }
+
+      splitter.addEventListener('keydown', (event) => {
+        const key = (event as { key?: string }).key;
+        if (key === 'ArrowLeft') {
+          this.#setInspectorWidth(this.#inspectorWidth + INSPECTOR_WIDTH_STEP, true);
+        } else if (key === 'ArrowRight') {
+          this.#setInspectorWidth(this.#inspectorWidth - INSPECTOR_WIDTH_STEP, true);
+        }
+      });
+
+      splitter.addEventListener('pointerdown', (event) => {
+        if (inspector?.hidden) {
+          return;
+        }
+        const down = event as { clientX: number; pointerId?: number; preventDefault?(): void };
+        down.preventDefault?.();
+        const startX = down.clientX;
+        const startWidth = this.#inspectorWidth;
+        if (down.pointerId !== undefined) {
+          splitter.setPointerCapture?.(down.pointerId);
+        }
+        const onMove = (moveEvent: unknown): void => {
+          const move = moveEvent as { clientX: number };
+          // Inspector is on the right, so dragging left widens it.
+          this.#setInspectorWidth(startWidth + (startX - move.clientX), false);
+        };
+        const onUp = (): void => {
+          doc.removeEventListener('pointermove', onMove);
+          doc.removeEventListener('pointerup', onUp);
+          this.#detachSplitterDrag = undefined;
+          persistInspectorWidth(this.#inspectorWidth);
+          this.#cy?.resize();
+        };
+        doc.addEventListener('pointermove', onMove);
+        doc.addEventListener('pointerup', onUp);
+        this.#detachSplitterDrag = onUp;
+      });
+    }
+
+    #observeCanvasResize(): void {
+      const canvas = this.element.querySelector('[data-role="canvas"]');
+      const ResizeObserverCtor = (
+        globalThis as {
+          ResizeObserver?: new (cb: () => void) => { observe(el: unknown): void; disconnect(): void };
+        }
+      ).ResizeObserver;
+      if (!canvas || !ResizeObserverCtor) {
+        return;
+      }
+      this.#canvasResizeObserver?.disconnect();
+      const observer = new ResizeObserverCtor(() => {
+        if (this.#canvasResizeTimer !== undefined) {
+          timers.clearTimeout(this.#canvasResizeTimer);
+        }
+        this.#canvasResizeTimer = timers.setTimeout(() => this.#onCanvasResized(), 80);
+      });
+      observer.observe(canvas);
+      this.#canvasResizeObserver = observer;
+    }
+
+    #onCanvasResized(): void {
+      const cy = this.#cy;
+      if (!cy) {
+        return;
+      }
+      cy.resize();
+      if (!this.#layoutIsHandPlaced && cy.elements().length > 0) {
+        cy.fit();
+      }
+    }
+
+    #teardownResizeWiring(): void {
+      this.#canvasResizeObserver?.disconnect();
+      this.#canvasResizeObserver = undefined;
+      if (this.#canvasResizeTimer !== undefined) {
+        timers.clearTimeout(this.#canvasResizeTimer);
+        this.#canvasResizeTimer = undefined;
+      }
+      this.#detachSplitterDrag?.();
+      this.#detachSplitterDrag = undefined;
     }
 
     async _renderGraph(): Promise<void> {
@@ -854,6 +1048,9 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       if (!cy) {
         return;
       }
+      // The GM picked a layout from the dropdown — a fresh auto-layout, so a
+      // later resize is free to re-fit (VIEW-003).
+      this.#layoutIsHandPlaced = false;
       cy.resize();
       cy.layout(layoutFor(cy.edges().length, this.#layout)).run();
     }
@@ -868,10 +1065,13 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       cy.resize();
       if (this.#pendingLayout) {
         // A saved View's hand-placed positions are about to be applied
-        // (`#applyPendingLayout`) — don't run an auto-layout that fights them.
+        // (`#applyPendingLayout`) — don't run an auto-layout that fights them,
+        // and a later resize must not `cy.fit()` over them either (VIEW-003).
+        this.#layoutIsHandPlaced = true;
         cy.layout({ name: 'preset' }).run();
         return;
       }
+      this.#layoutIsHandPlaced = false;
       const edgeCount = elements.reduce((n, element) => (element.group === 'edges' ? n + 1 : n), 0);
       cy.layout(layoutFor(edgeCount, this.#layout)).run();
     }

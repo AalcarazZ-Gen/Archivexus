@@ -263,8 +263,18 @@ export const ARCHIVEXUS_CSS = `
   flex: 1 1 auto; min-width: 0;
   border: var(--ax-border); border-radius: var(--ax-radius); background: var(--ax-sunken-bg);
 }
+/* VIEW-003 — drag handle between canvas and inspector; width persisted as a
+ * CSS var on the body element. Hidden (via :has) when the inspector is. */
+.archivexus .ax-gp-splitter {
+  flex: 0 0 7px; align-self: stretch; cursor: col-resize;
+  border-radius: var(--ax-radius); background: transparent;
+  transition: background 0.1s;
+}
+.archivexus .ax-gp-splitter:hover,
+.archivexus .ax-gp-splitter:focus-visible { background: var(--ax-border-color); outline: none; }
+.archivexus .ax-gp-body:has(> .ax-gp-inspector[hidden]) > .ax-gp-splitter { display: none; }
 .archivexus .ax-gp-inspector {
-  flex: 0 0 264px; overflow-y: auto; padding: var(--ax-pad);
+  flex: 0 0 var(--ax-gp-inspector-w, 264px); overflow-y: auto; padding: var(--ax-pad);
   border: var(--ax-border); border-radius: var(--ax-radius);
   font-size: var(--font-size-13, 13px);
 }
