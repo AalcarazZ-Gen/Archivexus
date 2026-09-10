@@ -6,47 +6,17 @@
 
 ---
 
-## 2026-09-09 (software-developer: VIEW-004 — per-node-type inspector action)
+## 2026-09-09/10 (software-developer: live-polish batch 1 — 5 tickets, all merged to `dev`)
 
-**Built:** VIEW-004 (#99) on `feat/view-004-inspector-actions`, rebased onto `dev` after VIEW-003.
+**Built** across `feat/adapt-022-css-cleanup`, `fix/adapt-023-chevron`, `feat/view-003-resize-splitter`, `feat/view-004-inspector-actions` (one branch per topic; VIEW-004 rebased onto `dev` after VIEW-003 — only `SESSION_LOG.md` conflicted, code auto-merged). All merged. `dev` @ `624d817`, 619 tests, `tsc`/`eslint`/`vitest`/`build:foundry-module` clean throughout.
 
-- `documentTypeFromId` exported from `graph-view-elements.ts` (was private).
-- `graph-popout-window.ts` — new pure `nodePrimaryAction(nodeId)` → `'sheet' | 'view-scene' | 'none'` keyed off the id prefix (`Folder` → none, `Scene` → view-scene, else sheet).
-  - `buildInspectorHTML(node, groups, { isGM })` — folder-Nodes lose "Open sheet"; a folder-Node with 0 blocks + 0 connections shows a one-line hint instead of the empty sections. Scene-Nodes get "View scene" + a GM-only "Activate". `buildContextMenuHTML(nodeId, { isGM })` mirrors it (no open item for folders).
-  - `buildBlockListHTML` block links carry `data-block-type`; the `openBlock` action routes a `scene` block to `viewSceneFor` (not the Scene config sheet).
-  - New glue `viewSceneFor` (`scene.view()`) / `activateSceneFor` (`scene.activate()`); dbltap + context menu route through `nodePrimaryAction`; both inspector + menu pass `isGM = isViewerGM() && !previewAsPlayer`.
+- **CSS-cleanup family — #92 ADAPT-022 / #94 ADAPT-023 / #95 ADAPT-024** — controls ADAPT-013 left on Foundry defaults, onto the shared vocabulary. New `.ax-btn` + `.ax-select` primitives in `archivexus-styles.ts`; codex toolbar buttons, popout plain buttons + Layout `<select>` (now inline on the row, was floating above it), def-editor + console "+ New" all wired to them. **Dropped the redundant "Getting started" toolbar button** (guidance panel below has its own `▸` toggle). `ensureArchivexusStyles()` also runs at `Hooks.once('init')` so the tag `DialogV2` bodies (no render hook) get the token layer; both dialog builders wrap in `.archivexus`. The datalist chevron: re-centring the native `::-webkit-calendar-picker-indicator` didn't take in Electron → **follow-up `fix/adapt-023-chevron`**: hide it, paint a `background-image` SVG chevron at `right 0.5rem center` (height-independent).
+- **VIEW-003 (#91)** — canvas follows the window + resizable inspector. `data-role="splitter"` (keyboard-reachable) between canvas and inspector; drag / Arrow-key resize, clamped 200–560, `localStorage`-persisted (`archivexus.graphPopout.inspectorWidth`). `ResizeObserver` on the canvas → 80ms-debounced `cy.resize()` + `cy.fit()` **unless** `#layoutIsHandPlaced` (true after a loaded View's `pendingLayout` or a node `dragfree`). New pure `clampInspectorWidth`; `.ax-gp-inspector` width is `var(--ax-gp-inspector-w, 264px)`.
+- **VIEW-004 (#99)** — graph inspector + context menu primary action per node type. Pure `nodePrimaryAction(nodeId)` → `sheet | view-scene | none` from the id prefix. Folder-Node → no "Open sheet" (+ a one-line hint when 0 blocks/0 connections); Scene-Node → "View scene" (`scene.view()`) + GM-only "Activate" (`scene.activate()`); `scene` Block links route to `scene.view()`. `buildInspectorHTML`/`buildContextMenuHTML` take `{ isGM }`; dbltap routes through `nodePrimaryAction`. `documentTypeFromId` exported from `graph-view-elements.ts`.
 
-+6 tests. tsc / eslint / vitest / build:foundry-module clean.
+**Formalized:** `CHANGELOG.md` [Unreleased] + `PROJECT.md` "live-polish batch 1" section. `#91`/`#92`/`#94`/`#95`/`#99` closed.
 
-**Not yet live-verified:** `scene.view()` / `.activate()` from the popout, the folder-Node hint, and the dbltap routing.
-
----
-
-## 2026-09-09 (software-developer: VIEW-003 — graph popout resize + inspector splitter)
-
-**Built:** VIEW-003 (#91) on `feat/view-003-resize-splitter`, merged to `dev`.
-
-- `buildGraphPopoutContentHTML` — a `data-role="splitter"` (`role="separator"`, `tabindex="0"`) between `.ax-gp-canvas` and the inspector aside.
-- `archivexus-styles.ts` — `.ax-gp-splitter` (7px, `col-resize`, hover/focus tint); `.ax-gp-inspector` width is now `var(--ax-gp-inspector-w, 264px)`; `:has(> .ax-gp-inspector[hidden])` hides the splitter.
-- `graph-popout-window.ts` — pure `clampInspectorWidth` (200–560, rounds, NaN → 264); `loadInspectorWidth`/`persistInspectorWidth` via `localStorage['archivexus.graphPopout.inspectorWidth']` (try/caught). In the class: `#setupSplitter` (pointerdrag on document + Arrow-key nudge by 24px), `#observeCanvasResize` (ResizeObserver on the canvas → 80ms-debounced `cy.resize()` + `cy.fit()` **unless** `#layoutIsHandPlaced`), `#teardownResizeWiring` in `_onClose`. `#layoutIsHandPlaced` = true on `pendingLayout` apply or a node `dragfree`, false on any fresh auto-layout.
-
-+4 tests. tsc / eslint / vitest / build:foundry-module clean.
-
-**Not yet live-verified:** the splitter drag + width persistence, ResizeObserver firing on window drag, and `cy.fit()` being correctly suppressed for a loaded View / after a manual drag.
-
----
-
-## 2026-09-09 (software-developer: CSS-cleanup family — #92 / #95 / #94)
-
-**Built:** the first batch branch, `feat/adapt-022-css-cleanup` off `dev`, 3 commits:
-
-- **ADAPT-022 (#92)** — new `.ax-btn` plain-button primitive in `archivexus-styles.ts` (ADAPT-013 shipped `.ax-toolbar`/`.ax-segmented` but left plain buttons on Foundry defaults). Codex navigator toolbar buttons carry it; `.archivexus-codex-toolbar` gap tightened. **Dropped the "Getting started" toolbar button** + its `showGuidance` action — the guidance panel below already has its own `▸ Getting started` toggle.
-- **ADAPT-024 (#95)** — new `.ax-select` primitive; graph popout `.ax-gp-layout` is `inline-flex` now (label + select on one line, was floating above the button row); popout plain buttons + def-editor `+ New` + console `+ New relationship` carry `.ax-btn`; def-editor header pins the button `flex: 0 0 auto`.
-- **ADAPT-023 (#94)** — `ensureArchivexusStyles()` now also runs once in `Hooks.once('init')` (module-entry.ts) so `.archivexus`-wrapped fragments with no render hook — the tag DialogV2 bodies — are styled. Both Node-Type dialog builders wrap in `<div class="archivexus">`; `archivexus-styles.ts` §3f pins `input[list]` box metrics and re-centres `::-webkit-calendar-picker-indicator`.
-
-+6 tests (603 → 609). tsc / eslint / vitest / build:foundry-module clean (`archivexus.js` ~163 → ~164KB).
-
-**Not yet live-verified:** the codex toolbar row's real width/wrap; the popout toolbar on one line + both "+ New" buttons single-line; the datalist chevron actually centred in the Electron client. Branch pushed, not merged.
+**Not yet live-verified (test tomorrow):** codex toolbar wrap in the narrow rail; popout toolbar on one line + "+ New" buttons single-line; the datalist chevron centred in the Electron client; the splitter drag + width persistence + `ResizeObserver` firing on a window drag + `cy.fit()` suppression for a saved View; `scene.view()`/`.activate()` from the popout + the folder-Node hint + the dbltap routing.
 
 ---
 
@@ -57,7 +27,7 @@
 - **Plain tickets:** #92/#94/#95 (one CSS-cleanup branch — codex toolbar buttons incl. dropping the redundant "Getting started" button, tag-dialog chevron, popout Layout select + def-editor "+ New"); #90 VIEW-002 (orthogonal `traversalCategory` lens: Geographic/Organizational/Story/Conflict — ADR-0007 pt 1 keeps it View-layer, no Core change); #91 VIEW-003 (canvas doesn't `cy.resize()` on window reposition + no inspector splitter); #99 VIEW-004 (per-node-type inspector action — hide "Open sheet" for folder-Nodes, "View scene" for Scenes); #96 ADAPT-025 (Node-marker pip in the native Journal/Actor sidebar — no render-directory hook exists yet); #97 ADAPT-026 (actor tagging only on the sheet header, not the Actors context menu like folders/journals); #93 CORE-008 (**decision:** add `Location` — name chosen over "Place" — as a generic place-like Node type; owes a `03_DOMAIN_MODEL.md` Node Decision entry).
 - **ADR-first, and they're a chain (each leans on the previous landing):** #98 ARCH-003 → **ADR-0016** — unify an entity split across Actor + whole-JournalEntry into one Node; **Alberto's call: a "Merge into this Node" action that re-points authored Relationships to the hub** (de-dupe collapsed edges, warn on self-loop), not just re-tag-at-source; generalize `attachedToNodeId` to whole JournalEntry + Scene + folder (un-defer ADAPT-019 #83), `same-entity-as` stays rejected. → #100 ARCH-004 → **ADR-0017** — Nodes carry a visual (Actor portrait / Scene preview / place-folder first-scene thumb) with a GM override; `Node.image?: string`, derive-in-mapper + `flags.archivexus.image` override resolved at sync time; ~5 impl tickets after the ADR. → #101 VIEW-005 → **ADR-0014 amendment** — render a Node's Blocks as expandable tiles *on* the graph node (reuse VIEW-001e compound machinery), not just the inspector list; "vital" per Alberto — it's why Blocks exist.
 
-**Formalized:** Nothing into `docs/` yet. Owed: CORE-008 → `03_DOMAIN_MODEL.md` Node Decision; #98 → ADR-0016 (or ADR-0011 Amendment 3); #100 → ADR-0017; #101 → ADR-0014 amendment.
+**Formalized:** the 12 tickets (#90–#101). `CHANGELOG.md` / `PROJECT.md` updated once the first 5 were built + merged (see the 2026-09-09/10 entry above). Still owed, per ticket: CORE-008 (#93) → `03_DOMAIN_MODEL.md` Node Decision; #98 → ADR-0016 (or ADR-0011 Amendment 3); #100 → ADR-0017; #101 → ADR-0014 amendment.
 
 **Working note:** Alberto now merges `feat/*` himself via PR (ADAPT-013 landed as a new hash `fab165a`, not the local branch commit) — local branches that were "awaiting merge" may already be in `dev` under a different hash; check `git diff origin/dev <branch>` before assuming work is unmerged.
 
