@@ -295,7 +295,7 @@ export function buildDefinitionEditorContentHTML(
     `<div class="archivexus-def-editor-list" data-role="list">` +
     `<div class="archivexus-def-editor-list-header">` +
     `<h3>Relationship types <span class="archivexus-def-count">${definitions.length}</span></h3>` +
-    `<button type="button" data-action="add" title="Start a new relationship type">+ New</button>` +
+    `<button type="button" class="ax-btn" data-action="add" title="Start a new relationship type">+ New</button>` +
     `</div>` +
     buildDefinitionListHTML(definitions, editingId) +
     `</div>` +
