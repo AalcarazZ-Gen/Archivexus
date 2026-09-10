@@ -40,7 +40,7 @@ Once the module is installed and enabled, Archivexus imports your world's Actors
 2. **Connect two Nodes.** From that same **⋯** menu choose *"New Relationship…"* to link them (resides-in, ally-of, member-of, …), or open the **Relationships** console from the Codex toolbar to list / search / create / delete every relationship in one place. *"Connections"* on a sheet lists what that Node already has.
 3. **See the graph.** Open the **Codex** sidebar tab (the share-nodes icon) and click *"Open graph ⧉"*, or click any Node in the list to open the graph rooted on it.
 
-The Codex tab's **"Getting started"** button reopens this guidance any time. The relationship *types* available in step 2 can be extended from the browser console via `game.modules.get('archivexus').api.saveRelationshipDefinition(...)` (a dedicated editor UI is planned — ADAPT-014).
+The Codex tab keeps this as a collapsible **"Getting started"** panel you can reopen any time. The relationship *types* available in step 2 can be added or edited from the **"Relationship types"** button on the Codex toolbar.
 
 ---
 
