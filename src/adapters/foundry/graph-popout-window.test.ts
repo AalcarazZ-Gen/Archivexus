@@ -9,6 +9,7 @@ import {
   buildGraphPopoutContentHTML,
   buildInspectorEmptyHTML,
   buildInspectorHTML,
+  clampInspectorWidth,
   gatherNodeConnections,
   openGraphPopout,
 } from './graph-popout-window.js';
@@ -77,6 +78,28 @@ describe('buildGraphPopoutContentHTML', () => {
     expect(buildGraphPopoutContentHTML({ isGM: false })).not.toContain(
       'data-action="togglePreview"',
     );
+  });
+
+  it('renders a keyboard-reachable resize splitter between canvas and inspector (VIEW-003)', () => {
+    const html = buildGraphPopoutContentHTML({ isGM: true });
+    expect(html).toContain('data-role="splitter"');
+    expect(html).toContain('role="separator"');
+    expect(html).toContain('tabindex="0"');
+    expect(html.indexOf('data-role="canvas"')).toBeLessThan(html.indexOf('data-role="splitter"'));
+    expect(html.indexOf('data-role="splitter"')).toBeLessThan(html.indexOf('data-role="inspector"'));
+  });
+});
+
+describe('clampInspectorWidth', () => {
+  it('keeps a value in range, clamps outside it, and rounds', () => {
+    expect(clampInspectorWidth(300)).toBe(300);
+    expect(clampInspectorWidth(120)).toBe(200);
+    expect(clampInspectorWidth(9000)).toBe(560);
+    expect(clampInspectorWidth(300.7)).toBe(301);
+  });
+
+  it('falls back to the default for a non-finite value', () => {
+    expect(clampInspectorWidth(Number.NaN)).toBe(264);
   });
 });
 

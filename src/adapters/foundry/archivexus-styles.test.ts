@@ -88,6 +88,12 @@ describe('ARCHIVEXUS_CSS', () => {
     expect(ARCHIVEXUS_CSS).toContain('.archivexus input[list]');
     expect(ARCHIVEXUS_CSS).toContain('::-webkit-calendar-picker-indicator');
   });
+
+  it('has a resize splitter and a variable-width inspector for the popout (VIEW-003)', () => {
+    expect(ARCHIVEXUS_CSS).toContain('.archivexus .ax-gp-splitter {');
+    expect(ARCHIVEXUS_CSS).toContain('cursor: col-resize');
+    expect(ARCHIVEXUS_CSS).toContain('var(--ax-gp-inspector-w, 264px)');
+  });
 });
 
 describe('node / edge colour maps', () => {
