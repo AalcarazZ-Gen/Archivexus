@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-09-09 (live-polish pass — first batch of findings triaged into tickets)
+
+**Discussed:** First hands-on review of the deployed module now that the ADR-0014/0015 arc is merged (`dev` @ `fab165a`, ADAPT-013 merged by Alberto). Alberto walked the module and surfaced ~10 issues; each verified against the code and filed as a ticket — **no implementation this session**. Batch = **#90–#101 (12 tickets)**.
+
+- **Plain tickets:** #92/#94/#95 (one CSS-cleanup branch — codex toolbar buttons incl. dropping the redundant "Getting started" button, tag-dialog chevron, popout Layout select + def-editor "+ New"); #90 VIEW-002 (orthogonal `traversalCategory` lens: Geographic/Organizational/Story/Conflict — ADR-0007 pt 1 keeps it View-layer, no Core change); #91 VIEW-003 (canvas doesn't `cy.resize()` on window reposition + no inspector splitter); #99 VIEW-004 (per-node-type inspector action — hide "Open sheet" for folder-Nodes, "View scene" for Scenes); #96 ADAPT-025 (Node-marker pip in the native Journal/Actor sidebar — no render-directory hook exists yet); #97 ADAPT-026 (actor tagging only on the sheet header, not the Actors context menu like folders/journals); #93 CORE-008 (**decision:** add `Location` — name chosen over "Place" — as a generic place-like Node type; owes a `03_DOMAIN_MODEL.md` Node Decision entry).
+- **ADR-first, and they're a chain (each leans on the previous landing):** #98 ARCH-003 → **ADR-0016** — unify an entity split across Actor + whole-JournalEntry into one Node; **Alberto's call: a "Merge into this Node" action that re-points authored Relationships to the hub** (de-dupe collapsed edges, warn on self-loop), not just re-tag-at-source; generalize `attachedToNodeId` to whole JournalEntry + Scene + folder (un-defer ADAPT-019 #83), `same-entity-as` stays rejected. → #100 ARCH-004 → **ADR-0017** — Nodes carry a visual (Actor portrait / Scene preview / place-folder first-scene thumb) with a GM override; `Node.image?: string`, derive-in-mapper + `flags.archivexus.image` override resolved at sync time; ~5 impl tickets after the ADR. → #101 VIEW-005 → **ADR-0014 amendment** — render a Node's Blocks as expandable tiles *on* the graph node (reuse VIEW-001e compound machinery), not just the inspector list; "vital" per Alberto — it's why Blocks exist.
+
+**Formalized:** Nothing into `docs/` yet. Owed: CORE-008 → `03_DOMAIN_MODEL.md` Node Decision; #98 → ADR-0016 (or ADR-0011 Amendment 3); #100 → ADR-0017; #101 → ADR-0014 amendment.
+
+**Working note:** Alberto now merges `feat/*` himself via PR (ADAPT-013 landed as a new hash `fab165a`, not the local branch commit) — local branches that were "awaiting merge" may already be in `dev` under a different hash; check `git diff origin/dev <branch>` before assuming work is unmerged.
+
+---
+
 ## 2026-09-08 (software-developer: ADAPT-013 — shared style baseline)
 
 **Built:** ADAPT-013 (#68), **the last ticket**, on `feat/adapt-013-style-baseline` off `dev` (VIEW-001ef merged first).
