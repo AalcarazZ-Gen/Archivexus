@@ -86,7 +86,7 @@ export function buildWelcomeDialogContent(counts: GuidanceCounts): string {
     `${plural(counts.definitionCount, 'relationship type')} to connect them with.</p>` +
     `<h3>Three steps to set up your world</h3>` +
     stepsListHTML() +
-    `<p>You can reopen this from the Codex tab’s <em>“Getting started”</em> button any time.</p>` +
+    `<p>The Codex tab keeps this as a <em>“Getting started”</em> panel you can reopen any time.</p>` +
     `</div>`
   );
 }
@@ -194,9 +194,9 @@ export interface GuidancePanelState {
 /**
  * The navigator's inline guidance panel — its proper empty state. Expanded
  * while the world has no authored Relationships, collapsed to a one-line
- * "▸ Getting started" toggle once at least one exists. The toggle and the
- * toolbar's "Getting started" button re-expand it (`codex-sidebar-tab.ts`
- * flips `[data-role="guidance-body"]`'s `hidden`).
+ * "▸ Getting started" toggle once at least one exists. Its own toggle
+ * re-expands it (`codex-sidebar-tab.ts` flips `[data-role="guidance-body"]`'s
+ * `hidden`).
  */
 export function buildGuidancePanelHTML(state: GuidancePanelState): string {
   const collapsed = state.relationshipCount > 0;

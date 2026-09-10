@@ -55,12 +55,12 @@ describe('buildNavigatorShellHTML', () => {
 
   it('includes the GM affordances by default, and omits them when isGM is false', () => {
     const gm = buildNavigatorShellHTML();
-    expect(gm).toContain('data-action="showGuidance"');
+    expect(gm).toContain('data-action="openConsole"');
     expect(gm).toContain('data-action="openDefinitionEditor"');
     expect(gm).toContain('data-role="guidance-mount"');
 
     const player = buildNavigatorShellHTML({ isGM: false });
-    expect(player).not.toContain('data-action="showGuidance"');
+    expect(player).not.toContain('data-action="openConsole"');
     expect(player).not.toContain('data-action="openDefinitionEditor"');
     expect(player).not.toContain('data-role="guidance-mount"');
   });
