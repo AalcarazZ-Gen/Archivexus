@@ -15,6 +15,12 @@ describe('buildJournalEntryPageNodeTagDialogContent', () => {
     expect(html).toContain('value="Lore"');
   });
 
+  it('wraps the body in .archivexus for the shared token layer (ADAPT-023)', () => {
+    expect(buildJournalEntryPageNodeTagDialogContent('Page.1', '', '')).toContain(
+      '<div class="archivexus"',
+    );
+  });
+
   it('renders a document-tags single element for the attach field, with no type restriction', () => {
     const html = buildJournalEntryPageNodeTagDialogContent('Page.1', '', '');
     expect(html).toContain('<document-tags single name="attachedToNodeId"');

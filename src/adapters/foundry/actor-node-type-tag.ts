@@ -114,7 +114,7 @@ export function buildNodeTypeDialogContent(
     .map((type) => `<option value="${escapeHtmlAttribute(type)}"></option>`)
     .join('');
   return (
-    `<div style="display:flex;flex-direction:column;gap:0.5em;">` +
+    `<div class="archivexus" style="display:flex;flex-direction:column;gap:0.5em;">` +
     `<label for="${datalistId}-input">Node Type</label>` +
     `<input type="text" id="${datalistId}-input" name="${DIALOG_INPUT_NAME}" list="${datalistId}" value="${escapeHtmlAttribute(currentValue)}" placeholder="e.g. Character" />` +
     `<datalist id="${datalistId}">${options}</datalist>` +

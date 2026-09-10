@@ -5,6 +5,7 @@
 
 import type { StorageProvider } from '../../core/storage/storage-provider.js';
 import { registerActorNodeTypeTag } from './actor-node-type-tag.js';
+import { ensureArchivexusStyles } from './archivexus-styles.js';
 import { registerCodexSidebarTab } from './codex-sidebar-tab.js';
 import { registerJournalEntryPageNodeTag } from './journal-entry-page-node-tag.js';
 import { bootstrapRelationshipDefinitions } from './relationship-definitions-bootstrap.js';
@@ -219,6 +220,11 @@ const scheduleContainmentReconcile = foundry.utils.debounce(() => {
 
 Hooks.once('init', () => {
   log.info('Initializing');
+  // One global injection so every `.archivexus`-wrapped fragment is styled —
+  // the tag DialogV2 bodies included, which have no render hook of their own
+  // (ADAPT-023). Per-surface `ensureArchivexusStyles()` calls stay for
+  // testability and are idempotent.
+  ensureArchivexusStyles();
   registerActorNodeTypeTag();
   registerJournalEntryPageNodeTag();
   registerRelationshipAuthoringEntryPoints(() => storage, log);

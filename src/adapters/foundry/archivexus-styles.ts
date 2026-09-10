@@ -385,6 +385,28 @@ export const ARCHIVEXUS_CSS = `
   background: var(--color-level-success-bg, rgba(0, 140, 0, 0.15));
   border: 1px solid var(--color-level-success-border, rgba(0, 140, 0, 0.4));
 }
+
+/* ---- 3f. tag dialogs (Node Type input + datalist) -------------------- */
+/*
+ * The "Archivexus Node Type" DialogV2 body wraps in .archivexus so it picks
+ * up the token layer (ADAPT-023). The datalist combobox's native dropdown
+ * indicator (Chromium/Electron) rendered vertically off-centre under
+ * Foundry's form CSS - pin the input's box metrics and re-centre the
+ * indicator.
+ */
+.archivexus input[list] {
+  box-sizing: border-box;
+  min-height: var(--input-height, 1.75rem);
+  padding: 0 0.4rem;
+  border-radius: var(--ax-radius);
+}
+.archivexus input[list]::-webkit-calendar-picker-indicator {
+  margin: 0 0 0 0.25rem;
+  align-self: center;
+  opacity: 0.6;
+  cursor: pointer;
+}
+.archivexus input[list]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 `;
 
 /** Injects the single Archivexus stylesheet into `<head>` once. Idempotent, safe to call on every surface render. */
