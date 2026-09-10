@@ -115,6 +115,18 @@ export const ARCHIVEXUS_CSS = `
 .archivexus .ax-btn:hover:not(:disabled) { background: var(--ax-hover-bg); }
 .archivexus .ax-btn:disabled { opacity: 0.45; cursor: default; }
 
+/* Plain <select> to match .ax-btn height so it sits on the same toolbar row. */
+.archivexus .ax-select {
+  border: var(--ax-border);
+  border-radius: var(--ax-radius);
+  background: var(--ax-sunken-bg);
+  color: var(--ax-text);
+  padding: 0.1rem 0.3rem;
+  font-size: var(--ax-font-sm);
+  line-height: 1.6;
+  max-width: 9rem;
+}
+
 .archivexus .ax-list { list-style: none; margin: 0; padding: 0; }
 .archivexus .ax-list-row {
   display: flex;
@@ -238,7 +250,10 @@ export const ARCHIVEXUS_CSS = `
 /* ---- 3b. graph popout (was ensureGraphPopoutStyles) ------------------- */
 
 .archivexus.archivexus-graph-popout { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.archivexus .ax-gp-layout { font-size: var(--ax-font-sm); color: var(--ax-muted); }
+.archivexus .ax-gp-layout {
+  display: inline-flex; align-items: center; gap: var(--ax-gap-xs);
+  font-size: var(--ax-font-sm); font-weight: normal; color: var(--ax-muted);
+}
 .archivexus .ax-gp-preview-banner {
   background: var(--color-warm-2, #6a4a1a); color: #fff;
   padding: var(--ax-gap-xs) var(--ax-pad); font-size: var(--ax-font-sm);
@@ -299,7 +314,7 @@ export const ARCHIVEXUS_CSS = `
 .archivexus .archivexus-console-filters { display: flex; flex-direction: column; gap: var(--ax-gap-sm); }
 .archivexus .archivexus-console-filter-row { display: flex; gap: var(--ax-gap); align-items: center; flex-wrap: wrap; }
 .archivexus .archivexus-console-filter-row [data-role="console-search"] { flex: 1 1 12rem; }
-.archivexus .archivexus-console-new { margin-left: auto; }
+.archivexus .archivexus-console-new { margin-left: auto; flex: 0 0 auto; }
 .archivexus .archivexus-console-check { display: flex; gap: 0.3rem; align-items: center; font-weight: normal; white-space: nowrap; }
 .archivexus .archivexus-console-chip {
   border: 1px solid var(--ax-border-color); border-radius: 999px; padding: 0.1rem 0.6rem;
@@ -332,6 +347,8 @@ export const ARCHIVEXUS_CSS = `
 .archivexus .archivexus-def-editor-list { flex: 1 1 55%; min-width: 0; }
 .archivexus .archivexus-def-editor-form { flex: 1 1 45%; min-width: 0; }
 .archivexus .archivexus-def-editor-list-header { display: flex; align-items: center; justify-content: space-between; gap: var(--ax-gap); }
+.archivexus .archivexus-def-editor-list-header .ax-btn { flex: 0 0 auto; }
+.archivexus .archivexus-def-editor-list-header h3 { min-width: 0; }
 .archivexus .archivexus-def-editor-list-header h3,
 .archivexus .archivexus-def-form-heading { margin: 0 0 var(--ax-pad); }
 .archivexus .archivexus-def-count { color: var(--ax-muted); font-weight: normal; }

@@ -79,6 +79,10 @@ describe('ARCHIVEXUS_CSS', () => {
     expect(ARCHIVEXUS_CSS).toMatch(/\.archivexus \.ax-btn:hover/);
     expect(ARCHIVEXUS_CSS).toMatch(/\.archivexus \.ax-btn:disabled/);
   });
+
+  it('carries the .ax-select primitive for toolbar dropdowns', () => {
+    expect(ARCHIVEXUS_CSS).toContain('.archivexus .ax-select {');
+  });
 });
 
 describe('node / edge colour maps', () => {

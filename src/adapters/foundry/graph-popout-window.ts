@@ -115,20 +115,20 @@ export function buildGraphPopoutContentHTML(options: { readonly isGM: boolean })
   ).join('');
 
   const previewControl = options.isGM
-    ? `<button type="button" data-action="togglePreview" aria-pressed="false">Preview as player</button>`
+    ? `<button type="button" class="ax-btn" data-action="togglePreview" aria-pressed="false">Preview as player</button>`
     : '';
 
   return (
     `<div class="archivexus archivexus-graph-popout">` +
     `<div class="ax-toolbar ax-gp-toolbar">` +
-    `<button type="button" data-action="wholeGraph">Whole graph</button>` +
+    `<button type="button" class="ax-btn" data-action="wholeGraph">Whole graph</button>` +
     `<span class="ax-segmented ax-gp-presets" role="group" aria-label="Traversal preset">` +
     `<button type="button" data-action="preset" data-preset="direct-only" aria-pressed="true">Direct</button>` +
     `<button type="button" data-action="preset" data-preset="everything-connected" aria-pressed="false">Everything</button>` +
     `<button type="button" data-action="preset" data-preset="curated-by-me" aria-pressed="false" title="Pick which relationships to keep, then save it as a named view">Curated</button>` +
     `</span>` +
-    `<button type="button" data-action="collapseClusters" data-role="collapse-clusters" hidden>Collapse clusters</button>` +
-    `<label class="ax-gp-layout">Layout <select data-action="changeLayout" data-role="layout">${layoutOptions}</select></label>` +
+    `<button type="button" class="ax-btn" data-action="collapseClusters" data-role="collapse-clusters" hidden>Collapse clusters</button>` +
+    `<label class="ax-gp-layout">Layout <select class="ax-select" data-action="changeLayout" data-role="layout">${layoutOptions}</select></label>` +
     previewControl +
     `</div>` +
     `<div class="ax-gp-preview-banner" data-role="preview-banner" hidden></div>` +

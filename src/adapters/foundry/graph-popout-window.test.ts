@@ -66,6 +66,12 @@ describe('buildGraphPopoutContentHTML', () => {
     expect(html).toContain('data-action="changeLayout"');
   });
 
+  it('puts the plain toolbar buttons and the layout select on the shared vocabulary', () => {
+    const html = buildGraphPopoutContentHTML({ isGM: true });
+    expect(html).toContain('class="ax-btn" data-action="wholeGraph"');
+    expect(html).toContain('<select class="ax-select" data-action="changeLayout"');
+  });
+
   it('shows the "Preview as player" control only for a GM', () => {
     expect(buildGraphPopoutContentHTML({ isGM: true })).toContain('data-action="togglePreview"');
     expect(buildGraphPopoutContentHTML({ isGM: false })).not.toContain(

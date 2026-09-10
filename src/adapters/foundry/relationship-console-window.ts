@@ -217,7 +217,7 @@ export function buildConsoleFiltersHTML(
     `<div class="archivexus-console-filters">` +
     `<div class="archivexus-console-filter-row">` +
     `<input type="search" data-role="console-search" placeholder="Search relationships…" value="${escapeHtml(filters.query)}" autocomplete="off" />` +
-    `<button type="button" data-action="newRelationship" class="archivexus-console-new">+ New relationship</button>` +
+    `<button type="button" data-action="newRelationship" class="ax-btn archivexus-console-new">+ New relationship</button>` +
     `</div>` +
     `<div class="archivexus-console-filter-row">` +
     `<select name="category" title="Filter by traversal category">${selectOptionsHTML(categoryEntries, filters.category, 'All categories')}</select>` +
