@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-09-09 (software-developer: CSS-cleanup family — #92 / #95 / #94)
+
+**Built:** the first batch branch, `feat/adapt-022-css-cleanup` off `dev`, 3 commits:
+
+- **ADAPT-022 (#92)** — new `.ax-btn` plain-button primitive in `archivexus-styles.ts` (ADAPT-013 shipped `.ax-toolbar`/`.ax-segmented` but left plain buttons on Foundry defaults). Codex navigator toolbar buttons carry it; `.archivexus-codex-toolbar` gap tightened. **Dropped the "Getting started" toolbar button** + its `showGuidance` action — the guidance panel below already has its own `▸ Getting started` toggle.
+- **ADAPT-024 (#95)** — new `.ax-select` primitive; graph popout `.ax-gp-layout` is `inline-flex` now (label + select on one line, was floating above the button row); popout plain buttons + def-editor `+ New` + console `+ New relationship` carry `.ax-btn`; def-editor header pins the button `flex: 0 0 auto`.
+- **ADAPT-023 (#94)** — `ensureArchivexusStyles()` now also runs once in `Hooks.once('init')` (module-entry.ts) so `.archivexus`-wrapped fragments with no render hook — the tag DialogV2 bodies — are styled. Both Node-Type dialog builders wrap in `<div class="archivexus">`; `archivexus-styles.ts` §3f pins `input[list]` box metrics and re-centres `::-webkit-calendar-picker-indicator`.
+
++6 tests (603 → 609). tsc / eslint / vitest / build:foundry-module clean (`archivexus.js` ~163 → ~164KB).
+
+**Not yet live-verified:** the codex toolbar row's real width/wrap; the popout toolbar on one line + both "+ New" buttons single-line; the datalist chevron actually centred in the Electron client. Branch pushed, not merged.
+
+---
+
 ## 2026-09-09 (live-polish pass — first batch of findings triaged into tickets)
 
 **Discussed:** First hands-on review of the deployed module now that the ADR-0014/0015 arc is merged (`dev` @ `fab165a`, ADAPT-013 merged by Alberto). Alberto walked the module and surfaced ~10 issues; each verified against the code and filed as a ticket — **no implementation this session**. Batch = **#90–#101 (12 tickets)**.
