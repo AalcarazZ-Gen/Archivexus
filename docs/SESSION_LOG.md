@@ -6,17 +6,33 @@
 
 ---
 
+## 2026-09-09 (software-developer: VIEW-004 — per-node-type inspector action)
+
+**Built:** VIEW-004 (#99) on `feat/view-004-inspector-actions`, rebased onto `dev` after VIEW-003.
+
+- `documentTypeFromId` exported from `graph-view-elements.ts` (was private).
+- `graph-popout-window.ts` — new pure `nodePrimaryAction(nodeId)` → `'sheet' | 'view-scene' | 'none'` keyed off the id prefix (`Folder` → none, `Scene` → view-scene, else sheet).
+  - `buildInspectorHTML(node, groups, { isGM })` — folder-Nodes lose "Open sheet"; a folder-Node with 0 blocks + 0 connections shows a one-line hint instead of the empty sections. Scene-Nodes get "View scene" + a GM-only "Activate". `buildContextMenuHTML(nodeId, { isGM })` mirrors it (no open item for folders).
+  - `buildBlockListHTML` block links carry `data-block-type`; the `openBlock` action routes a `scene` block to `viewSceneFor` (not the Scene config sheet).
+  - New glue `viewSceneFor` (`scene.view()`) / `activateSceneFor` (`scene.activate()`); dbltap + context menu route through `nodePrimaryAction`; both inspector + menu pass `isGM = isViewerGM() && !previewAsPlayer`.
+
++6 tests. tsc / eslint / vitest / build:foundry-module clean.
+
+**Not yet live-verified:** `scene.view()` / `.activate()` from the popout, the folder-Node hint, and the dbltap routing.
+
+---
+
 ## 2026-09-09 (software-developer: VIEW-003 — graph popout resize + inspector splitter)
 
-**Built:** VIEW-003 (#91) on `feat/view-003-resize-splitter` off `dev`. (Branched off `dev` not the VIEW-004 branch — independent; if both are open when merging, SESSION_LOG may conflict, resolve by keeping both entries.)
+**Built:** VIEW-003 (#91) on `feat/view-003-resize-splitter`, merged to `dev`.
 
 - `buildGraphPopoutContentHTML` — a `data-role="splitter"` (`role="separator"`, `tabindex="0"`) between `.ax-gp-canvas` and the inspector aside.
 - `archivexus-styles.ts` — `.ax-gp-splitter` (7px, `col-resize`, hover/focus tint); `.ax-gp-inspector` width is now `var(--ax-gp-inspector-w, 264px)`; `:has(> .ax-gp-inspector[hidden])` hides the splitter.
 - `graph-popout-window.ts` — pure `clampInspectorWidth` (200–560, rounds, NaN → 264); `loadInspectorWidth`/`persistInspectorWidth` via `localStorage['archivexus.graphPopout.inspectorWidth']` (try/caught). In the class: `#setupSplitter` (pointerdrag on document + Arrow-key nudge by 24px), `#observeCanvasResize` (ResizeObserver on the canvas → 80ms-debounced `cy.resize()` + `cy.fit()` **unless** `#layoutIsHandPlaced`), `#teardownResizeWiring` in `_onClose`. `#layoutIsHandPlaced` = true on `pendingLayout` apply or a node `dragfree`, false on any fresh auto-layout.
 
-+4 tests (609 → 613). tsc / eslint / vitest / build:foundry-module clean (`archivexus.js` ~167 → ~169KB).
++4 tests. tsc / eslint / vitest / build:foundry-module clean.
 
-**Not yet live-verified:** the splitter drag + width persistence, ResizeObserver firing on window drag, and `cy.fit()` being correctly suppressed for a loaded View / after a manual drag. Branch pushed, not merged.
+**Not yet live-verified:** the splitter drag + width persistence, ResizeObserver firing on window drag, and `cy.fit()` being correctly suppressed for a loaded View / after a manual drag.
 
 ---
 

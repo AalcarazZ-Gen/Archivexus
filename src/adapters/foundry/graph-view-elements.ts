@@ -71,7 +71,7 @@ export interface GraphViewEdgeElement {
 export type GraphViewElement = GraphViewNodeElement | GraphViewEdgeElement;
 
 /** A UUID like `Actor.abc` or `JournalEntry.abc.JournalEntryPage.def` → `Actor` / `JournalEntry`; anything without a `.` → `null`. */
-function documentTypeFromId(id: string): string | null {
+export function documentTypeFromId(id: string): string | null {
   const firstSegment = id.split('.')[0];
   return firstSegment && firstSegment !== id ? firstSegment : null;
 }

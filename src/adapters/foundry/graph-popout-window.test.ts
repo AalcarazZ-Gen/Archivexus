@@ -11,6 +11,7 @@ import {
   buildInspectorHTML,
   clampInspectorWidth,
   gatherNodeConnections,
+  nodePrimaryAction,
   openGraphPopout,
 } from './graph-popout-window.js';
 
@@ -180,6 +181,49 @@ describe('buildInspectorHTML', () => {
     const evil = createNode({ id: 'Actor.e', type: 'Lore', title: '<script>x</script>' });
     expect(buildInspectorHTML(evil, [])).not.toContain('<script>x</script>');
   });
+
+  it('drops "Open sheet" for a folder-Node and shows a hint when it has nothing attached (VIEW-004)', () => {
+    const folder = createNode({ id: 'Folder.abc', type: 'City', title: 'Neverwinter' });
+    const html = buildInspectorHTML(folder, []);
+    expect(html).not.toContain('data-action="openSelectedSheet"');
+    expect(html).toContain('no attached content yet');
+    expect(html).not.toContain('Attached (0)');
+  });
+
+  it('keeps the sections for a folder-Node that has blocks, still no "Open sheet" (VIEW-004)', () => {
+    const folder = createNode({
+      id: 'Folder.abc',
+      type: 'City',
+      title: 'Neverwinter',
+      blocks: [{ type: 'scene', uuid: 'Scene.market', title: 'Market' }],
+    });
+    const html = buildInspectorHTML(folder, []);
+    expect(html).not.toContain('data-action="openSelectedSheet"');
+    expect(html).toContain('Attached (1)');
+    expect(html).toContain('data-block-type="scene"');
+  });
+
+  it('offers "View scene" for a Scene-Node, and "Activate" only for a GM (VIEW-004)', () => {
+    const scene = createNode({ id: 'Scene.xyz', type: 'City', title: 'The Docks' });
+    const gm = buildInspectorHTML(scene, [], { isGM: true });
+    expect(gm).toContain('data-action="viewSelectedScene"');
+    expect(gm).toContain('data-action="activateSelectedScene"');
+    expect(gm).not.toContain('data-action="openSelectedSheet"');
+
+    const player = buildInspectorHTML(scene, [], { isGM: false });
+    expect(player).toContain('data-action="viewSelectedScene"');
+    expect(player).not.toContain('data-action="activateSelectedScene"');
+  });
+});
+
+describe('nodePrimaryAction', () => {
+  it('routes by backing document type', () => {
+    expect(nodePrimaryAction('Folder.abc')).toBe('none');
+    expect(nodePrimaryAction('Scene.abc')).toBe('view-scene');
+    expect(nodePrimaryAction('Actor.abc')).toBe('sheet');
+    expect(nodePrimaryAction('JournalEntry.a.JournalEntryPage.b')).toBe('sheet');
+    expect(nodePrimaryAction('no-dot-id')).toBe('sheet');
+  });
 });
 
 describe('buildInspectorEmptyHTML', () => {
@@ -195,6 +239,22 @@ describe('buildContextMenuHTML', () => {
     expect(html).toContain('data-action="menuReRoot"');
     expect(html).toContain('data-action="menuEverything"');
     expect((html.match(/data-node-id="Actor.kael"/g) ?? []).length).toBe(3);
+  });
+
+  it('omits the open item for a folder-Node (VIEW-004)', () => {
+    const html = buildContextMenuHTML('Folder.abc');
+    expect(html).not.toContain('data-action="menuOpenSheet"');
+    expect(html).not.toContain('data-action="menuViewScene"');
+    expect(html).toContain('data-action="menuReRoot"');
+  });
+
+  it('offers "View scene" for a Scene-Node, "Activate scene" only for a GM (VIEW-004)', () => {
+    expect(buildContextMenuHTML('Scene.xyz', { isGM: true })).toContain(
+      'data-action="menuActivateScene"',
+    );
+    const player = buildContextMenuHTML('Scene.xyz', { isGM: false });
+    expect(player).toContain('data-action="menuViewScene"');
+    expect(player).not.toContain('data-action="menuActivateScene"');
   });
 });
 

@@ -20,6 +20,7 @@ import { isViewerGM } from './foundry-viewer.js';
 import {
   buildGraphViewElements,
   collectTraversalNodes,
+  documentTypeFromId,
   filterNodesForViewer,
   filterTraversalForViewer,
   type GraphViewElement,
@@ -53,12 +54,13 @@ import { buildNodeConnections, type NodeConnectionGroup } from './node-connectio
  *
  * **What's pure and unit-tested:** `buildGraphPopoutContentHTML`,
  * `buildInspectorHTML`, `buildInspectorEmptyHTML`, `buildContextMenuHTML`,
- * `node-connections.ts`, `graph-view-elements.ts`, `graph-clusters.ts`,
- * `resolveTraversal` (CORE-005). **Still glue, flagged for live
- * verification:** the `ApplicationV2` window lifecycle, Cytoscape
+ * `nodePrimaryAction`, `node-connections.ts`, `graph-view-elements.ts`,
+ * `graph-clusters.ts`, `resolveTraversal` (CORE-005). **Still glue, flagged
+ * for live verification:** the `ApplicationV2` window lifecycle, Cytoscape
  * mounting/gestures inside it (including VIEW-001e's tap-to-expand on a
- * compound cluster node), `foundry.utils.fromUuid` + `sheet.render(true)`
- * sheet-opening, and the right-click context menu's positioning/dismissal.
+ * compound cluster node), `foundry.utils.fromUuid` + `sheet.render(true)` /
+ * `scene.view()` / `scene.activate()`, and the right-click context menu's
+ * positioning/dismissal.
  *
  * Non-GM viewers (and a GM with "Preview as player" on) only see Nodes
  * whose `visibility` isn't `hidden` (ADR-0003 / Amendment A4) —
@@ -159,6 +161,28 @@ function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;');
 }
 
+/**
+ * VIEW-004 — the primary thing a node's row/tap/context menu should do,
+ * keyed off the backing Foundry document type (the node id prefix):
+ * - `Folder` → `none`: a folder's only "sheet" is the rename/colour dialog,
+ *   never useful from the graph. The inspector drops the button.
+ * - `Scene` → `view-scene`: the GM wants to look at the map, not its config.
+ * - everything else (`Actor`, `JournalEntry`, a page uuid, unknown) →
+ *   `sheet`: unchanged, `fromUuid(id).sheet.render(true)`.
+ */
+export type NodePrimaryAction = 'sheet' | 'view-scene' | 'none';
+
+export function nodePrimaryAction(nodeId: string): NodePrimaryAction {
+  switch (documentTypeFromId(nodeId)) {
+    case 'Folder':
+      return 'none';
+    case 'Scene':
+      return 'view-scene';
+    default:
+      return 'sheet';
+  }
+}
+
 /** The window's static shell — toolbar, canvas mount, Inspector dock, status line. `isGM` gates the "Preview as player" control. */
 export function buildGraphPopoutContentHTML(options: { readonly isGM: boolean }): string {
   const layoutOptions = LAYOUT_OPTIONS.map(
@@ -246,7 +270,10 @@ function buildBlockListHTML(blocks: readonly Block[]): string {
   const items = blocks
     .map((block) => {
       const label = escapeHtml(block.title ?? block.uuid);
-      return `<li><a data-action="openBlock" data-uuid="${escapeHtml(block.uuid)}">${label}</a></li>`;
+      return (
+        `<li><a data-action="openBlock" data-uuid="${escapeHtml(block.uuid)}" ` +
+        `data-block-type="${escapeHtml(block.type)}">${label}</a></li>`
+      );
     })
     .join('');
   return `<ul class="ax-gp-insp-blocks">${items}</ul>`;
@@ -276,18 +303,45 @@ function buildConnectionsHTML(groups: readonly NodeConnectionGroup[]): string {
     .join('');
 }
 
-/** Inspector content for a selected Node — its type, attached Blocks (A3a), and grouped connections (ADR-0012 points 4–7). */
+/**
+ * Inspector content for a selected Node — its type, attached Blocks (A3a),
+ * and grouped connections (ADR-0012 points 4–7). VIEW-004: the header
+ * action is per node type — "Open sheet" for a doc, "View scene"
+ * (+ GM "Activate") for a Scene, nothing for a folder-Node; a folder-Node
+ * with nothing attached gets a one-line hint instead of empty sections.
+ */
 export function buildInspectorHTML(
   node: Node,
   connectionGroups: readonly NodeConnectionGroup[],
+  options: { readonly isGM?: boolean } = {},
 ): string {
   const totalConnections = connectionGroups.reduce((n, group) => n + group.rows.length, 0);
-  return (
+  const id = escapeHtml(node.id);
+  const action = nodePrimaryAction(node.id);
+
+  const actionButton =
+    action === 'view-scene'
+      ? `<button type="button" data-action="viewSelectedScene" data-node-id="${id}">View scene</button>` +
+        (options.isGM
+          ? `<button type="button" data-action="activateSelectedScene" data-node-id="${id}">Activate</button>`
+          : '')
+      : action === 'sheet'
+        ? `<button type="button" data-action="openSelectedSheet" data-node-id="${id}">Open sheet</button>`
+        : '';
+
+  const head =
     `<div class="ax-gp-insp-head">` +
     `<span class="ax-gp-insp-title">${escapeHtml(node.title)}</span>` +
     `<span class="ax-gp-insp-type">${escapeHtml(node.type)}</span>` +
-    `<button type="button" data-action="openSelectedSheet" data-node-id="${escapeHtml(node.id)}">Open sheet</button>` +
-    `</div>` +
+    actionButton +
+    `</div>`;
+
+  if (action === 'none' && node.blocks.length === 0 && totalConnections === 0) {
+    return head + `<p class="ax-gp-insp-none">This folder-Node has no attached content yet.</p>`;
+  }
+
+  return (
+    head +
     `<section class="ax-gp-insp-section">` +
     `<h4>Attached (${node.blocks.length})</h4>` +
     buildBlockListHTML(node.blocks) +
@@ -300,13 +354,29 @@ export function buildInspectorHTML(
 }
 
 /**
- * The right-click context menu (Amendment A3). "Add to favourites" is
- * deliberately not here yet — it needs VIEW-001d's `game.user`-flag store.
+ * The right-click context menu (Amendment A3). VIEW-004: the open/view item
+ * matches `nodePrimaryAction` — omitted entirely for a folder-Node.
+ * "Add to favourites" is deliberately not here yet — it needs VIEW-001d's
+ * `game.user`-flag store.
  */
-export function buildContextMenuHTML(nodeId: string): string {
+export function buildContextMenuHTML(nodeId: string, options: { readonly isGM?: boolean } = {}): string {
   const id = escapeHtml(nodeId);
+  const action = nodePrimaryAction(nodeId);
+  const openItem =
+    action === 'view-scene'
+      ? [
+          `<button type="button" data-action="menuViewScene" data-node-id="${id}">View scene</button>`,
+          ...(options.isGM
+            ? [
+                `<button type="button" data-action="menuActivateScene" data-node-id="${id}">Activate scene</button>`,
+              ]
+            : []),
+        ]
+      : action === 'sheet'
+        ? [`<button type="button" data-action="menuOpenSheet" data-node-id="${id}">Open sheet</button>`]
+        : [];
   const items = [
-    `<button type="button" data-action="menuOpenSheet" data-node-id="${id}">Open sheet</button>`,
+    ...openItem,
     `<button type="button" data-action="menuReRoot" data-node-id="${id}">Re-root graph here</button>`,
     `<button type="button" data-action="menuEverything" data-node-id="${id}">Everything connected from here</button>`,
   ];
@@ -401,6 +471,11 @@ interface FoundryDocumentWithSheetLike {
   readonly sheet?: { render(force?: boolean): unknown } | null;
 }
 
+interface FoundrySceneLike {
+  view?: () => unknown;
+  activate?: () => unknown;
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -411,6 +486,26 @@ async function openSheetFor(uuid: string, log: Logger): Promise<void> {
     doc?.sheet?.render(true);
   } catch (error) {
     log.error(`Graph popout: failed to open the sheet for "${uuid}": ${errorMessage(error)}`);
+  }
+}
+
+/** VIEW-004 — look at a Scene (no activation), for a Scene-backed Node or a `scene` Block. */
+async function viewSceneFor(uuid: string, log: Logger): Promise<void> {
+  try {
+    const scene = (await foundry.utils.fromUuid(uuid)) as FoundrySceneLike | null;
+    await scene?.view?.();
+  } catch (error) {
+    log.error(`Graph popout: failed to view the scene "${uuid}": ${errorMessage(error)}`);
+  }
+}
+
+/** VIEW-004 — activate a Scene (GM only, gated at the call site). */
+async function activateSceneFor(uuid: string, log: Logger): Promise<void> {
+  try {
+    const scene = (await foundry.utils.fromUuid(uuid)) as FoundrySceneLike | null;
+    await scene?.activate?.();
+  } catch (error) {
+    log.error(`Graph popout: failed to activate the scene "${uuid}": ${errorMessage(error)}`);
   }
 }
 
@@ -496,9 +591,30 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
           const id = target.getAttribute('data-node-id');
           if (id) void openSheetFor(id, this.#log);
         },
+        viewSelectedScene(
+          this: GraphPopoutApplication,
+          _event: unknown,
+          target: MinimalElementLike,
+        ): void {
+          const id = target.getAttribute('data-node-id');
+          if (id) void viewSceneFor(id, this.#log);
+        },
+        activateSelectedScene(
+          this: GraphPopoutApplication,
+          _event: unknown,
+          target: MinimalElementLike,
+        ): void {
+          const id = target.getAttribute('data-node-id');
+          if (id) void activateSceneFor(id, this.#log);
+        },
         openBlock(this: GraphPopoutApplication, _event: unknown, target: MinimalElementLike): void {
           const uuid = target.getAttribute('data-uuid');
-          if (uuid) void openSheetFor(uuid, this.#log);
+          if (!uuid) return;
+          if (target.getAttribute('data-block-type') === 'scene') {
+            void viewSceneFor(uuid, this.#log);
+          } else {
+            void openSheetFor(uuid, this.#log);
+          }
         },
         openConnected(
           this: GraphPopoutApplication,
@@ -605,7 +721,10 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       });
       this.#cy.on('dbltap', 'node', (event) => {
         const id = event.target.id();
-        if (!isClusterNodeId(id)) void openSheetFor(id, this.#log);
+        if (isClusterNodeId(id)) return;
+        const action = nodePrimaryAction(id);
+        if (action === 'sheet') void openSheetFor(id, this.#log);
+        else if (action === 'view-scene') void viewSceneFor(id, this.#log);
       });
       this.#cy.on('cxttap', 'node', (event) => {
         const id = event.target.id();
@@ -899,7 +1018,9 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
           storage.getNode(nodeId),
           gatherNodeConnections(storage, nodeId),
         ]);
-        inspector.innerHTML = node ? buildInspectorHTML(node, groups) : buildInspectorEmptyHTML();
+        inspector.innerHTML = node
+          ? buildInspectorHTML(node, groups, { isGM: isViewerGM() && !this.#previewAsPlayer })
+          : buildInspectorEmptyHTML();
       } catch (error) {
         this.#log.error(`Graph popout: failed to inspect "${nodeId}": ${errorMessage(error)}`);
       }
@@ -1138,7 +1259,9 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       // so the menu buttons are wired directly.
       const overlay = doc.createElement('div');
       overlay.setAttribute('class', 'ax-gp-context-overlay');
-      overlay.innerHTML = buildContextMenuHTML(nodeId);
+      overlay.innerHTML = buildContextMenuHTML(nodeId, {
+        isGM: isViewerGM() && !this.#previewAsPlayer,
+      });
       overlay.addEventListener('click', () => this.#dismissContextMenu());
       const menu = overlay.querySelector('[data-role="context-menu"]');
       if (menu?.style) {
@@ -1158,6 +1281,12 @@ function getGraphPopoutApplicationClass(): GraphPopoutConstructor {
       switch (action) {
         case 'menuOpenSheet':
           void openSheetFor(nodeId, this.#log);
+          break;
+        case 'menuViewScene':
+          void viewSceneFor(nodeId, this.#log);
+          break;
+        case 'menuActivateScene':
+          void activateSceneFor(nodeId, this.#log);
           break;
         case 'menuReRoot':
           this.#rootNodeId = nodeId;

@@ -149,6 +149,7 @@ export {
   buildGraphViewElements,
   buildGraphViewElementsFromTraversal,
   collectTraversalNodes,
+  documentTypeFromId,
   filterNodesForViewer,
   filterTraversalForViewer,
 } from './graph-view-elements.js';
